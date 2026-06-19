@@ -449,49 +449,51 @@ export function ArcLabPage() {
 
   return (
     <div data-testid="arc-lab-page">
-      <div className="flex gap-5 h-[calc(100vh-80px)]">
+      <div className="flex flex-col gap-5">
         <DemonstrationPanel pairs={state.train} />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
-          <TaskControls onNextTask={() => navigate('/solve/random')} />
+        <div className="flex flex-col gap-5 lg:flex-row">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <TaskControls onNextTask={() => navigate('/solve/random')} />
 
-          <TestInputPanel
-            input={state.inputGrid}
-            currentIndex={state.currentTestIndex}
-            total={state.test.length}
-            onNext={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
-          />
+            <TestInputPanel
+              input={state.inputGrid}
+              currentIndex={state.currentTestIndex}
+              total={state.test.length}
+              onNext={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
+            />
 
-          <OutputEditor
-            grid={state.outputGrid}
-            toolMode={state.toolMode}
-            selectedSymbol={state.selectedSymbol}
-            selectedCells={state.selectedCells}
-            sizeInput={state.sizeInput}
-            onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
-            onResize={() => dispatch({ type: 'RESIZE' })}
-            onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
-            onReset={() => dispatch({ type: 'RESET_OUTPUT' })}
-            onSubmit={() => dispatch({ type: 'SUBMIT' })}
-            onCellClick={(x, y) => dispatch({ type: 'CELL_CLICK', x, y })}
-            onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}
-            onToolModeChange={(mode) => dispatch({ type: 'SET_TOOL_MODE', mode })}
-            onSymbolSelect={handleSymbolSelect}
-          />
+            <OutputEditor
+              grid={state.outputGrid}
+              toolMode={state.toolMode}
+              selectedSymbol={state.selectedSymbol}
+              selectedCells={state.selectedCells}
+              sizeInput={state.sizeInput}
+              onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
+              onResize={() => dispatch({ type: 'RESIZE' })}
+              onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
+              onReset={() => dispatch({ type: 'RESET_OUTPUT' })}
+              onSubmit={() => dispatch({ type: 'SUBMIT' })}
+              onCellClick={(x, y) => dispatch({ type: 'CELL_CLICK', x, y })}
+              onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}
+              onToolModeChange={(mode) => dispatch({ type: 'SET_TOOL_MODE', mode })}
+              onSymbolSelect={handleSymbolSelect}
+            />
 
-          <Toast
-            message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
-            onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
+            <Toast
+              message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
+              onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
+            />
+          </div>
+
+          <CognitiveTimeline
+            nodes={state.graphNodes}
+            activeNodeId={state.activeNodeId}
+            onGoBack={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
+            onSubmit={handleCognitiveSubmit}
+            getLabel={(trigger) => getNodeLabel(trigger, t)}
           />
         </div>
-
-        <CognitiveTimeline
-          nodes={state.graphNodes}
-          activeNodeId={state.activeNodeId}
-          onGoBack={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
-          onSubmit={handleCognitiveSubmit}
-          getLabel={(trigger) => getNodeLabel(trigger, t)}
-        />
       </div>
     </div>
   )

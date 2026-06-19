@@ -52,7 +52,7 @@ export function CognitiveTimeline({
   return (
     <div
       data-testid="cognitive-timeline"
-      className="flex w-72 shrink-0 flex-col rounded-xl border border-gray-800 bg-gray-900"
+      className="flex w-full shrink-0 flex-col self-start rounded-xl border border-gray-800 bg-gray-900 lg:sticky lg:top-4 lg:max-h-[80vh] lg:w-72"
     >
       <div className="border-b border-gray-800 bg-gray-800/50 px-4 py-3">
         <span className="text-sm font-semibold text-gray-200">

@@ -14,6 +14,7 @@ const baseProps = {
   onCopyFromInput: vi.fn(),
   onReset: vi.fn(),
   onSubmit: vi.fn(),
+  onAbandon: vi.fn(),
   onCellClick: vi.fn(),
   onSelectionChange: vi.fn(),
   onToolModeChange: vi.fn(),
@@ -27,6 +28,7 @@ describe('OutputEditor', () => {
     expect(screen.getByTestId('copy-from-input')).toBeInTheDocument()
     expect(screen.getByTestId('reset-btn')).toBeInTheDocument()
     expect(screen.getByTestId('submit-btn')).toBeInTheDocument()
+    expect(screen.getByTestId('abandon-btn')).toBeInTheDocument()
   })
 
   it('renders the editable grid', () => {
@@ -64,19 +66,23 @@ describe('OutputEditor', () => {
     const onCopyFromInput = vi.fn()
     const onReset = vi.fn()
     const onSubmit = vi.fn()
+    const onAbandon = vi.fn()
     render(
       <OutputEditor
         {...baseProps}
         onCopyFromInput={onCopyFromInput}
         onReset={onReset}
         onSubmit={onSubmit}
+        onAbandon={onAbandon}
       />,
     )
     fireEvent.click(screen.getByTestId('copy-from-input'))
     fireEvent.click(screen.getByTestId('reset-btn'))
+    fireEvent.click(screen.getByTestId('abandon-btn'))
     fireEvent.click(screen.getByTestId('submit-btn'))
     expect(onCopyFromInput).toHaveBeenCalledTimes(1)
     expect(onReset).toHaveBeenCalledTimes(1)
+    expect(onAbandon).toHaveBeenCalledTimes(1)
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
