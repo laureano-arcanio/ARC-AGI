@@ -1,0 +1,65 @@
+services:
+  # Backend FastAPI application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+      - "5678:5678"
+    volumes:
+      - ./backend:/app
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dev-user:password@postgres:5432/dev_db
+      # REDIS_HOST: redis
+      # REDIS_PORT: 6379
+      ENVIRONMENT: local
+    profiles:
+      - local
+      # - dev
+
+  # Frontend React application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    profiles:
+      - local
+
+  # Postgres database for development
+  postgres:
+    image: pgvector/pgvector:pg15
+    restart: always
+    environment:
+      POSTGRES_USER: dev-user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dev_db
+    ports:
+      - 5432:5432
+    expose:
+      - "5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data:cached
+    profiles:
+      - local
+
+volumes:
+  db-data:
+  # langfuse_postgres_data:
+  #   driver: local
+  # langfuse_clickhouse_data:
+  #   driver: local
+  # langfuse_clickhouse_logs:
+  #   driver: local
+  # langfuse_minio_data:
+  #   driver: local

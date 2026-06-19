@@ -1,0 +1,35 @@
+# Docker configuration for the FastAPI backend container
+
+# Use the official Python base image
+FROM python:3.12
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the project files to the container
+COPY . .
+
+ENV ENVIRONMENT=${ENVIRONMENT}
+
+RUN apt update && \
+    apt install -y postgresql-client
+
+# Install Poetry
+RUN pip install --no-cache-dir poetry
+
+# Conditional logic to install dev dependencies
+RUN if [ "$ENVIRONMENT" = "prod" ] || [ "$ENVIRONMENT" = "staging" ]; then \
+    poetry install --no-root --only main; \
+    else \
+    poetry install --no-root; \
+    fi
+
+# Make the entrypoint script executable (with more explicit permissions)
+RUN chmod 755 ./scripts/entrypoint.api.sh
+# Make the entrypoint script executable
+RUN chmod +x ./scripts/entrypoint.api.sh
+
+# Expose the port that the application will run on
+EXPOSE 8000
+
+ENTRYPOINT ["./scripts/entrypoint.api.sh"]
