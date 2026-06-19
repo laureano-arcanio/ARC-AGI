@@ -10,7 +10,7 @@ export function AppRouter() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/health" element={<HealthPage />} />
-        <Route path="/arc-lab" element={<ArcLabPage />} />
+        <Route path="/solve/:taskId" element={<ArcLabPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

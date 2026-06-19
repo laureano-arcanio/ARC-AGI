@@ -1,5 +1,6 @@
 import { GridDisplay } from './GridDisplay'
 import { gridHeight, gridWidth } from '../utils'
+import { useTranslation } from '../../../lib/i18n'
 import type { TaskPair } from '../types'
 
 type DemonstrationPanelProps = {
@@ -8,16 +9,18 @@ type DemonstrationPanelProps = {
 }
 
 export function DemonstrationPanel({ pairs, showNumbers = false }: DemonstrationPanelProps) {
+  const { t } = useTranslation()
+
   return (
     <div
       data-testid="demonstration-panel"
       className="w-[460px] overflow-hidden rounded-xl border border-gray-800 bg-gray-900"
     >
       <div className="border-b border-gray-800 bg-gray-800/50 px-4 py-3 text-center text-sm font-semibold text-gray-200">
-        Task demonstration
+        {t('panel.demonstration')}
       </div>
 
-      <div className="max-h-[700px] overflow-y-auto">
+      <div>
         {pairs.map((pair, i) => {
           const inputH = gridHeight(pair.input)
           const inputW = gridWidth(pair.input)
@@ -31,7 +34,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
             >
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
-                  Input <span className="text-gray-400">{inputH}×{inputW}</span>
+                  {t('panel.input')} <span className="text-gray-400">{inputH}×{inputW}</span>
                 </span>
                 <div data-testid={`pair-${i}-input`}>
                   <GridDisplay grid={pair.input} showNumbers={showNumbers} containerSize={190} />
@@ -44,7 +47,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
-                  Output <span className="text-gray-400">{outputH}×{outputW}</span>
+                  {t('panel.output')} <span className="text-gray-400">{outputH}×{outputW}</span>
                 </span>
                 <div data-testid={`pair-${i}-output`}>
                   <GridDisplay grid={pair.output} showNumbers={showNumbers} containerSize={190} />
@@ -55,7 +58,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
         })}
         {pairs.length === 0 && (
           <div className="px-4 py-12 text-center text-sm text-gray-500">
-            Load a task to see demonstration examples.
+            {t('panel.empty')}
           </div>
         )}
       </div>

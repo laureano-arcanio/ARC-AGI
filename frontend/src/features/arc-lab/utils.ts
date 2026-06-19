@@ -66,23 +66,23 @@ export function floodfill(
 
 export type ParseSizeResult =
   | { ok: true; height: number; width: number }
-  | { ok: false; error: string }
+  | { ok: false; error: string; params?: Record<string, string | number> }
 
 export function parseSize(size: string): ParseSizeResult {
   const parts = size.split('x')
   if (parts.length !== 2) {
-    return { ok: false, error: 'Grid size should have the format "3x3", "5x7", etc.' }
+    return { ok: false, error: 'error.size_format' }
   }
   const height = Number(parts[0])
   const width = Number(parts[1])
   if (Number.isNaN(height) || Number.isNaN(width)) {
-    return { ok: false, error: 'Grid size should have the format "3x3", "5x7", etc.' }
+    return { ok: false, error: 'error.size_format' }
   }
   if (height < 1 || width < 1) {
-    return { ok: false, error: 'Grid size should be at least 1. Cannot have a grid with no cells.' }
+    return { ok: false, error: 'error.size_min' }
   }
   if (height > MAX_GRID_SIZE || width > MAX_GRID_SIZE) {
-    return { ok: false, error: `Grid size should be at most ${MAX_GRID_SIZE} per side. Pick a smaller size.` }
+    return { ok: false, error: 'error.size_max', params: { max: MAX_GRID_SIZE } }
   }
   return { ok: true, height, width }
 }

@@ -34,9 +34,8 @@ describe('OutputEditor', () => {
     expect(screen.getByTestId('editable-grid')).toBeInTheDocument()
   })
 
-  it('renders the toolbar and symbol picker', () => {
+  it('renders the symbol picker', () => {
     render(<OutputEditor {...baseProps} />)
-    expect(screen.getByTestId('toolbar')).toBeInTheDocument()
     expect(screen.getByTestId('symbol-picker')).toBeInTheDocument()
   })
 
@@ -84,15 +83,10 @@ describe('OutputEditor', () => {
   it('forwards cell clicks to onCellClick', () => {
     const onCellClick = vi.fn()
     render(<OutputEditor {...baseProps} onCellClick={onCellClick} />)
-    fireEvent.click(screen.getByTestId('0,0'))
+    const cell = screen.getByTestId('0,0')
+    fireEvent.mouseDown(cell)
+    fireEvent.mouseUp(cell)
     expect(onCellClick).toHaveBeenCalledWith(0, 0)
-  })
-
-  it('forwards tool mode changes', () => {
-    const onToolModeChange = vi.fn()
-    render(<OutputEditor {...baseProps} onToolModeChange={onToolModeChange} />)
-    fireEvent.click(screen.getByTestId('tool-select'))
-    expect(onToolModeChange).toHaveBeenCalledWith('select')
   })
 
   it('forwards symbol selection', () => {

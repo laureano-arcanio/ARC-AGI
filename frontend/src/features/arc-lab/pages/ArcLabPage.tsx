@@ -1,6 +1,7 @@
 import { useEffect, useReducer } from 'react'
-import { useRandomTask } from '../queries'
-import { readTaskFromFile } from '../api'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useRandomTasks, useTaskById } from '../queries'
+import { useTranslation } from '../../../lib/i18n'
 import {
   cloneGrid,
   createGrid,
@@ -26,7 +27,6 @@ import { DemonstrationPanel } from '../components/DemonstrationPanel'
 import { TestInputPanel } from '../components/TestInputPanel'
 import { OutputEditor } from '../components/OutputEditor'
 import { TaskControls } from '../components/TaskControls'
-import { TaskModal } from '../components/TaskModal'
 import { Toast } from '../components/Toast'
 
 type ArcLabState = {
@@ -37,23 +37,17 @@ type ArcLabState = {
   outputGrid: GridData
   toolMode: ToolMode
   selectedSymbol: number
-  showSymbolNumbers: boolean
   sizeInput: string
   clipboard: ClipboardEntry[] | null
   selectedCells: Set<string>
-  modalOpen: boolean
-  taskName: string | null
-  taskIndex: number | null
-  taskTotal: number | null
   message: ToastMessage | null
 }
 
 type Action =
-  | { type: 'LOAD_TASK'; task: ArcTask; name: string; index: number | null; total: number | null }
+  | { type: 'LOAD_TASK'; task: ArcTask }
   | { type: 'NEXT_TEST_INPUT' }
   | { type: 'SET_TOOL_MODE'; mode: ToolMode }
   | { type: 'SET_SYMBOL'; symbol: number }
-  | { type: 'SET_SHOW_NUMBERS'; value: boolean }
   | { type: 'SET_SIZE_INPUT'; value: string }
   | { type: 'RESIZE' }
   | { type: 'COPY_FROM_INPUT' }
@@ -66,7 +60,6 @@ type Action =
   | { type: 'PASTE' }
   | { type: 'SET_MESSAGE'; message: ToastMessage | null }
   | { type: 'DISMISS_MESSAGE' }
-  | { type: 'CLOSE_MODAL' }
 
 const initialState: ArcLabState = {
   train: [],
@@ -76,44 +69,38 @@ const initialState: ArcLabState = {
   outputGrid: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
   toolMode: 'edit',
   selectedSymbol: 0,
-  showSymbolNumbers: false,
   sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
   clipboard: null,
   selectedCells: new Set(),
-  modalOpen: true,
-  taskName: null,
-  taskIndex: null,
-  taskTotal: null,
   message: null,
+}
+
+function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
+  const firstTest = task.test[0]
+  const inputGrid = serializeGridToGridObject(firstTest.input)
+  return {
+    ...state,
+    train: task.train,
+    test: task.test,
+    currentTestIndex: 0,
+    inputGrid,
+    outputGrid: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
+    sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
+    selectedCells: new Set(),
+    clipboard: null,
+    message: null,
+  }
 }
 
 function reducer(state: ArcLabState, action: Action): ArcLabState {
   switch (action.type) {
     case 'LOAD_TASK': {
-      const { task, name, index, total } = action
-      const firstTest = task.test[0]
-      const inputGrid = serializeGridToGridObject(firstTest.input)
-      return {
-        ...state,
-        train: task.train,
-        test: task.test,
-        currentTestIndex: 0,
-        inputGrid,
-        outputGrid: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
-        sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
-        selectedCells: new Set(),
-        clipboard: null,
-        modalOpen: false,
-        taskName: name,
-        taskIndex: index,
-        taskTotal: total,
-        message: null,
-      }
+      return withTask(state, action.task)
     }
 
     case 'NEXT_TEST_INPUT': {
       if (state.test.length <= state.currentTestIndex + 1) {
-        return { ...state, message: { kind: 'error', text: 'No next test input. Pick another file?' } }
+        return { ...state, message: { kind: 'error', text: 'toast.no_next_test' } }
       }
       const nextIndex = state.currentTestIndex + 1
       const inputGrid = serializeGridToGridObject(state.test[nextIndex].input)
@@ -131,16 +118,13 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     case 'SET_SYMBOL':
       return { ...state, selectedSymbol: action.symbol }
 
-    case 'SET_SHOW_NUMBERS':
-      return { ...state, showSymbolNumbers: action.value }
-
     case 'SET_SIZE_INPUT':
       return { ...state, sizeInput: action.value }
 
     case 'RESIZE': {
       const parsed = parseSize(state.sizeInput)
       if (!parsed.ok) {
-        return { ...state, message: { kind: 'error', text: parsed.error } }
+        return { ...state, message: { kind: 'error', text: parsed.error, params: parsed.params } }
       }
       const dataGrid = cloneGrid(state.outputGrid)
       return {
@@ -173,14 +157,14 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     case 'SUBMIT': {
       const reference = state.test[state.currentTestIndex]?.output
       if (!reference) {
-        return { ...state, message: { kind: 'error', text: 'No test pair to check against.' } }
+        return { ...state, message: { kind: 'error', text: 'toast.no_test_pair' } }
       }
       const correct = gridsEqual(state.outputGrid, reference)
       return {
         ...state,
         message: correct
-          ? { kind: 'info', text: 'Correct solution!' }
-          : { kind: 'error', text: 'Wrong solution.' },
+          ? { kind: 'info', text: 'toast.correct' }
+          : { kind: 'error', text: 'toast.wrong' },
       }
     }
 
@@ -215,7 +199,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
 
     case 'COPY_SELECTION': {
       if (state.selectedCells.size === 0) {
-        return { ...state, message: { kind: 'error', text: 'No cells selected to copy.' } }
+        return { ...state, message: { kind: 'error', text: 'toast.no_cells' } }
       }
       const clipboard: ClipboardEntry[] = []
       for (const key of state.selectedCells) {
@@ -225,16 +209,16 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return {
         ...state,
         clipboard,
-        message: { kind: 'info', text: 'Cells copied! Select a target cell and press V to paste at location.' },
+        message: { kind: 'info', text: 'toast.cells_copied' },
       }
     }
 
     case 'PASTE': {
       if (!state.clipboard || state.clipboard.length === 0) {
-        return { ...state, message: { kind: 'error', text: 'No data to paste.' } }
+        return { ...state, message: { kind: 'error', text: 'toast.no_data_paste' } }
       }
       if (state.selectedCells.size !== 1) {
-        return { ...state, message: { kind: 'error', text: 'Select a target cell on the output grid.' } }
+        return { ...state, message: { kind: 'error', text: 'toast.select_target' } }
       }
       const targetKey = state.selectedCells.values().next().value as string
       const { x: targetX, y: targetY } = parseCellKey(targetKey)
@@ -249,47 +233,34 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     case 'DISMISS_MESSAGE':
       return { ...state, message: null }
 
-    case 'CLOSE_MODAL':
-      return { ...state, modalOpen: false }
-
     default:
       return state
   }
 }
 
 export function ArcLabPage() {
+  const { taskId } = useParams<{ taskId: string }>()
+  const navigate = useNavigate()
+  const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
-  const randomTaskMutation = useRandomTask()
 
-  const handleLoadFile = async (file: File) => {
-    try {
-      const { task, name } = await readTaskFromFile(file)
-      dispatch({ type: 'LOAD_TASK', task, name, index: null, total: null })
-    } catch (e) {
-      dispatch({ type: 'SET_MESSAGE', message: { kind: 'error', text: (e as Error).message } })
+  const { data: randomTasks, isFetched: randomFetched } = useRandomTasks(
+    1,
+    taskId === 'random',
+  )
+  const { data: specificTask } = useTaskById(taskId ?? '')
+
+  useEffect(() => {
+    if (taskId === 'random' && randomFetched && randomTasks && randomTasks.length > 0) {
+      navigate(`/solve/${randomTasks[0].id}`, { replace: true })
     }
-  }
+  }, [taskId, randomFetched, randomTasks, navigate])
 
-  const handleRandomTask = () => {
-    randomTaskMutation.mutate('training', {
-      onSuccess: (result) => {
-        dispatch({
-          type: 'LOAD_TASK',
-          task: result.task,
-          name: result.name,
-          index: result.index,
-          total: result.total,
-        })
-        dispatch({
-          type: 'SET_MESSAGE',
-          message: { kind: 'info', text: `Loaded task ${result.subset}/${result.name}` },
-        })
-      },
-      onError: (e) => {
-        dispatch({ type: 'SET_MESSAGE', message: { kind: 'error', text: (e as Error).message } })
-      },
-    })
-  }
+  useEffect(() => {
+    if (specificTask) {
+      dispatch({ type: 'LOAD_TASK', task: specificTask })
+    }
+  }, [specificTask])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -311,47 +282,28 @@ export function ArcLabPage() {
     if (state.toolMode === 'select') {
       dispatch({ type: 'FILL_SELECTED' })
     }
+    dispatch({ type: 'SET_TOOL_MODE', mode: 'edit' })
   }
 
   return (
     <div data-testid="arc-lab-page">
-      <TaskModal
-        open={state.modalOpen}
-        onLoadFile={handleLoadFile}
-        onRandomTask={handleRandomTask}
-        isFetchingRandom={randomTaskMutation.isPending}
-      />
-
       <div className="flex gap-5">
-        <DemonstrationPanel pairs={state.train} showNumbers={state.showSymbolNumbers} />
+        <DemonstrationPanel pairs={state.train} />
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <div className="flex gap-4">
-            <TestInputPanel
-              input={state.inputGrid}
-              currentIndex={state.currentTestIndex}
-              total={state.test.length}
-              showNumbers={state.showSymbolNumbers}
-              onNext={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
-            />
-          </div>
+          <TaskControls onNextTask={() => navigate('/solve/random')} />
 
-          <TaskControls
-            taskName={state.taskName}
-            taskIndex={state.taskIndex}
-            taskTotal={state.taskTotal}
-            showSymbolNumbers={state.showSymbolNumbers}
-            onShowSymbolNumbersChange={(value) => dispatch({ type: 'SET_SHOW_NUMBERS', value })}
-            onLoadFile={handleLoadFile}
-            onRandomTask={handleRandomTask}
-            isFetchingRandom={randomTaskMutation.isPending}
+          <TestInputPanel
+            input={state.inputGrid}
+            currentIndex={state.currentTestIndex}
+            total={state.test.length}
+            onNext={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
           />
 
           <OutputEditor
             grid={state.outputGrid}
             toolMode={state.toolMode}
             selectedSymbol={state.selectedSymbol}
-            showNumbers={state.showSymbolNumbers}
             selectedCells={state.selectedCells}
             sizeInput={state.sizeInput}
             onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
@@ -366,7 +318,7 @@ export function ArcLabPage() {
           />
 
           <Toast
-            message={state.message}
+            message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
             onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
           />
         </div>

@@ -1,14 +1,14 @@
 import { EditableGrid } from './EditableGrid'
-import { ToolBar } from './ToolBar'
 import { SymbolPicker } from './SymbolPicker'
 import { formatSize } from '../utils'
+import { useTranslation } from '../../../lib/i18n'
 import type { GridData, ToolMode } from '../types'
 
 type OutputEditorProps = {
   grid: GridData
   toolMode: ToolMode
   selectedSymbol: number
-  showNumbers: boolean
+  showNumbers?: boolean
   selectedCells: Set<string>
   sizeInput: string
   onSizeInputChange: (value: string) => void
@@ -26,7 +26,7 @@ export function OutputEditor({
   grid,
   toolMode,
   selectedSymbol,
-  showNumbers,
+  showNumbers = false,
   selectedCells,
   sizeInput,
   onSizeInputChange,
@@ -39,6 +39,7 @@ export function OutputEditor({
   onToolModeChange,
   onSymbolSelect,
 }: OutputEditorProps) {
+  const { t } = useTranslation()
   const handleSizeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') onResize()
   }
@@ -47,7 +48,7 @@ export function OutputEditor({
     <div data-testid="output-editor" className="mt-4 rounded-xl border border-gray-800 bg-gray-900 p-4">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-400">Size:</label>
+          <label className="text-xs text-gray-400">{t('label.size')}</label>
           <input
             type="text"
             value={sizeInput}
@@ -63,7 +64,7 @@ export function OutputEditor({
             data-testid="resize-btn"
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white"
           >
-            Resize
+            {t('button.resize')}
           </button>
         </div>
 
@@ -74,7 +75,7 @@ export function OutputEditor({
             data-testid="copy-from-input"
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white"
           >
-            Copy input
+            {t('button.copy_input')}
           </button>
           <button
             type="button"
@@ -82,7 +83,7 @@ export function OutputEditor({
             data-testid="reset-btn"
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white"
           >
-            Reset
+            {t('button.reset')}
           </button>
           <button
             type="button"
@@ -90,7 +91,7 @@ export function OutputEditor({
             data-testid="submit-btn"
             className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
           >
-            Submit!
+            {t('button.submit')}
           </button>
         </div>
       </div>
@@ -103,12 +104,11 @@ export function OutputEditor({
           selectedCells={selectedCells}
           onCellClick={onCellClick}
           onSelectionChange={onSelectionChange}
+          onToolModeChange={onToolModeChange}
         />
       </div>
 
-      <div className="mt-4 flex items-center gap-6">
-        <ToolBar toolMode={toolMode} onChange={onToolModeChange} />
-        <div className="h-6 w-px bg-gray-800" />
+      <div className="mt-4 flex items-center justify-center gap-6">
         <SymbolPicker selectedSymbol={selectedSymbol} onSelect={onSymbolSelect} />
       </div>
 

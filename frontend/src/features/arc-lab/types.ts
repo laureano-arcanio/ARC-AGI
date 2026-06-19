@@ -10,6 +10,10 @@ export type ArcTask = {
   test: TaskPair[]
 }
 
+export type ArcTaskRead = ArcTask & {
+  id: string
+}
+
 export type ToolMode = 'edit' | 'select' | 'floodfill'
 
 export type CellCoord = {
@@ -26,6 +30,7 @@ export type ToastKind = 'error' | 'info'
 export type ToastMessage = {
   kind: ToastKind
   text: string
+  params?: Record<string, string | number>
 }
 
 export const SYMBOL_COUNT = 10
@@ -47,6 +52,3 @@ export const COLOR_MAP: Record<number, string> = {
   8: '#7FDBFF',
   9: '#870C25',
 }
-
-export const ARC_SUBSETS = ['training', 'evaluation'] as const
-export type ArcSubset = (typeof ARC_SUBSETS)[number]

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../lib/i18n'
 import type { ToolMode } from '../types'
 
 type ToolBarProps = {
@@ -5,16 +6,18 @@ type ToolBarProps = {
   onChange: (mode: ToolMode) => void
 }
 
-const TOOLS: Array<{ value: ToolMode; label: string }> = [
-  { value: 'edit', label: 'Edit' },
-  { value: 'select', label: 'Select' },
-  { value: 'floodfill', label: 'Flood fill' },
+const TOOL_KEYS: Array<{ value: ToolMode; labelKey: string }> = [
+  { value: 'edit', labelKey: 'tool.edit' },
+  { value: 'select', labelKey: 'tool.select' },
+  { value: 'floodfill', labelKey: 'tool.flood_fill' },
 ]
 
 export function ToolBar({ toolMode, onChange }: ToolBarProps) {
+  const { t } = useTranslation()
+
   return (
     <div data-testid="toolbar" className="flex gap-1">
-      {TOOLS.map((tool) => {
+      {TOOL_KEYS.map((tool) => {
         const active = toolMode === tool.value
         return (
           <button
@@ -29,7 +32,7 @@ export function ToolBar({ toolMode, onChange }: ToolBarProps) {
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
             }`}
           >
-            {tool.label}
+            {t(tool.labelKey)}
           </button>
         )
       })}

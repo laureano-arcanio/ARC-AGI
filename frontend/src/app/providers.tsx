@@ -1,6 +1,7 @@
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './queryClient'
+import { I18nProvider } from '../lib/i18n'
 import type { ReactNode } from 'react'
 
 type ProvidersProps = {
@@ -10,9 +11,11 @@ type ProvidersProps = {
 export function Providers({ children }: ProvidersProps) {
   return (
     <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <I18nProvider>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </I18nProvider>
     </BrowserRouter>
   )
 }

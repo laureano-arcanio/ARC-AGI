@@ -1,27 +1,30 @@
 import type { ReactNode } from 'react'
+import { useTranslation, LanguageSwitcher } from '../lib/i18n'
 
 type LayoutProps = {
   children: ReactNode
 }
 
 export function Layout({ children }: LayoutProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <nav className="border-b border-gray-800 px-6 py-4">
-        <div className="mx-auto flex max-w-4xl items-center gap-6">
+        <div className="mx-auto flex max-w-6xl items-center gap-6">
           <a href="/" className="text-lg font-semibold tracking-tight">
-            FastAPI Next Starter
+            {t('nav.brand')}
           </a>
-          <div className="flex gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm">
             <a href="/" className="text-gray-400 transition hover:text-white">
-              Home
+              {t('nav.home')}
             </a>
-            <a href="/health" className="text-gray-400 transition hover:text-white">
-              Health
+            <a href="/solve/random" className="text-gray-400 transition hover:text-white">
+              {t('nav.solve')}
             </a>
-            <a href="/arc-lab" className="text-gray-400 transition hover:text-white">
-              ARC Lab
-            </a>
+          </div>
+          <div className="ml-auto">
+            <LanguageSwitcher />
           </div>
         </div>
       </nav>

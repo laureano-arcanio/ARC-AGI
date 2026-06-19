@@ -131,7 +131,7 @@ def _history_mapper(local_mapper):  # type: ignore
         # been added and add them to the history table.
         for column in local_mapper.local_table.c:
             if column.key not in super_history_table.c:
-                col = Column(column.name, column.type, nullable=column.nullable)  # type: ignore[var-annotated]
+                col = Column(column.name, column.type, nullable=column.nullable)
                 super_history_table.append_column(col)
 
     if not super_mapper:

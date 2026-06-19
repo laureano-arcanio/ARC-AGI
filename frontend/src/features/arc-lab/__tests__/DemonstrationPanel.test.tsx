@@ -11,7 +11,7 @@ const pairs: TaskPair[] = [
 describe('DemonstrationPanel', () => {
   it('renders a header', () => {
     render(<DemonstrationPanel pairs={pairs} />)
-    expect(screen.getByText('Task demonstration')).toBeInTheDocument()
+    expect(screen.getByText('panel.demonstration')).toBeInTheDocument()
   })
 
   it('renders one pair preview per training pair', () => {
@@ -30,6 +30,6 @@ describe('DemonstrationPanel', () => {
 
   it('shows a placeholder when no pairs', () => {
     render(<DemonstrationPanel pairs={[]} />)
-    expect(screen.getByText(/Load a task to see demonstration/)).toBeInTheDocument()
+    expect(screen.getByText('panel.empty')).toBeInTheDocument()
   })
 })

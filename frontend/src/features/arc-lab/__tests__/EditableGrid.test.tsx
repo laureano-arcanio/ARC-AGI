@@ -36,7 +36,9 @@ describe('EditableGrid', () => {
         onSelectionChange={vi.fn()}
       />,
     )
-    fireEvent.click(screen.getByTestId('1,1'))
+    const cell = screen.getByTestId('1,1')
+    fireEvent.mouseDown(cell)
+    fireEvent.mouseUp(cell)
     expect(onCellClick).toHaveBeenCalledWith(1, 1)
   })
 
@@ -52,7 +54,9 @@ describe('EditableGrid', () => {
         onSelectionChange={vi.fn()}
       />,
     )
-    fireEvent.click(screen.getByTestId('0,0'))
+    const cell = screen.getByTestId('0,0')
+    fireEvent.mouseDown(cell)
+    fireEvent.mouseUp(cell)
     expect(onCellClick).toHaveBeenCalledWith(0, 0)
   })
 
@@ -69,8 +73,11 @@ describe('EditableGrid', () => {
         onSelectionChange={onSelectionChange}
       />,
     )
-    fireEvent.click(screen.getByTestId('0,0'))
+    const cell = screen.getByTestId('0,0')
+    fireEvent.mouseDown(cell)
+    fireEvent.mouseUp(cell)
     expect(onCellClick).not.toHaveBeenCalled()
+    expect(onSelectionChange).toHaveBeenCalled()
   })
 
   it('starts a selection on mousedown in select mode', () => {

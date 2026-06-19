@@ -7,7 +7,7 @@ from app.errors import (
     global_exception_handler,
     object_not_found_handler,
 )
-from app.routers import example_table
+from app.routers import arc_task, example_table
 
 app = FastAPI(
     title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
@@ -27,6 +27,7 @@ app.exception_handler(ObjectNotFoundError)(object_not_found_handler)
 app.exception_handler(Exception)(global_exception_handler)
 
 app.include_router(example_table.router)
+app.include_router(arc_task.router)
 
 
 @app.get("/api/health")

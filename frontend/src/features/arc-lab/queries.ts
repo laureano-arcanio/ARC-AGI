@@ -1,21 +1,28 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { fetchRandomTask, listTasks } from './api'
-import type { ArcSubset } from './types'
+import { useQuery } from '@tanstack/react-query'
+import { fetchRandomTasks, fetchTaskById } from './api'
 
 export const arcQueryKeys = {
   all: ['arc-lab'] as const,
-  taskList: (subset: ArcSubset) => [...arcQueryKeys.all, 'tasks', subset] as const,
+  randomTasks: (count: number) => [...arcQueryKeys.all, 'random-tasks', count] as const,
+  taskById: (taskId: string) => [...arcQueryKeys.all, 'task', taskId] as const,
 }
 
-export function useTaskList(subset: ArcSubset = 'training') {
+export function useRandomTasks(count = 10, enabled = true) {
   return useQuery({
-    queryKey: arcQueryKeys.taskList(subset),
-    queryFn: () => listTasks(subset),
+    queryKey: arcQueryKeys.randomTasks(count),
+    queryFn: () => fetchRandomTasks(count),
+    enabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   })
 }
 
-export function useRandomTask() {
-  return useMutation({
-    mutationFn: (subset: ArcSubset = 'training') => fetchRandomTask(subset),
+export function useTaskById(taskId: string) {
+  return useQuery({
+    queryKey: arcQueryKeys.taskById(taskId),
+    queryFn: () => fetchTaskById(taskId),
+    enabled: taskId.length > 0 && taskId !== 'random',
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   })
 }

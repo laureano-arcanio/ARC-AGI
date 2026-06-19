@@ -31,4 +31,25 @@ describe('TestInputPanel', () => {
     )
     expect(screen.getByTestId('0,0').textContent).toBe('7')
   })
+
+  it('shows a warning when there are multiple test inputs and not on the last one', () => {
+    render(
+      <TestInputPanel input={[[1]]} currentIndex={0} total={3} onNext={vi.fn()} />,
+    )
+    expect(screen.getByText('panel.multi_test_warning')).toBeInTheDocument()
+  })
+
+  it('hides the warning on the last test input', () => {
+    render(
+      <TestInputPanel input={[[1]]} currentIndex={2} total={3} onNext={vi.fn()} />,
+    )
+    expect(screen.queryByText('panel.multi_test_warning')).not.toBeInTheDocument()
+  })
+
+  it('hides the warning when there is only one test input', () => {
+    render(
+      <TestInputPanel input={[[1]]} currentIndex={0} total={1} onNext={vi.fn()} />,
+    )
+    expect(screen.queryByText('panel.multi_test_warning')).not.toBeInTheDocument()
+  })
 })
