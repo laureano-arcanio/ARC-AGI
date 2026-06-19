@@ -19,10 +19,13 @@ export function Layout({ children }: LayoutProps) {
             <a href="/health" className="text-gray-400 transition hover:text-white">
               Health
             </a>
+            <a href="/arc-lab" className="text-gray-400 transition hover:text-white">
+              ARC Lab
+            </a>
           </div>
         </div>
       </nav>
-      <main className="mx-auto max-w-4xl px-6 py-12">{children}</main>
+      <main className="mx-auto max-w-[1440px] px-6 py-12">{children}</main>
     </div>
   )
 }
