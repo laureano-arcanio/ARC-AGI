@@ -18,6 +18,9 @@ import {
   DEFAULT_GRID_WIDTH,
   type ArcTask,
   type ClipboardEntry,
+  type CognitiveIntent,
+  type GraphNode,
+  type GraphTrigger,
   type GridData,
   type TaskPair,
   type ToastMessage,
@@ -28,6 +31,7 @@ import { TestInputPanel } from '../components/TestInputPanel'
 import { OutputEditor } from '../components/OutputEditor'
 import { TaskControls } from '../components/TaskControls'
 import { Toast } from '../components/Toast'
+import { CognitiveTimeline } from '../components/CognitiveTimeline'
 
 type ArcLabState = {
   train: TaskPair[]
@@ -41,6 +45,9 @@ type ArcLabState = {
   clipboard: ClipboardEntry[] | null
   selectedCells: Set<string>
   message: ToastMessage | null
+  graphNodes: GraphNode[]
+  activeNodeId: string | null
+  nextNodeId: number
 }
 
 type Action =
@@ -60,6 +67,39 @@ type Action =
   | { type: 'PASTE' }
   | { type: 'SET_MESSAGE'; message: ToastMessage | null }
   | { type: 'DISMISS_MESSAGE' }
+  | { type: 'TRAVEL_TO_NODE'; nodeId: string }
+  | { type: 'ADD_COGNITIVE_NODE'; intent: CognitiveIntent; text: string }
+
+function makeNodeId(n: number): string {
+  return `node_${String(n).padStart(3, '0')}`
+}
+
+function addNode(
+  state: ArcLabState,
+  trigger: GraphTrigger,
+): Pick<ArcLabState, 'graphNodes' | 'activeNodeId' | 'nextNodeId'> {
+  const id = makeNodeId(state.nextNodeId)
+  const node: GraphNode = {
+    id,
+    trigger,
+    stateSnapshot: cloneGrid(state.outputGrid),
+    parentId: state.activeNodeId,
+    timestamp: Date.now(),
+  }
+  return {
+    graphNodes: [...state.graphNodes, node],
+    activeNodeId: id,
+    nextNodeId: state.nextNodeId + 1,
+  }
+}
+
+const initialRootNode: GraphNode = {
+  id: 'node_000',
+  trigger: { kind: 'mechanical', action: 'load_task' },
+  stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
+  parentId: null,
+  timestamp: Date.now(),
+}
 
 const initialState: ArcLabState = {
   train: [],
@@ -73,18 +113,22 @@ const initialState: ArcLabState = {
   clipboard: null,
   selectedCells: new Set(),
   message: null,
+  graphNodes: [initialRootNode],
+  activeNodeId: 'node_000',
+  nextNodeId: 1,
 }
 
 function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
   const firstTest = task.test[0]
   const inputGrid = serializeGridToGridObject(firstTest.input)
+  const outputGrid = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
   return {
     ...state,
     train: task.train,
     test: task.test,
     currentTestIndex: 0,
     inputGrid,
-    outputGrid: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
+    outputGrid,
     sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
     selectedCells: new Set(),
     clipboard: null,
@@ -95,7 +139,20 @@ function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
 function reducer(state: ArcLabState, action: Action): ArcLabState {
   switch (action.type) {
     case 'LOAD_TASK': {
-      return withTask(state, action.task)
+      const base = withTask(state, action.task)
+      const root: GraphNode = {
+        id: 'node_000',
+        trigger: { kind: 'mechanical', action: 'load_task' },
+        stateSnapshot: cloneGrid(base.outputGrid),
+        parentId: null,
+        timestamp: Date.now(),
+      }
+      return {
+        ...base,
+        graphNodes: [root],
+        activeNodeId: 'node_000',
+        nextNodeId: 1,
+      }
     }
 
     case 'NEXT_TEST_INPUT': {
@@ -127,30 +184,49 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         return { ...state, message: { kind: 'error', text: parsed.error, params: parsed.params } }
       }
       const dataGrid = cloneGrid(state.outputGrid)
-      return {
-        ...state,
-        outputGrid: createGrid(parsed.height, parsed.width, dataGrid),
-        selectedCells: new Set(),
-      }
+      const outputGrid = createGrid(parsed.height, parsed.width, dataGrid)
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'resize', details: { size: formatSize(parsed.height, parsed.width) } },
+      )
+      return { ...state, outputGrid, selectedCells: new Set(), ...graph }
     }
 
     case 'COPY_FROM_INPUT': {
       const outputGrid = serializeGridToGridObject(state.inputGrid)
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'copy_from_input' },
+      )
       return {
         ...state,
         outputGrid,
         sizeInput: formatSize(outputGrid.length, outputGrid[0].length),
         selectedCells: new Set(),
+        ...graph,
       }
     }
 
     case 'RESET_OUTPUT': {
       const outputGrid = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
+      const rootNode = state.graphNodes[0]
+      const id = makeNodeId(state.nextNodeId)
+      const node: GraphNode = {
+        id,
+        trigger: { kind: 'mechanical', action: 'reset_output' },
+        stateSnapshot: cloneGrid(outputGrid),
+        parentId: rootNode?.id ?? state.activeNodeId,
+        timestamp: Date.now(),
+      }
       return {
         ...state,
         outputGrid,
         sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
         selectedCells: new Set(),
+        graphNodes: [...state.graphNodes, node],
+        activeNodeId: id,
+        nextNodeId: state.nextNodeId + 1,
+        message: { kind: 'info', text: 'timeline.branch_discarded' },
       }
     }
 
@@ -160,8 +236,13 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         return { ...state, message: { kind: 'error', text: 'toast.no_test_pair' } }
       }
       const correct = gridsEqual(state.outputGrid, reference)
+      const graph = addNode(
+        state,
+        { kind: 'mechanical', action: 'submit', details: { correct } },
+      )
       return {
         ...state,
+        ...graph,
         message: correct
           ? { kind: 'info', text: 'toast.correct' }
           : { kind: 'error', text: 'toast.wrong' },
@@ -172,12 +253,20 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       if (state.toolMode === 'edit') {
         const outputGrid = cloneGrid(state.outputGrid)
         outputGrid[action.x][action.y] = state.selectedSymbol
-        return { ...state, outputGrid }
+        const graph = addNode(
+          { ...state, outputGrid },
+          { kind: 'mechanical', action: 'cell_click', details: { x: action.x, y: action.y, symbol: state.selectedSymbol } },
+        )
+        return { ...state, outputGrid, ...graph }
       }
       if (state.toolMode === 'floodfill') {
         const outputGrid = cloneGrid(state.outputGrid)
         floodfill(outputGrid, action.x, action.y, state.selectedSymbol)
-        return { ...state, outputGrid }
+        const graph = addNode(
+          { ...state, outputGrid },
+          { kind: 'mechanical', action: 'fill_selected', details: { x: action.x, y: action.y, symbol: state.selectedSymbol } },
+        )
+        return { ...state, outputGrid, ...graph }
       }
       return state
     }
@@ -194,7 +283,11 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           outputGrid[x][y] = state.selectedSymbol
         }
       }
-      return { ...state, outputGrid }
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'fill_selected', details: { count: state.selectedCells.size, symbol: state.selectedSymbol } },
+      )
+      return { ...state, outputGrid, ...graph }
     }
 
     case 'COPY_SELECTION': {
@@ -224,7 +317,11 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const { x: targetX, y: targetY } = parseCellKey(targetKey)
       const outputGrid = cloneGrid(state.outputGrid)
       pasteClipboard(outputGrid, state.clipboard, targetX, targetY)
-      return { ...state, outputGrid }
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'paste' },
+      )
+      return { ...state, outputGrid, ...graph }
     }
 
     case 'SET_MESSAGE':
@@ -233,8 +330,69 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     case 'DISMISS_MESSAGE':
       return { ...state, message: null }
 
+    case 'TRAVEL_TO_NODE': {
+      const target = state.graphNodes.find((n) => n.id === action.nodeId)
+      if (!target) return state
+      return {
+        ...state,
+        outputGrid: cloneGrid(target.stateSnapshot),
+        activeNodeId: target.id,
+      }
+    }
+
+    case 'ADD_COGNITIVE_NODE': {
+      const graph = addNode(
+        state,
+        { kind: 'cognitive', intent: action.intent, text: action.text },
+      )
+      return { ...state, ...graph }
+    }
+
     default:
       return state
+  }
+}
+
+function getNodeLabel(
+  trigger: GraphTrigger,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  if (trigger.kind === 'cognitive') {
+    const prefix = trigger.intent === 'observation'
+      ? '👁️'
+      : trigger.intent === 'hypothesis'
+        ? '💡'
+        : '❌'
+    return `${prefix} ${trigger.text}`
+  }
+  switch (trigger.action) {
+    case 'load_task':
+      return t('log.load_task')
+    case 'cell_click': {
+      const d = trigger.details ?? {}
+      return t('log.cell_click', { x: Number(d.x), y: Number(d.y), symbol: Number(d.symbol) })
+    }
+    case 'fill_selected': {
+      const d = trigger.details ?? {}
+      return t('log.fill_selected', { count: Number(d.count), symbol: Number(d.symbol) })
+    }
+    case 'paste':
+      return t('log.paste')
+    case 'resize': {
+      const d = trigger.details ?? {}
+      return t('log.resize', { size: String(d.size ?? '') })
+    }
+    case 'copy_from_input':
+      return t('log.copy_from_input')
+    case 'reset_output':
+      return t('log.reset_output')
+    case 'submit': {
+      const d = trigger.details ?? {}
+      const correct = d.correct ? ' ✓' : ' ✗'
+      return t('log.submit') + correct
+    }
+    default:
+      return trigger.action
   }
 }
 
@@ -285,12 +443,16 @@ export function ArcLabPage() {
     dispatch({ type: 'SET_TOOL_MODE', mode: 'edit' })
   }
 
+  const handleCognitiveSubmit = (intent: CognitiveIntent, text: string) => {
+    dispatch({ type: 'ADD_COGNITIVE_NODE', intent, text })
+  }
+
   return (
     <div data-testid="arc-lab-page">
-      <div className="flex gap-5">
+      <div className="flex gap-5 h-[calc(100vh-80px)]">
         <DemonstrationPanel pairs={state.train} />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
           <TaskControls onNextTask={() => navigate('/solve/random')} />
 
           <TestInputPanel
@@ -322,6 +484,14 @@ export function ArcLabPage() {
             onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
           />
         </div>
+
+        <CognitiveTimeline
+          nodes={state.graphNodes}
+          activeNodeId={state.activeNodeId}
+          onGoBack={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
+          onSubmit={handleCognitiveSubmit}
+          getLabel={(trigger) => getNodeLabel(trigger, t)}
+        />
       </div>
     </div>
   )

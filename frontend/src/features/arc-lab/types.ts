@@ -40,6 +40,30 @@ export const MAX_GRID_SIZE = 30
 export const DEFAULT_GRID_HEIGHT = 3
 export const DEFAULT_GRID_WIDTH = 3
 
+export type CognitiveIntent = 'observation' | 'hypothesis' | 'failure'
+
+export type MechanicalAction =
+  | 'cell_click'
+  | 'fill_selected'
+  | 'paste'
+  | 'resize'
+  | 'copy_from_input'
+  | 'reset_output'
+  | 'submit'
+  | 'load_task'
+
+export type GraphTrigger =
+  | { kind: 'mechanical'; action: MechanicalAction; details?: Record<string, unknown> }
+  | { kind: 'cognitive'; intent: CognitiveIntent; text: string }
+
+export type GraphNode = {
+  id: string
+  trigger: GraphTrigger
+  stateSnapshot: GridData
+  parentId: string | null
+  timestamp: number
+}
+
 export const COLOR_MAP: Record<number, string> = {
   0: '#000000',
   1: '#0074D9',

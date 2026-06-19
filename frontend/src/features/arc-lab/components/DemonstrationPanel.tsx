@@ -14,7 +14,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
   return (
     <div
       data-testid="demonstration-panel"
-      className="w-[460px] overflow-hidden rounded-xl border border-gray-800 bg-gray-900"
+      className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900"
     >
       <div className="border-b border-gray-800 bg-gray-800/50 px-4 py-3 text-center text-sm font-semibold text-gray-200">
         {t('panel.demonstration')}

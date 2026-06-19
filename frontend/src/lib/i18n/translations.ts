@@ -50,6 +50,24 @@ const es = {
   'error.size_format': 'El tamaño debe tener el formato "3x3", "5x7", etc.',
   'error.size_min': 'El tamaño mínimo es 1. No puede haber una cuadrícula sin celdas.',
   'error.size_max': 'El tamaño máximo es {max} por lado. Elige un tamaño más pequeño.',
+
+  'timeline.title': 'Línea de tiempo',
+  'timeline.observation': '👁️ Observación',
+  'timeline.hypothesis': '💡 Hipótesis',
+  'timeline.failure': '❌ Falla',
+  'timeline.go_back': '⏪ Volver aquí',
+  'timeline.active': '(activo)',
+  'timeline.placeholder': 'Describe tu pensamiento...',
+  'timeline.branch_discarded': 'Rama descartada. Volviendo al inicio.',
+
+  'log.load_task': 'Tarea cargada',
+  'log.cell_click': 'Celda ({x},{y}) → color {symbol}',
+  'log.fill_selected': '{count} celdas → color {symbol}',
+  'log.paste': 'Selección pegada',
+  'log.resize': 'Redimensionado a {size}',
+  'log.copy_from_input': 'Entrada de prueba copiada',
+  'log.reset_output': 'Reinicio desde cero',
+  'log.submit': 'Solución enviada',
 }
 
 const en: Record<string, string> = {
@@ -100,6 +118,24 @@ const en: Record<string, string> = {
   'error.size_format': 'Grid size should have the format "3x3", "5x7", etc.',
   'error.size_min': 'Grid size should be at least 1. Cannot have a grid with no cells.',
   'error.size_max': 'Grid size should be at most {max} per side. Pick a smaller size.',
+
+  'timeline.title': 'Timeline',
+  'timeline.observation': '👁️ Observation',
+  'timeline.hypothesis': '💡 Hypothesis',
+  'timeline.failure': '❌ Failure',
+  'timeline.go_back': '⏪ Go back',
+  'timeline.active': '(active)',
+  'timeline.placeholder': 'Describe your thought...',
+  'timeline.branch_discarded': 'Branch discarded. Returning to start.',
+
+  'log.load_task': 'Task loaded',
+  'log.cell_click': 'Cell ({x},{y}) → color {symbol}',
+  'log.fill_selected': '{count} cells → color {symbol}',
+  'log.paste': 'Selection pasted',
+  'log.resize': 'Resized to {size}',
+  'log.copy_from_input': 'Test input copied',
+  'log.reset_output': 'Reset from scratch',
+  'log.submit': 'Solution submitted',
 }
 
 export const translations = { es, en }
