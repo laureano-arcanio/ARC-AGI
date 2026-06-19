@@ -31,6 +31,8 @@ const es = {
   'button.abandon': 'Abandonar',
   'dialog.abandon.title': 'Abandonar tarea',
   'dialog.abandon.message': '¿Seguro que quieres abandonar esta tarea? Se perderá el progreso no enviado.',
+  'dialog.reset.title': 'Reiniciar cuadrícula',
+  'dialog.reset.message': '¿Seguro que quieres reiniciar la cuadrícula?',
   'dialog.confirm': 'Confirmar',
   'dialog.cancel': 'Cancelar',
 
@@ -69,6 +71,7 @@ const es = {
 
   'log.load_task': 'Tarea cargada',
   'log.cell_click': 'Celda ({x},{y}) → color {symbol}',
+  'log.cell_click_multi': '{count} celdas → colores {symbols}',
   'log.fill_selected': '{count} celdas → color {symbol}',
   'log.paste': 'Selección pegada',
   'log.resize': 'Redimensionado a {size}',
@@ -106,7 +109,9 @@ const en: Record<string, string> = {
   'button.submit': 'Submit!',
   'button.abandon': 'Abandon',
   'dialog.abandon.title': 'Abandon task',
-  'dialog.abandon.message': 'Are you sure you want to abandon this task? Unsubmitted progress will be lost.',
+  'dialog.abandon.message': 'Are you sure you want to abandon this task?',
+  'dialog.reset.title': 'Reset grid',
+  'dialog.reset.message': 'Are you sure you want to reset the grid?',
   'dialog.confirm': 'Confirm',
   'dialog.cancel': 'Cancel',
 
@@ -145,6 +150,7 @@ const en: Record<string, string> = {
 
   'log.load_task': 'Task loaded',
   'log.cell_click': 'Cell ({x},{y}) → color {symbol}',
+  'log.cell_click_multi': '{count} cells → colors {symbols}',
   'log.fill_selected': '{count} cells → color {symbol}',
   'log.paste': 'Selection pasted',
   'log.resize': 'Resized to {size}',

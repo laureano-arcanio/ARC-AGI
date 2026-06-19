@@ -271,9 +271,28 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       if (state.toolMode === 'edit') {
         const outputGrid = cloneGrid(state.outputGrid)
         outputGrid[action.x][action.y] = state.selectedSymbol
+        const cellEntry = { x: action.x, y: action.y, symbol: state.selectedSymbol }
+        const lastNode = state.graphNodes[state.graphNodes.length - 1]
+        if (
+          lastNode?.trigger.kind === 'mechanical' &&
+          lastNode.trigger.action === 'cell_click'
+        ) {
+          const prevCells = (lastNode.trigger.details?.cells as Array<{ x: number; y: number; symbol: number }>) ?? []
+          const updatedNode: GraphNode = {
+            ...lastNode,
+            trigger: {
+              ...lastNode.trigger,
+              details: { cells: [...prevCells, cellEntry] },
+            },
+            stateSnapshot: cloneGrid(outputGrid),
+            timestamp: Date.now(),
+          }
+          const graphNodes = [...state.graphNodes.slice(0, -1), updatedNode]
+          return { ...state, outputGrid, graphNodes }
+        }
         const graph = addNode(
           { ...state, outputGrid },
-          { kind: 'mechanical', action: 'cell_click', details: { x: action.x, y: action.y, symbol: state.selectedSymbol } },
+          { kind: 'mechanical', action: 'cell_click', details: { cells: [cellEntry] } },
         )
         return { ...state, outputGrid, ...graph }
       }
@@ -382,8 +401,12 @@ function getNodeLabel(
     case 'load_task':
       return t('log.load_task')
     case 'cell_click': {
-      const d = trigger.details ?? {}
-      return t('log.cell_click', { x: Number(d.x), y: Number(d.y), symbol: Number(d.symbol) })
+      const cells = (trigger.details?.cells as Array<{ x: number; y: number; symbol: number }>) ?? []
+      if (cells.length === 1) {
+        return t('log.cell_click', { x: cells[0].x, y: cells[0].y, symbol: cells[0].symbol })
+      }
+      const uniqueColors = [...new Set(cells.map((c) => c.symbol))].sort((a, b) => a - b)
+      return t('log.cell_click_multi', { count: cells.length, symbols: uniqueColors.join(', ') })
     }
     case 'fill_selected': {
       const d = trigger.details ?? {}
@@ -417,6 +440,7 @@ export function ArcLabPage() {
   const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
   const [abandonOpen, setAbandonOpen] = useState(false)
+  const [resetOpen, setResetOpen] = useState(false)
   const [calloutKey, setCalloutKey] = useState<string | null>(null)
   const calloutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -499,6 +523,15 @@ export function ArcLabPage() {
     setAbandonOpen(false)
   }
 
+  const handleResetConfirm = () => {
+    setResetOpen(false)
+    dispatch({ type: 'RESET_OUTPUT' })
+  }
+
+  const handleResetCancel = () => {
+    setResetOpen(false)
+  }
+
   return (
     <div data-testid="arc-lab-page">
       <div className="flex flex-col gap-5">
@@ -524,7 +557,7 @@ export function ArcLabPage() {
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
               onResize={() => { if (!interceptAction()) dispatch({ type: 'RESIZE' }) }}
               onCopyFromInput={() => { if (!interceptAction()) dispatch({ type: 'COPY_FROM_INPUT' }) }}
-              onReset={() => { if (!interceptAction()) dispatch({ type: 'RESET_OUTPUT' }) }}
+              onReset={() => { if (!interceptAction()) setResetOpen(true) }}
               onSubmit={() => dispatch({ type: 'SUBMIT' })}
               onAbandon={() => setAbandonOpen(true)}
               onCellClick={handleCellClick}
@@ -561,6 +594,17 @@ export function ArcLabPage() {
         cancelLabel={t('dialog.cancel')}
         onConfirm={handleAbandonConfirm}
         onCancel={handleAbandonCancel}
+      />
+
+      <ConfirmDialog
+        open={resetOpen}
+        variant="danger"
+        title={t('dialog.reset.title')}
+        message={t('dialog.reset.message')}
+        confirmLabel={t('dialog.confirm')}
+        cancelLabel={t('dialog.cancel')}
+        onConfirm={handleResetConfirm}
+        onCancel={handleResetCancel}
       />
     </div>
   )

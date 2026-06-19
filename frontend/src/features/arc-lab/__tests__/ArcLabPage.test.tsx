@@ -137,12 +137,32 @@ describe('ArcLabPage', () => {
     expect(sizeInput.value).toBe('3x3')
   })
 
-  it('resets the output grid to 3x3', async () => {
+  it('opens a confirm dialog when reset is clicked and resets on confirm', async () => {
     renderPage()
     await waitForTask()
     fireEvent.click(screen.getByTestId('reset-btn'))
+    expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
     const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
     expect(sizeInput.value).toBe('3x3')
+  })
+
+  it('closes the reset confirm dialog on cancel without resetting', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('copy-from-input'))
+    const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
+    expect(sizeInput.value).toBe('3x3')
+    // change the size to something else first
+    fireEvent.change(sizeInput, { target: { value: '5x5' } })
+    fireEvent.click(screen.getByTestId('resize-btn'))
+    expect(sizeInput.value).toBe('5x5')
+    // now try reset but cancel
+    fireEvent.click(screen.getByTestId('reset-btn'))
+    expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'))
+    expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
+    expect(sizeInput.value).toBe('5x5')
   })
 
   it('resizes the output grid', async () => {
