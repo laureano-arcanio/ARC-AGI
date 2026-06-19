@@ -1,7 +1,8 @@
-import { useEffect, useReducer } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRandomTasks, useTaskById } from '../queries'
 import { useTranslation } from '../../../lib/i18n'
+import { ConfirmDialog } from '../../../components/common'
 import {
   cloneGrid,
   createGrid,
@@ -32,6 +33,7 @@ import { OutputEditor } from '../components/OutputEditor'
 import { TaskControls } from '../components/TaskControls'
 import { Toast } from '../components/Toast'
 import { CognitiveTimeline } from '../components/CognitiveTimeline'
+import { usePauseInterception } from '../hooks/usePauseInterception'
 
 type ArcLabState = {
   train: TaskPair[]
@@ -60,6 +62,7 @@ type Action =
   | { type: 'COPY_FROM_INPUT' }
   | { type: 'RESET_OUTPUT' }
   | { type: 'SUBMIT' }
+  | { type: 'ABANDON' }
   | { type: 'CELL_CLICK'; x: number; y: number }
   | { type: 'SELECTION_CHANGE'; cells: Set<string> }
   | { type: 'FILL_SELECTED' }
@@ -72,6 +75,13 @@ type Action =
 
 function makeNodeId(n: number): string {
   return `node_${String(n).padStart(3, '0')}`
+}
+
+const COGNITIVE_EMOJI: Record<CognitiveIntent, string> = {
+  observation: '👁️',
+  hypothesis: '💡',
+  failure: '❌',
+  confusion: '🤔',
 }
 
 function addNode(
@@ -249,6 +259,14 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       }
     }
 
+    case 'ABANDON': {
+      const graph = addNode(
+        state,
+        { kind: 'mechanical', action: 'abandon' },
+      )
+      return { ...state, ...graph }
+    }
+
     case 'CELL_CLICK': {
       if (state.toolMode === 'edit') {
         const outputGrid = cloneGrid(state.outputGrid)
@@ -358,12 +376,7 @@ function getNodeLabel(
   t: (key: string, params?: Record<string, string | number>) => string,
 ): string {
   if (trigger.kind === 'cognitive') {
-    const prefix = trigger.intent === 'observation'
-      ? '👁️'
-      : trigger.intent === 'hypothesis'
-        ? '💡'
-        : '❌'
-    return `${prefix} ${trigger.text}`
+    return `${COGNITIVE_EMOJI[trigger.intent]} ${trigger.text}`
   }
   switch (trigger.action) {
     case 'load_task':
@@ -386,6 +399,8 @@ function getNodeLabel(
       return t('log.copy_from_input')
     case 'reset_output':
       return t('log.reset_output')
+    case 'abandon':
+      return t('log.abandon')
     case 'submit': {
       const d = trigger.details ?? {}
       const correct = d.correct ? ' ✓' : ' ✗'
@@ -401,6 +416,26 @@ export function ArcLabPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
+  const [abandonOpen, setAbandonOpen] = useState(false)
+  const [calloutKey, setCalloutKey] = useState<string | null>(null)
+  const calloutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const dismissCallout = useCallback(() => {
+    setCalloutKey(null)
+    if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current)
+  }, [])
+
+  const handleIntercept = useCallback(() => {
+    setCalloutKey('callout.intercept')
+    if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current)
+    calloutTimerRef.current = setTimeout(dismissCallout, 6000)
+  }, [dismissCallout])
+
+  const { reset, interceptAction } = usePauseInterception({ onIntercept: handleIntercept })
+
+  useEffect(() => () => {
+    if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current)
+  }, [])
 
   const { data: randomTasks, isFetched: randomFetched } = useRandomTasks(
     1,
@@ -417,8 +452,9 @@ export function ArcLabPage() {
   useEffect(() => {
     if (specificTask) {
       dispatch({ type: 'LOAD_TASK', task: specificTask })
+      reset()
     }
-  }, [specificTask])
+  }, [specificTask, reset])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -436,6 +472,7 @@ export function ArcLabPage() {
   }, [])
 
   const handleSymbolSelect = (symbol: number) => {
+    if (state.toolMode === 'select' && interceptAction()) return
     dispatch({ type: 'SET_SYMBOL', symbol })
     if (state.toolMode === 'select') {
       dispatch({ type: 'FILL_SELECTED' })
@@ -443,8 +480,23 @@ export function ArcLabPage() {
     dispatch({ type: 'SET_TOOL_MODE', mode: 'edit' })
   }
 
+  const handleCellClick = (x: number, y: number) => {
+    if (interceptAction()) return
+    dispatch({ type: 'CELL_CLICK', x, y })
+  }
+
   const handleCognitiveSubmit = (intent: CognitiveIntent, text: string) => {
     dispatch({ type: 'ADD_COGNITIVE_NODE', intent, text })
+  }
+
+  const handleAbandonConfirm = () => {
+    setAbandonOpen(false)
+    dispatch({ type: 'ABANDON' })
+    navigate('/')
+  }
+
+  const handleAbandonCancel = () => {
+    setAbandonOpen(false)
   }
 
   return (
@@ -470,11 +522,12 @@ export function ArcLabPage() {
               selectedCells={state.selectedCells}
               sizeInput={state.sizeInput}
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
-              onResize={() => dispatch({ type: 'RESIZE' })}
-              onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
-              onReset={() => dispatch({ type: 'RESET_OUTPUT' })}
+              onResize={() => { if (!interceptAction()) dispatch({ type: 'RESIZE' }) }}
+              onCopyFromInput={() => { if (!interceptAction()) dispatch({ type: 'COPY_FROM_INPUT' }) }}
+              onReset={() => { if (!interceptAction()) dispatch({ type: 'RESET_OUTPUT' }) }}
               onSubmit={() => dispatch({ type: 'SUBMIT' })}
-              onCellClick={(x, y) => dispatch({ type: 'CELL_CLICK', x, y })}
+              onAbandon={() => setAbandonOpen(true)}
+              onCellClick={handleCellClick}
               onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}
               onToolModeChange={(mode) => dispatch({ type: 'SET_TOOL_MODE', mode })}
               onSymbolSelect={handleSymbolSelect}
@@ -492,9 +545,23 @@ export function ArcLabPage() {
             onGoBack={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
             onSubmit={handleCognitiveSubmit}
             getLabel={(trigger) => getNodeLabel(trigger, t)}
+            callout={calloutKey ? t(calloutKey) : null}
+            onDismissCallout={dismissCallout}
+            onReset={reset}
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={abandonOpen}
+        variant="danger"
+        title={t('dialog.abandon.title')}
+        message={t('dialog.abandon.message')}
+        confirmLabel={t('dialog.confirm')}
+        cancelLabel={t('dialog.cancel')}
+        onConfirm={handleAbandonConfirm}
+        onCancel={handleAbandonCancel}
+      />
     </div>
   )
 }

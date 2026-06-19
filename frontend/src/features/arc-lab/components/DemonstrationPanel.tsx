@@ -32,7 +32,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
               data-testid={`pair-${i}`}
               className="flex items-center gap-4 border-b border-gray-800/50 p-4 last:border-b-0"
             >
-              <div className="flex flex-1 flex-col items-start gap-1">
+              <div className="flex flex-1 flex-col items-end gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
                   {t('panel.input')} <span className="text-gray-400">{inputH}×{inputW}</span>
                 </span>

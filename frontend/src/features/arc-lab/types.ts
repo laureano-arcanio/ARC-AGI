@@ -40,7 +40,11 @@ export const MAX_GRID_SIZE = 30
 export const DEFAULT_GRID_HEIGHT = 3
 export const DEFAULT_GRID_WIDTH = 3
 
-export type CognitiveIntent = 'observation' | 'hypothesis' | 'failure'
+export type CognitiveIntent = 'observation' | 'hypothesis' | 'failure' | 'confusion'
+
+export const INACTIVITY_THRESHOLD_MS = 60_000
+
+export const INTERCEPT_BLOCK_MS = 1_000
 
 export type MechanicalAction =
   | 'cell_click'
@@ -50,6 +54,7 @@ export type MechanicalAction =
   | 'copy_from_input'
   | 'reset_output'
   | 'submit'
+  | 'abandon'
   | 'load_task'
 
 export type GraphTrigger =

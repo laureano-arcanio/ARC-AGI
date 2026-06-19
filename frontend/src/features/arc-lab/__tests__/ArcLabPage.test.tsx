@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { ArcLabPage } from '../pages/ArcLabPage'
 import type { ArcTaskRead } from '../types'
@@ -34,11 +34,13 @@ const taskWithTwoTests: ArcTaskRead = {
 }
 
 function renderPage(task = taskWithTwoTests) {
+  const navigate = vi.fn()
   mocks.useParams.mockReturnValue({ taskId: 'task-1' })
-  mocks.useNavigate.mockReturnValue(vi.fn())
+  mocks.useNavigate.mockReturnValue(navigate)
   mocks.useRandomTasks.mockReturnValue({ data: undefined, isFetched: false })
   mocks.useTaskById.mockReturnValue({ data: task })
-  return render(<ArcLabPage />)
+  const utils = render(<ArcLabPage />)
+  return { ...utils, navigate }
 }
 
 async function waitForTask() {
@@ -54,6 +56,10 @@ function outputCell(x: number, y: number): HTMLElement {
 describe('ArcLabPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('does not render the welcome modal', () => {
@@ -191,5 +197,177 @@ describe('ArcLabPage', () => {
     fireEvent.click(screen.getByTestId('symbol-7'))
     expect(outputCell(0, 0).getAttribute('data-symbol')).toBe('7')
     expect(outputCell(0, 1).getAttribute('data-symbol')).toBe('7')
+  })
+
+  it('opens a confirm dialog when Abandonar is clicked', async () => {
+    renderPage()
+    await waitForTask()
+    expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('abandon-btn'))
+    expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument()
+  })
+
+  it('closes the confirm dialog on cancel without abandoning', async () => {
+    const { navigate } = renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('abandon-btn'))
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'))
+    expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('abandons: logs a timeline event and navigates home on confirm', async () => {
+    const { navigate } = renderPage()
+    await waitForTask()
+    const initialNodes = screen.getAllByTestId(/timeline-node-/).length
+    fireEvent.click(screen.getByTestId('abandon-btn'))
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
+    expect(navigate).toHaveBeenCalledWith('/')
+    const nodes = screen.getAllByTestId(/timeline-node-/)
+    expect(nodes.length).toBe(initialNodes + 1)
+    expect(nodes[nodes.length - 1].textContent).toContain('log.abandon')
+  })
+
+  it('logs a confusion cognitive node with the 🤔 marker', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('tag-confusion'))
+    fireEvent.change(screen.getByTestId('cognitive-input'), {
+      target: { value: 'no entiendo los píxeles rojos' },
+    })
+    fireEvent.click(screen.getByTestId('cognitive-submit'))
+    const nodes = screen.getAllByTestId(/timeline-node-/)
+    const last = nodes[nodes.length - 1]
+    expect(last.textContent).toContain('🤔')
+    expect(last.textContent).toContain('no entiendo los píxeles rojos')
+  })
+
+  it('intercepts a paint click after 1 minute of inactivity', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('symbol-3'))
+    const first = outputCell(0, 0)
+    fireEvent.mouseDown(first)
+    fireEvent.mouseUp(first)
+    expect(first.getAttribute('data-symbol')).toBe('3')
+
+    vi.useFakeTimers()
+    act(() => {
+      vi.advanceTimersByTime(61_000)
+    })
+    const cell = outputCell(1, 1)
+    fireEvent.mouseDown(cell)
+    fireEvent.mouseUp(cell)
+    expect(cell.getAttribute('data-symbol')).toBe('0')
+    expect(screen.getByTestId('intercept-callout').textContent).toContain('callout.intercept')
+  })
+
+  it('intercepts a resize after 1 minute of inactivity and prevents it', async () => {
+    renderPage()
+    await waitForTask()
+    const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
+    fireEvent.change(sizeInput, { target: { value: '5x5' } })
+    fireEvent.click(screen.getByTestId('resize-btn'))
+    expect(outputCell(4, 4)).toBeInTheDocument()
+
+    vi.useFakeTimers()
+    act(() => {
+      vi.advanceTimersByTime(61_000)
+    })
+    fireEvent.change(sizeInput, { target: { value: '2x2' } })
+    fireEvent.click(screen.getByTestId('resize-btn'))
+    expect(outputCell(4, 4)).toBeInTheDocument()
+    expect(screen.getByTestId('intercept-callout').textContent).toContain('callout.intercept')
+  })
+
+  it('intercepts reset and copy-from-input after 1 minute of inactivity', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('copy-from-input'))
+    const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
+    expect(sizeInput.value).toBe('3x3')
+
+    vi.useFakeTimers()
+    act(() => {
+      vi.advanceTimersByTime(61_000)
+    })
+    fireEvent.click(screen.getByTestId('reset-btn'))
+    expect(sizeInput.value).toBe('3x3')
+    expect(screen.getByTestId('intercept-callout').textContent).toContain('callout.intercept')
+  })
+
+  it('does not intercept submit (not a listed action)', async () => {
+    renderPage()
+    await waitForTask()
+    vi.useFakeTimers()
+    act(() => {
+      vi.advanceTimersByTime(61_000)
+    })
+    fireEvent.click(screen.getByTestId('submit-btn'))
+    expect(screen.queryByTestId('intercept-callout')).not.toBeInTheDocument()
+    expect(screen.getByTestId('toast').getAttribute('data-kind')).toBe('error')
+  })
+
+  it('allows painting again after the 1-second interception block', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('symbol-3'))
+    fireEvent.mouseDown(outputCell(0, 0))
+    fireEvent.mouseUp(outputCell(0, 0))
+
+    vi.useFakeTimers()
+    act(() => {
+      vi.advanceTimersByTime(61_000)
+    })
+    fireEvent.mouseDown(outputCell(1, 1))
+    fireEvent.mouseUp(outputCell(1, 1))
+    expect(outputCell(1, 1).getAttribute('data-symbol')).toBe('0')
+    expect(screen.getByTestId('intercept-callout').textContent).toContain('callout.intercept')
+
+    act(() => {
+      vi.advanceTimersByTime(1_200)
+    })
+    fireEvent.mouseDown(outputCell(1, 1))
+    fireEvent.mouseUp(outputCell(1, 1))
+    expect(outputCell(1, 1).getAttribute('data-symbol')).toBe('3')
+  })
+
+  it('dismisses the callout when typing in the cognitive input', async () => {
+    renderPage()
+    await waitForTask()
+    vi.useFakeTimers()
+    act(() => {
+      vi.advanceTimersByTime(61_000)
+    })
+    fireEvent.mouseDown(outputCell(0, 0))
+    fireEvent.mouseUp(outputCell(0, 0))
+    expect(screen.getByTestId('intercept-callout')).toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('cognitive-input'), { target: { value: 'x' } })
+    expect(screen.queryByTestId('intercept-callout')).not.toBeInTheDocument()
+  })
+
+  it('resets the inactivity counter after documenting, allowing immediate paint', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('symbol-3'))
+    vi.useFakeTimers()
+    act(() => {
+      vi.advanceTimersByTime(61_000)
+    })
+    fireEvent.mouseDown(outputCell(0, 0))
+    fireEvent.mouseUp(outputCell(0, 0))
+    expect(outputCell(0, 0).getAttribute('data-symbol')).toBe('0')
+    expect(screen.getByTestId('intercept-callout')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('tag-observation'))
+    fireEvent.change(screen.getByTestId('cognitive-input'), {
+      target: { value: 'patrón diagonal' },
+    })
+    fireEvent.click(screen.getByTestId('cognitive-submit'))
+    expect(screen.queryByTestId('intercept-callout')).not.toBeInTheDocument()
+
+    fireEvent.mouseDown(outputCell(0, 0))
+    fireEvent.mouseUp(outputCell(0, 0))
+    expect(outputCell(0, 0).getAttribute('data-symbol')).toBe('3')
   })
 })

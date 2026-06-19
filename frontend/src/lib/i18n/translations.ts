@@ -28,6 +28,11 @@ const es = {
   'button.copy_input': 'Copiar entrada',
   'button.reset': 'Reiniciar',
   'button.submit': '¡Enviar!',
+  'button.abandon': 'Abandonar',
+  'dialog.abandon.title': 'Abandonar tarea',
+  'dialog.abandon.message': '¿Seguro que quieres abandonar esta tarea? Se perderá el progreso no enviado.',
+  'dialog.confirm': 'Confirmar',
+  'dialog.cancel': 'Cancelar',
 
   'label.size': 'Tamaño:',
   'label.show_numbers': 'Mostrar números',
@@ -46,6 +51,7 @@ const es = {
   'toast.cells_copied': '¡Celdas copiadas! Selecciona una celda destino y presiona V para pegar.',
   'toast.no_data_paste': 'No hay datos para pegar.',
   'toast.select_target': 'Selecciona una celda destino en la cuadrícula de salida.',
+  'callout.intercept': 'Antes de resolver, etiquetá tu observación con 👁️ y anotala abajo.',
 
   'error.size_format': 'El tamaño debe tener el formato "3x3", "5x7", etc.',
   'error.size_min': 'El tamaño mínimo es 1. No puede haber una cuadrícula sin celdas.',
@@ -55,6 +61,7 @@ const es = {
   'timeline.observation': '👁️ Observación',
   'timeline.hypothesis': '💡 Hipótesis',
   'timeline.failure': '❌ Falla',
+  'timeline.confusion': '🤔 Atascado',
   'timeline.go_back': '⏪ Volver aquí',
   'timeline.active': '(activo)',
   'timeline.placeholder': 'Describe tu pensamiento...',
@@ -68,6 +75,7 @@ const es = {
   'log.copy_from_input': 'Entrada de prueba copiada',
   'log.reset_output': 'Reinicio desde cero',
   'log.submit': 'Solución enviada',
+  'log.abandon': 'Tarea abandonada',
 }
 
 const en: Record<string, string> = {
@@ -96,6 +104,11 @@ const en: Record<string, string> = {
   'button.copy_input': 'Copy input',
   'button.reset': 'Reset',
   'button.submit': 'Submit!',
+  'button.abandon': 'Abandon',
+  'dialog.abandon.title': 'Abandon task',
+  'dialog.abandon.message': 'Are you sure you want to abandon this task? Unsubmitted progress will be lost.',
+  'dialog.confirm': 'Confirm',
+  'dialog.cancel': 'Cancel',
 
   'label.size': 'Size:',
   'label.show_numbers': 'Show numbers',
@@ -114,6 +127,7 @@ const en: Record<string, string> = {
   'toast.cells_copied': 'Cells copied! Select a target cell and press V to paste at location.',
   'toast.no_data_paste': 'No data to paste.',
   'toast.select_target': 'Select a target cell on the output grid.',
+  'callout.intercept': 'Before solving, tag your observation with 👁️ and write it below.',
 
   'error.size_format': 'Grid size should have the format "3x3", "5x7", etc.',
   'error.size_min': 'Grid size should be at least 1. Cannot have a grid with no cells.',
@@ -123,6 +137,7 @@ const en: Record<string, string> = {
   'timeline.observation': '👁️ Observation',
   'timeline.hypothesis': '💡 Hypothesis',
   'timeline.failure': '❌ Failure',
+  'timeline.confusion': '🤔 Stuck',
   'timeline.go_back': '⏪ Go back',
   'timeline.active': '(active)',
   'timeline.placeholder': 'Describe your thought...',
@@ -136,6 +151,7 @@ const en: Record<string, string> = {
   'log.copy_from_input': 'Test input copied',
   'log.reset_output': 'Reset from scratch',
   'log.submit': 'Solution submitted',
+  'log.abandon': 'Task abandoned',
 }
 
 export const translations = { es, en }

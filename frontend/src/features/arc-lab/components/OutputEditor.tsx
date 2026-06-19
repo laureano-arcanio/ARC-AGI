@@ -16,6 +16,7 @@ type OutputEditorProps = {
   onCopyFromInput: () => void
   onReset: () => void
   onSubmit: () => void
+  onAbandon: () => void
   onCellClick: (x: number, y: number) => void
   onSelectionChange: (cells: Set<string>) => void
   onToolModeChange: (mode: ToolMode) => void
@@ -34,6 +35,7 @@ export function OutputEditor({
   onCopyFromInput,
   onReset,
   onSubmit,
+  onAbandon,
   onCellClick,
   onSelectionChange,
   onToolModeChange,
@@ -46,7 +48,42 @@ export function OutputEditor({
 
   return (
     <div data-testid="output-editor" className="mt-4 rounded-xl border border-gray-800 bg-gray-900 p-4">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={onAbandon}
+          data-testid="abandon-btn"
+          className="rounded-md bg-red-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+        >
+          {t('button.abandon')}
+        </button>
+        <button
+          type="button"
+          onClick={onSubmit}
+          data-testid="submit-btn"
+          className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
+        >
+          {t('button.submit')}
+        </button>
+      </div>
+
+      <div data-testid="output-grid" className="flex justify-center">
+        <EditableGrid
+          grid={grid}
+          toolMode={toolMode}
+          showNumbers={showNumbers}
+          selectedCells={selectedCells}
+          onCellClick={onCellClick}
+          onSelectionChange={onSelectionChange}
+          onToolModeChange={onToolModeChange}
+        />
+      </div>
+
+      <div className="mt-4 flex items-center justify-center gap-6">
+        <SymbolPicker selectedSymbol={selectedSymbol} onSelect={onSymbolSelect} />
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
         <div className="flex items-center gap-2">
           <label className="text-xs text-gray-400">{t('label.size')}</label>
           <input
@@ -66,9 +103,6 @@ export function OutputEditor({
           >
             {t('button.resize')}
           </button>
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
             onClick={onCopyFromInput}
@@ -85,31 +119,7 @@ export function OutputEditor({
           >
             {t('button.reset')}
           </button>
-          <button
-            type="button"
-            onClick={onSubmit}
-            data-testid="submit-btn"
-            className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
-          >
-            {t('button.submit')}
-          </button>
         </div>
-      </div>
-
-      <div data-testid="output-grid" className="flex justify-center">
-        <EditableGrid
-          grid={grid}
-          toolMode={toolMode}
-          showNumbers={showNumbers}
-          selectedCells={selectedCells}
-          onCellClick={onCellClick}
-          onSelectionChange={onSelectionChange}
-          onToolModeChange={onToolModeChange}
-        />
-      </div>
-
-      <div className="mt-4 flex items-center justify-center gap-6">
-        <SymbolPicker selectedSymbol={selectedSymbol} onSelect={onSymbolSelect} />
       </div>
 
       <div data-testid="size-readout" className="hidden">

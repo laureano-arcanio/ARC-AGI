@@ -8,7 +8,17 @@ type CognitiveTimelineProps = {
   onGoBack: (nodeId: string) => void
   onSubmit: (intent: CognitiveIntent, text: string) => void
   getLabel: (trigger: GraphTrigger) => string
+  callout: string | null
+  onDismissCallout: () => void
+  onReset?: () => void
 }
+
+const TAG_OPTIONS: Array<{ intent: CognitiveIntent; labelKey: string }> = [
+  { intent: 'observation', labelKey: 'timeline.observation' },
+  { intent: 'hypothesis', labelKey: 'timeline.hypothesis' },
+  { intent: 'failure', labelKey: 'timeline.failure' },
+  { intent: 'confusion', labelKey: 'timeline.confusion' },
+]
 
 export function CognitiveTimeline({
   nodes,
@@ -16,12 +26,34 @@ export function CognitiveTimeline({
   onGoBack,
   onSubmit,
   getLabel,
+  callout,
+  onDismissCallout,
+  onReset,
 }: CognitiveTimelineProps) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const [tag, setTag] = useState<CognitiveIntent | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const calloutSeenRef = useRef(false)
+
+  useEffect(() => {
+    if (callout) {
+      calloutSeenRef.current = true
+    }
+  }, [callout])
+
+  const resolveCallout = () => {
+    if (calloutSeenRef.current) {
+      onReset?.()
+      calloutSeenRef.current = false
+    }
+  }
+
+  const dismissCallout = () => {
+    calloutSeenRef.current = false
+    onDismissCallout()
+  }
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -33,26 +65,24 @@ export function CognitiveTimeline({
     const trimmed = text.trim()
     if (!trimmed || !tag) return
     onSubmit(tag, trimmed)
+    resolveCallout()
+    onDismissCallout()
     setText('')
     setTag(null)
     inputRef.current?.focus()
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSubmit()
-    }
-  }
-
   const handleTagClick = (intent: CognitiveIntent) => {
     setTag(intent)
+    resolveCallout()
+    onDismissCallout()
     inputRef.current?.focus()
   }
 
   return (
     <div
       data-testid="cognitive-timeline"
-      className="flex w-full shrink-0 flex-col self-start rounded-xl border border-gray-800 bg-gray-900 lg:sticky lg:top-4 lg:max-h-[80vh] lg:w-72"
+      className="flex w-full shrink-0 flex-col self-start rounded-xl border border-gray-800 bg-gray-900 lg:sticky lg:top-4 lg:max-h-[80vh] lg:w-[320px] min-h-[500px]"
     >
       <div className="border-b border-gray-800 bg-gray-800/50 px-4 py-3">
         <span className="text-sm font-semibold text-gray-200">
@@ -104,46 +134,63 @@ export function CognitiveTimeline({
 
       <div className="border-t border-gray-800 px-3 py-2 space-y-2">
         <div className="flex gap-1.5">
-          {(['observation', 'hypothesis', 'failure'] as CognitiveIntent[]).map(
-            (intent) => (
+          {TAG_OPTIONS.map((option, index) => (
+            <div key={option.intent} className="relative">
+              {index === 0 && callout && (
+                <div
+                  data-testid="intercept-callout"
+                  role="tooltip"
+                  className="absolute bottom-full left-0 mb-2 w-60 rounded-lg border border-blue-700 bg-blue-950/95 px-3 py-2 text-[11px] leading-relaxed text-blue-100 shadow-xl z-50"
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="flex-1">{callout}</span>
+                    <button
+                      type="button"
+                      onClick={dismissCallout}
+                      data-testid="intercept-callout-dismiss"
+                      aria-label="dismiss"
+                      className="shrink-0 text-blue-300 hover:text-white"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
               <button
-                key={intent}
                 type="button"
-                onClick={() => handleTagClick(intent)}
-                data-testid={`tag-${intent}`}
+                onClick={() => handleTagClick(option.intent)}
+                data-testid={`tag-${option.intent}`}
                 className={`rounded-md px-2 py-1 text-[10px] font-medium transition ${
-                  tag === intent
+                  tag === option.intent
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
                 }`}
               >
-                {intent === 'observation'
-                  ? t('timeline.observation')
-                  : intent === 'hypothesis'
-                    ? t('timeline.hypothesis')
-                    : t('timeline.failure')}
+                {t(option.labelKey)}
               </button>
-            ),
-          )}
+            </div>
+          ))}
         </div>
 
         <div className="flex gap-1.5">
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={3}
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onChange={(e) => {
+              setText(e.target.value)
+              onDismissCallout()
+            }}
             data-testid="cognitive-input"
             placeholder={t('timeline.placeholder')}
-            className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-2 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+            className="flex-1 resize-none rounded-md border border-gray-700 bg-gray-800 px-2 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
           />
           <button
             type="button"
             onClick={handleSubmit}
             disabled={!text.trim() || !tag}
             data-testid="cognitive-submit"
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-40"
+            className="self-end rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-40"
           >
             +
           </button>
