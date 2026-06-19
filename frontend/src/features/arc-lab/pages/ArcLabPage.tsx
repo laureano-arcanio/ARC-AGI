@@ -246,6 +246,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         return { ...state, message: { kind: 'error', text: 'toast.no_test_pair' } }
       }
       const correct = gridsEqual(state.outputGrid, reference)
+      console.log('SUBMIT events:', JSON.stringify(state.graphNodes, null, 2))
       const graph = addNode(
         state,
         { kind: 'mechanical', action: 'submit', details: { correct } },
