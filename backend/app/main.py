@@ -10,7 +10,7 @@ from app.errors import (
     object_not_found_handler,
 )
 from app.models.user import User, UserRole
-from app.routers import arc_task, event, example_table, user
+from app.routers import arc_task, attempt, event, example_table, user
 
 app = FastAPI(
     title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
@@ -29,6 +29,7 @@ app.add_middleware(
 app.exception_handler(ObjectNotFoundError)(object_not_found_handler)
 app.exception_handler(Exception)(global_exception_handler)
 
+app.include_router(attempt.router)
 app.include_router(event.router)
 app.include_router(example_table.router)
 app.include_router(user.router)

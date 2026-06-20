@@ -2,6 +2,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './queryClient'
 import { I18nProvider } from '../lib/i18n'
+import { AuthProvider } from '../lib/auth'
 import type { ReactNode } from 'react'
 
 type ProvidersProps = {
@@ -13,7 +14,9 @@ export function Providers({ children }: ProvidersProps) {
     <BrowserRouter>
       <I18nProvider>
         <QueryClientProvider client={queryClient}>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </QueryClientProvider>
       </I18nProvider>
     </BrowserRouter>

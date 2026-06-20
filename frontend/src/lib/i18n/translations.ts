@@ -93,6 +93,22 @@ const es = {
   'dashboard.create_error': 'Error al crear usuario. Intenta de nuevo.',
   'dashboard.invalid_uuid': 'UUID no encontrado. Verifica el enlace o crea un nuevo usuario.',
   'dashboard.back': 'Volver al panel',
+
+  'nav.admin': 'Usuarios',
+
+  'admin.title': 'Panel de Administración — Usuarios',
+  'admin.loading': 'Cargando usuarios...',
+  'admin.unauthorized': 'No tienes permisos para acceder a esta página.',
+  'admin.error': 'Error al cargar usuarios.',
+  'admin.table.id': 'ID',
+  'admin.table.uuid': 'UUID',
+  'admin.table.role': 'Rol',
+  'admin.table.createdAt': 'Creado',
+  'admin.table.actions': 'Acciones',
+  'admin.delete': 'Eliminar',
+  'admin.no_users': 'No hay usuarios.',
+  'admin.delete_title': 'Eliminar usuario',
+  'admin.delete_message': '¿Seguro que quieres eliminar este usuario? Esta acción no se puede deshacer.',
 }
 
 const en: Record<string, string> = {
@@ -186,6 +202,22 @@ const en: Record<string, string> = {
   'dashboard.create_error': 'Error creating user. Try again.',
   'dashboard.invalid_uuid': 'UUID not found. Check the link or create a new user.',
   'dashboard.back': 'Back to dashboard',
+
+  'nav.admin': 'Users',
+
+  'admin.title': 'Admin Panel — Users',
+  'admin.loading': 'Loading users...',
+  'admin.unauthorized': 'You do not have permission to access this page.',
+  'admin.error': 'Error loading users.',
+  'admin.table.id': 'ID',
+  'admin.table.uuid': 'UUID',
+  'admin.table.role': 'Role',
+  'admin.table.createdAt': 'Created',
+  'admin.table.actions': 'Actions',
+  'admin.delete': 'Delete',
+  'admin.no_users': 'No users found.',
+  'admin.delete_title': 'Delete user',
+  'admin.delete_message': 'Are you sure you want to delete this user? This action cannot be undone.',
 }
 
 export const translations = { es, en }

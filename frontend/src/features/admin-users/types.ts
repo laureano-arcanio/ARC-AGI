@@ -5,3 +5,7 @@ export type UserRead = {
   createdAt: string | null
   updatedAt: string | null
 }
+
+export type UserUpdate = {
+  role: string | null
+}

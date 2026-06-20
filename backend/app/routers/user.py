@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.dependencies.database import DatabaseSession
 from app.repositories.user import UserRepository
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services.user import UserService
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
@@ -27,6 +27,30 @@ async def get_by_uuid(
     service: UserService = Depends(get_service),  # noqa: B008
 ) -> UserRead:
     return await service.get_by_uuid(uuid)
+
+
+@router.get("/", response_model=list[UserRead])
+async def get_all(
+    service: UserService = Depends(get_service),  # noqa: B008
+) -> list[UserRead]:
+    return await service.get_all()
+
+
+@router.put("/{id}", response_model=UserRead)
+async def update(
+    id: int,
+    data: UserUpdate,
+    service: UserService = Depends(get_service),  # noqa: B008
+) -> UserRead:
+    return await service.update(id, data)
+
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete(
+    id: int,
+    service: UserService = Depends(get_service),  # noqa: B008
+) -> None:
+    await service.delete(id)
 
 
 @router.get("/{id}", response_model=UserRead)

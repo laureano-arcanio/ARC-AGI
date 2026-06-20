@@ -8,12 +8,17 @@ class EventRepository(BaseRepository[Event]):
     model = Event
 
     async def get_by_user_and_task(
-        self, user_id: int, task_id: str
+        self,
+        user_id: int,
+        task_id: str,
+        attempt_id: int | None = None,
     ) -> list[Event]:
         query = select(self.model).where(
             self.model.user_id == user_id,
             self.model.task_id == task_id,
         )
+        if attempt_id is not None:
+            query = query.where(self.model.attempt_id == attempt_id)
         query = query.order_by(self.model.timestamp)
         result = await self.db_session.execute(query)
         return list(result.scalars().all())

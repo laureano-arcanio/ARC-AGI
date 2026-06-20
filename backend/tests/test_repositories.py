@@ -1,9 +1,11 @@
 import pytest
 
 from app.errors import ObjectNotFoundError
+from app.models.attempt import Attempt
 from app.models.event import Event
 from app.models.example_table import ExampleTable
 from app.models.user import User
+from app.repositories.attempt import AttemptRepository
 from app.repositories.event import EventRepository
 from app.repositories.example_table import ExampleTableRepository
 from app.repositories.user import UserRepository
@@ -243,3 +245,58 @@ class TestEventRepositoryGetByUserAndTask:
         assert len(result) == 2
         assert result[0].node_id == "node_001"
         assert result[1].node_id == "node_002"
+
+    async def test_filters_by_attempt_id(
+        self,
+        event_repo: EventRepository,
+        db_session: MockAsyncSession,
+        sample_events: list[Event],
+    ) -> None:
+        db_session.set_execute_result(
+            MockResult(scalars_all_result=sample_events)
+        )
+        result = await event_repo.get_by_user_and_task(
+            1, "00576224", attempt_id=1
+        )
+        assert len(result) == 2
+
+
+@pytest.fixture
+def attempt_repo(db_session: MockAsyncSession) -> AttemptRepository:
+    return AttemptRepository(db_session=db_session)
+
+
+class TestAttemptRepositoryCreate:
+    async def test_creates_instance(
+        self, attempt_repo: AttemptRepository, db_session: MockAsyncSession
+    ) -> None:
+        result = await attempt_repo.create(
+            {"user_id": 1, "task_id": "00576224"}
+        )
+        assert isinstance(result, Attempt)
+        assert result.user_id == 1
+        assert result.task_id == "00576224"
+        assert len(db_session.added) == 1
+        assert db_session.flushed is True
+
+
+class TestAttemptRepositoryGetByUserAndTask:
+    async def test_returns_empty_list_when_no_attempts(
+        self, attempt_repo: AttemptRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalars_all_result=[]))
+        result = await attempt_repo.get_by_user_and_task(1, "abc")
+        assert result == []
+
+    async def test_returns_attempts_ordered_by_created_desc(
+        self,
+        attempt_repo: AttemptRepository,
+        db_session: MockAsyncSession,
+        sample_attempts: list[Attempt],
+    ) -> None:
+        db_session.set_execute_result(
+            MockResult(scalars_all_result=sample_attempts)
+        )
+        result = await attempt_repo.get_by_user_and_task(1, "00576224")
+        assert len(result) == 2
+        assert result[0].id == 2

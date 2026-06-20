@@ -3,9 +3,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.errors import ObjectNotFoundError
+from app.models.attempt import Attempt
 from app.models.event import Event
 from app.models.example_table import ExampleTable
 from app.models.user import User, UserRole
+from app.schemas.attempt import AttemptCreate, AttemptRead
 from app.schemas.event import EventCreate, EventRead
 from app.schemas.example_table import (
     ExampleTableCreate,
@@ -13,6 +15,7 @@ from app.schemas.example_table import (
     ExampleTableUpdate,
 )
 from app.schemas.user import UserCreate, UserRead
+from app.services.attempt import AttemptService
 from app.services.event import EventService
 from app.services.example_table import ExampleTableService
 from app.services.user import UserService
@@ -260,7 +263,9 @@ class TestEventServiceGetByUserAndTask:
     ) -> None:
         result = await event_service.get_events_by_user_and_task(1, "abc")
         assert result == []
-        event_mock_repo.get_by_user_and_task.assert_awaited_with(1, "abc")
+        event_mock_repo.get_by_user_and_task.assert_awaited_with(
+            1, "abc", attempt_id=None
+        )
 
     async def test_returns_list_of_schemas(
         self, event_service: EventService, event_mock_repo: AsyncMock
@@ -270,6 +275,7 @@ class TestEventServiceGetByUserAndTask:
                 id=1,
                 user_id=1,
                 task_id="abc",
+                attempt_id=1,
                 node_id="node_001",
                 trigger={"kind": "mechanical"},
                 state_snapshot=[[0]],
@@ -279,6 +285,7 @@ class TestEventServiceGetByUserAndTask:
                 id=2,
                 user_id=1,
                 task_id="abc",
+                attempt_id=1,
                 node_id="node_002",
                 trigger={"kind": "mechanical"},
                 state_snapshot=[[1]],
@@ -290,3 +297,71 @@ class TestEventServiceGetByUserAndTask:
         assert isinstance(result[0], EventRead)
         assert result[0].node_id == "node_001"
         assert result[1].node_id == "node_002"
+
+    async def test_filters_by_attempt_id(
+        self, event_service: EventService, event_mock_repo: AsyncMock
+    ) -> None:
+        event_mock_repo.get_by_user_and_task.return_value = []
+        result = await event_service.get_events_by_user_and_task(
+            1, "abc", attempt_id=1
+        )
+        assert result == []
+        event_mock_repo.get_by_user_and_task.assert_awaited_with(
+            1, "abc", attempt_id=1
+        )
+
+
+@pytest.fixture
+def attempt_mock_repo() -> AsyncMock:
+    repo = AsyncMock()
+
+    async def create_side_effect(data):
+        return Attempt(id=1, **data)
+
+    repo.create.side_effect = create_side_effect
+    repo.get_by_user_and_task.return_value = []
+    repo.get_by_id.side_effect = ObjectNotFoundError("Attempt", 0)
+    return repo
+
+
+@pytest.fixture
+def attempt_service(attempt_mock_repo: AsyncMock) -> AttemptService:
+    svc = AttemptService(repository=attempt_mock_repo)
+    svc.read_schema = AttemptRead
+    return svc
+
+
+class TestAttemptServiceCreate:
+    async def test_creates_and_returns_schema(
+        self, attempt_service: AttemptService, attempt_mock_repo: AsyncMock
+    ) -> None:
+        create_data = AttemptCreate(user_id=1, task_id="00576224")
+        result = await attempt_service.create(create_data)
+        assert isinstance(result, AttemptRead)
+        assert result.id == 1
+        assert result.user_id == 1
+        assert result.task_id == "00576224"
+        attempt_mock_repo.create.assert_awaited_with(
+            {"user_id": 1, "task_id": "00576224"}
+        )
+
+
+class TestAttemptServiceGetByUserAndTask:
+    async def test_returns_empty_list(
+        self, attempt_service: AttemptService, attempt_mock_repo: AsyncMock
+    ) -> None:
+        result = await attempt_service.get_by_user_and_task(1, "abc")
+        assert result == []
+        attempt_mock_repo.get_by_user_and_task.assert_awaited_with(1, "abc")
+
+    async def test_returns_list_of_schemas(
+        self, attempt_service: AttemptService, attempt_mock_repo: AsyncMock
+    ) -> None:
+        attempt_mock_repo.get_by_user_and_task.return_value = [
+            Attempt(id=2, user_id=1, task_id="abc"),
+            Attempt(id=1, user_id=1, task_id="abc"),
+        ]
+        result = await attempt_service.get_by_user_and_task(1, "abc")
+        assert len(result) == 2
+        assert isinstance(result[0], AttemptRead)
+        assert result[0].id == 2

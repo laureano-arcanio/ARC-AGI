@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.dependencies.database import DatabaseSession
 from app.repositories.event import EventRepository
@@ -28,6 +28,9 @@ async def create(
 async def get_by_user_and_task(
     user_id: int,
     task_id: str,
+    attempt_id: int | None = Query(None, alias="attemptId"),
     service: EventService = Depends(get_service),  # noqa: B008
 ) -> list[EventRead]:
-    return await service.get_events_by_user_and_task(user_id, task_id)
+    return await service.get_events_by_user_and_task(
+        user_id, task_id, attempt_id=attempt_id
+    )

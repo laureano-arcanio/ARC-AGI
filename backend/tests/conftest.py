@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.attempt import Attempt
 from app.models.event import Event
 from app.models.example_table import ExampleTable
 from app.models.user import User, UserRole
@@ -78,11 +79,25 @@ def sample_user() -> User:
 
 
 @pytest.fixture
+def sample_attempt() -> Attempt:
+    return Attempt(id=1, user_id=1, task_id="00576224")
+
+
+@pytest.fixture
+def sample_attempts() -> list[Attempt]:
+    return [
+        Attempt(id=2, user_id=1, task_id="00576224"),
+        Attempt(id=1, user_id=1, task_id="00576224"),
+    ]
+
+
+@pytest.fixture
 def sample_event() -> Event:
     return Event(
         id=1,
         user_id=1,
         task_id="00576224",
+        attempt_id=1,
         node_id="node_001",
         parent_node_id="node_000",
         trigger={"kind": "mechanical", "action": "cell_click"},
@@ -98,6 +113,7 @@ def sample_events() -> list[Event]:
             id=1,
             user_id=1,
             task_id="00576224",
+            attempt_id=1,
             node_id="node_001",
             parent_node_id="node_000",
             trigger={"kind": "mechanical", "action": "cell_click"},
@@ -108,6 +124,7 @@ def sample_events() -> list[Event]:
             id=2,
             user_id=1,
             task_id="00576224",
+            attempt_id=1,
             node_id="node_002",
             parent_node_id="node_001",
             trigger={"kind": "mechanical", "action": "submit"},

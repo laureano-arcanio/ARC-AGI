@@ -4,6 +4,7 @@ import { HomePage } from '../features/home/pages/HomePage'
 import { DashboardPage } from '../features/dashboard/pages/DashboardPage'
 import { HealthPage } from '../features/health/pages/HealthPage'
 import { ArcLabPage } from '../features/arc-lab/pages/ArcLabPage'
+import { AdminUsersPage } from '../features/admin-users/pages/AdminUsersPage'
 
 export function AppRouter() {
   return (
@@ -12,6 +13,7 @@ export function AppRouter() {
         <Route path="/" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/health" element={<HealthPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/solve/:uuid/:taskId" element={<ArcLabPage />} />
         <Route path="/solve/:taskId" element={<ArcLabPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

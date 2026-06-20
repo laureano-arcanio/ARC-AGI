@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
+import { useAuth } from '../../../lib/auth'
 import { useCreateUser } from '../queries'
+import { getUserByUuid } from '../api'
+
+function getRedirectPath(role: string, uuid: string): string {
+  return role === 'admin' ? '/admin/users' : `/solve/${uuid}/random`
+}
 
 export function DashboardPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { setUserUuid } = useAuth()
   const [uuidInput, setUuidInput] = useState('')
   const [lookupError, setLookupError] = useState('')
 
@@ -14,20 +21,27 @@ export function DashboardPage() {
   const handleCreateUser = async () => {
     try {
       const user = await createUserMutation.mutateAsync()
-      navigate(`/solve/${user.uuid}/random`)
+      setUserUuid(user.uuid)
+      navigate(getRedirectPath(user.role, user.uuid))
     } catch {
       setLookupError(t('dashboard.create_error'))
     }
   }
 
-  const handleUseUuid = () => {
+  const handleUseUuid = async () => {
     const trimmed = uuidInput.trim()
     if (!trimmed) {
       setLookupError(t('dashboard.uuid_empty'))
       return
     }
     setLookupError('')
-    navigate(`/solve/${encodeURIComponent(trimmed)}/random`)
+    try {
+      const user = await getUserByUuid(trimmed)
+      setUserUuid(trimmed)
+      navigate(getRedirectPath(user.role, user.uuid))
+    } catch {
+      setLookupError(t('dashboard.invalid_uuid'))
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

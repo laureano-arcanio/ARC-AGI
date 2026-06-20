@@ -11,9 +11,12 @@ class EventService(
     read_schema = EventRead
 
     async def get_events_by_user_and_task(
-        self, user_id: int, task_id: str
+        self,
+        user_id: int,
+        task_id: str,
+        attempt_id: int | None = None,
     ) -> list[EventRead]:
         instances = await self.repository.get_by_user_and_task(
-            user_id, task_id
+            user_id, task_id, attempt_id=attempt_id
         )
         return [self.read_schema.model_validate(inst) for inst in instances]

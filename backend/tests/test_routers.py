@@ -11,6 +11,7 @@ from app.errors import (
     object_not_found_handler,
 )
 from app.routers.example_table import get_service, router
+from app.schemas.attempt import AttemptRead
 from app.schemas.event import EventRead
 from app.schemas.example_table import (
     ExampleTableCreate,
@@ -319,7 +320,7 @@ class TestEventRouterGetByUserAndTask:
         assert response.status_code == 200
         assert response.json() == []
         event_mock_service.get_events_by_user_and_task.assert_awaited_with(
-            1, "abc"
+            1, "abc", attempt_id=None
         )
 
     async def test_returns_list(
@@ -343,3 +344,96 @@ class TestEventRouterGetByUserAndTask:
         data = response.json()
         assert len(data) == 1
         assert data[0]["nodeId"] == "node_001"
+
+    async def test_filters_by_attempt_id(
+        self, event_client: AsyncClient, event_mock_service: AsyncMock
+    ) -> None:
+        event_mock_service.get_events_by_user_and_task.return_value = []
+        response = await event_client.get(
+            "/api/v1/events/users/1/tasks/abc?attemptId=1"
+        )
+        assert response.status_code == 200
+        assert response.json() == []
+        event_mock_service.get_events_by_user_and_task.assert_awaited_with(
+            1, "abc", attempt_id=1
+        )
+
+
+# ---- Attempt Router Tests ----
+
+
+@pytest.fixture
+def attempt_app(attempt_mock_service: AsyncMock) -> FastAPI:
+    from app.routers.attempt import get_service, router
+
+    application = FastAPI()
+    application.exception_handler(ObjectNotFoundError)(object_not_found_handler)
+    application.exception_handler(Exception)(global_exception_handler)
+    application.include_router(router)
+    application.dependency_overrides[get_service] = lambda: attempt_mock_service
+    return application
+
+
+@pytest.fixture
+def attempt_mock_service() -> AsyncMock:
+    from app.services.attempt import AttemptService
+
+    svc = AsyncMock(spec=AttemptService)
+    svc.create.return_value = AttemptRead(id=1, user_id=1, task_id="00576224")
+    svc.get_by_user_and_task.return_value = []
+    return svc
+
+
+@pytest.fixture
+async def attempt_client(attempt_app: FastAPI) -> AsyncIterator[AsyncClient]:
+    from httpx import ASGITransport
+
+    transport = ASGITransport(app=attempt_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+class TestAttemptRouterCreate:
+    async def test_creates_and_returns_201(
+        self, attempt_client: AsyncClient, attempt_mock_service: AsyncMock
+    ) -> None:
+        payload = {"userId": 1, "taskId": "00576224"}
+        response = await attempt_client.post("/api/v1/attempts/", json=payload)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["id"] == 1
+        assert response.json()["userId"] == 1
+        assert response.json()["taskId"] == "00576224"
+        attempt_mock_service.create.assert_awaited_once()
+
+    async def test_returns_422_on_missing_required(
+        self, attempt_client: AsyncClient
+    ) -> None:
+        response = await attempt_client.post("/api/v1/attempts/", json={})
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+class TestAttemptRouterGetByUserAndTask:
+    async def test_returns_empty_list(
+        self, attempt_client: AsyncClient, attempt_mock_service: AsyncMock
+    ) -> None:
+        response = await attempt_client.get(
+            "/api/v1/attempts/users/1/tasks/abc"
+        )
+        assert response.status_code == 200
+        assert response.json() == []
+        attempt_mock_service.get_by_user_and_task.assert_awaited_with(1, "abc")
+
+    async def test_returns_list(
+        self, attempt_client: AsyncClient, attempt_mock_service: AsyncMock
+    ) -> None:
+        attempt_mock_service.get_by_user_and_task.return_value = [
+            AttemptRead(id=2, user_id=1, task_id="abc"),
+            AttemptRead(id=1, user_id=1, task_id="abc"),
+        ]
+        response = await attempt_client.get(
+            "/api/v1/attempts/users/1/tasks/abc"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 2
+        assert data[0]["id"] == 2

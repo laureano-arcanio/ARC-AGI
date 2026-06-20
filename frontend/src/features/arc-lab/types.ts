@@ -85,9 +85,18 @@ export const COLOR_MAP: Record<number, string> = {
 export type EventPayload = {
   userId: number
   taskId: string
+  attemptId: number
   nodeId: string
   parentNodeId: string | null
   trigger: GraphTrigger
   stateSnapshot: GridData
   timestamp: number
+}
+
+export type AttemptRead = {
+  id: number
+  userId: number
+  taskId: string
+  createdAt: string
+  updatedAt: string | null
 }

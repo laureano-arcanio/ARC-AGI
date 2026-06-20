@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.schemas.attempt import AttemptCreate, AttemptRead
 from app.schemas.event import EventCreate, EventRead, EventUpdate
 from app.schemas.example_table import (
     ExampleTableCreate,
@@ -153,6 +154,7 @@ class TestEventCreate:
         data = EventCreate(
             user_id=1,
             task_id="00576224",
+            attempt_id=1,
             node_id="node_001",
             parent_node_id="node_000",
             trigger={"kind": "mechanical", "action": "cell_click"},
@@ -161,6 +163,7 @@ class TestEventCreate:
         )
         assert data.user_id == 1
         assert data.task_id == "00576224"
+        assert data.attempt_id == 1
         assert data.node_id == "node_001"
         assert data.parent_node_id == "node_000"
         assert data.trigger == {"kind": "mechanical", "action": "cell_click"}
@@ -177,6 +180,7 @@ class TestEventCreate:
             timestamp=1625000000000,
         )
         assert data.parent_node_id is None
+        assert data.attempt_id is None
 
     def test_missing_required_raises(self) -> None:
         import pydantic
@@ -188,6 +192,7 @@ class TestEventCreate:
         data = EventCreate(
             user_id=1,
             task_id="abc",
+            attempt_id=1,
             node_id="node_000",
             trigger={"kind": "mechanical"},
             state_snapshot=[[0]],
@@ -195,6 +200,7 @@ class TestEventCreate:
         )
         dumped = data.model_dump()
         assert dumped["user_id"] == 1
+        assert dumped["attempt_id"] == 1
         assert dumped["parent_node_id"] is None
 
     def test_camelcase_alias(self) -> None:
@@ -209,6 +215,7 @@ class TestEventCreate:
         dumped = data.model_dump(by_alias=True)
         assert "userId" in dumped
         assert "taskId" in dumped
+        assert "attemptId" in dumped
         assert "nodeId" in dumped
         assert "parentNodeId" in dumped
         assert "stateSnapshot" in dumped
@@ -227,6 +234,7 @@ class TestEventRead:
             id=1,
             user_id=1,
             task_id="abc",
+            attempt_id=1,
             node_id="node_000",
             trigger={"kind": "mechanical", "action": "cell_click"},
             state_snapshot=[[0, 1, 0]],
@@ -236,6 +244,7 @@ class TestEventRead:
         )
         assert data.id == 1
         assert data.task_id == "abc"
+        assert data.attempt_id == 1
         assert data.trigger == {"kind": "mechanical", "action": "cell_click"}
 
     def test_read_with_nulls(self) -> None:
@@ -249,6 +258,7 @@ class TestEventRead:
             timestamp=0,
         )
         assert data.parent_node_id is None
+        assert data.attempt_id is None
         assert data.created_at is None
 
     def test_from_attributes(self) -> None:
@@ -258,6 +268,7 @@ class TestEventRead:
             id: int = 1
             user_id: int = 1
             task_id: str = "abc"
+            attempt_id: int | None = None
             node_id: str = "node_000"
             parent_node_id: str | None = None
             trigger: dict = {"kind": "mechanical"}
@@ -270,4 +281,63 @@ class TestEventRead:
 
         data = EventRead.model_validate(FakeORM())
         assert data.id == 1
+        assert data.task_id == "abc"
+
+
+class TestAttemptCreate:
+    def test_valid_create(self) -> None:
+        data = AttemptCreate(user_id=1, task_id="00576224")
+        assert data.user_id == 1
+        assert data.task_id == "00576224"
+
+    def test_missing_required_raises(self) -> None:
+        import pydantic
+
+        with pytest.raises(pydantic.ValidationError):
+            AttemptCreate()  # type: ignore[call-arg]
+
+    def test_model_dump(self) -> None:
+        data = AttemptCreate(user_id=1, task_id="abc")
+        dumped = data.model_dump()
+        assert dumped == {"user_id": 1, "task_id": "abc"}
+
+    def test_camelcase_alias(self) -> None:
+        data = AttemptCreate.model_construct(user_id=1, task_id="abc")
+        dumped = data.model_dump(by_alias=True)
+        assert "userId" in dumped
+        assert "taskId" in dumped
+
+
+class TestAttemptRead:
+    def test_full_read_schema(self) -> None:
+        now = datetime.now(UTC)
+        data = AttemptRead(
+            id=1, user_id=1, task_id="abc", created_at=now, updated_at=now
+        )
+        assert data.id == 1
+        assert data.user_id == 1
+        assert data.task_id == "abc"
+        assert data.created_at == now
+        assert data.updated_at == now
+
+    def test_read_defaults(self) -> None:
+        data = AttemptRead(id=1, user_id=1, task_id="abc")
+        assert data.created_at is None
+        assert data.updated_at is None
+
+    def test_from_attributes(self) -> None:
+        from pydantic import BaseModel
+
+        class FakeORM(BaseModel):
+            id: int = 1
+            user_id: int = 1
+            task_id: str = "abc"
+            created_at: datetime | None = datetime.now(UTC)
+            updated_at: datetime | None = None
+
+            model_config = {"from_attributes": True}
+
+        data = AttemptRead.model_validate(FakeORM())
+        assert data.id == 1
+        assert data.user_id == 1
         assert data.task_id == "abc"

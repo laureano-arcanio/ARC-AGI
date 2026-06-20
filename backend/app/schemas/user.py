@@ -11,7 +11,7 @@ class UserCreate(BaseAPISchema):
 
 
 class UserUpdate(BaseAPISchema):
-    pass
+    role: UserRole | None = None
 
 
 class UserRead(BaseAPISchema):

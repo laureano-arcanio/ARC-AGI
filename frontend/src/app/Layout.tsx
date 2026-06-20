@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation, LanguageSwitcher } from '../lib/i18n'
+import { useAuth } from '../lib/auth'
 
 type LayoutProps = {
   children: ReactNode
@@ -7,6 +8,7 @@ type LayoutProps = {
 
 export function Layout({ children }: LayoutProps) {
   const { t } = useTranslation()
+  const { isAdmin, userUuid } = useAuth()
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -22,9 +24,14 @@ export function Layout({ children }: LayoutProps) {
             <a href="/dashboard" className="text-gray-400 transition hover:text-white">
               {t('nav.dashboard')}
             </a>
-            <a href="/solve/default/random" className="text-gray-400 transition hover:text-white">
+            <a href={`/solve/${userUuid ?? 'default'}/random`} className="text-gray-400 transition hover:text-white">
               {t('nav.solve')}
             </a>
+            {isAdmin && (
+              <a href="/admin/users" className="text-amber-400 transition hover:text-amber-300">
+                {t('nav.admin')}
+              </a>
+            )}
           </div>
           <div className="ml-auto">
             <LanguageSwitcher />

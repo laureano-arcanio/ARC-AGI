@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRandomTasks, useTaskById } from '../queries'
-import { postEvent } from '../api'
+import { createAttempt, postEvent } from '../api'
 import { getUserByUuid } from '../../dashboard/api'
 import { useTranslation } from '../../../lib/i18n'
 import { ConfirmDialog } from '../../../components/common'
@@ -463,16 +463,33 @@ export function ArcLabPage() {
   const atRoot = state.activeNodeId === 'node_000'
 
   const sentHashes = useRef<Set<string>>(new Set())
+  const attemptIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!taskId || taskId === 'random') return
     if (userId === null) return
+    let cancelled = false
+    createAttempt(userId, taskId).then((attempt) => {
+      if (!cancelled) {
+        attemptIdRef.current = attempt.id
+      }
+    }).catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [userId, taskId])
+
+  useEffect(() => {
+    if (!taskId || taskId === 'random') return
+    if (userId === null) return
+    if (attemptIdRef.current === null) return
     for (const node of state.graphNodes) {
       const hash = `${node.id}:${typeof node.trigger === 'string' ? node.trigger : JSON.stringify(node)}`
       if (sentHashes.current.has(hash)) continue
       postEvent({
         userId,
         taskId,
+        attemptId: attemptIdRef.current,
         nodeId: node.id,
         parentNodeId: node.parentId,
         trigger: node.trigger,
