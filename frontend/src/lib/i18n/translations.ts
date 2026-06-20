@@ -64,8 +64,10 @@ const es = {
   'timeline.hypothesis': '💡 Hipótesis',
   'timeline.failure': '❌ Falla',
   'timeline.confusion': '🤔 Atascado',
-  'timeline.go_back': '⏪ Volver aquí',
+  'timeline.resume': 'Retomar',
   'timeline.active': '(activo)',
+  'timeline.collapse': 'Contraer rama',
+  'timeline.expand': 'Expandir rama',
   'timeline.placeholder': 'Describe tu pensamiento...',
   'timeline.branch_discarded': 'Rama descartada. Volviendo al inicio.',
 
@@ -143,8 +145,10 @@ const en: Record<string, string> = {
   'timeline.hypothesis': '💡 Hypothesis',
   'timeline.failure': '❌ Failure',
   'timeline.confusion': '🤔 Stuck',
-  'timeline.go_back': '⏪ Go back',
+  'timeline.resume': 'Resume',
   'timeline.active': '(active)',
+  'timeline.collapse': 'Collapse branch',
+  'timeline.expand': 'Expand branch',
   'timeline.placeholder': 'Describe your thought...',
   'timeline.branch_discarded': 'Branch discarded. Returning to start.',
 

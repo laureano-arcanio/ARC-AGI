@@ -17,6 +17,8 @@ type Override = {
   onReset?: () => void
   callout?: string | null
   getLabel?: (trigger: unknown) => string
+  nodes?: GraphNode[]
+  activeNodeId?: string
 }
 
 function renderTimeline(override: Override = {}) {
@@ -25,10 +27,12 @@ function renderTimeline(override: Override = {}) {
   const onReset = override.onReset ?? vi.fn()
   const callout = override.callout ?? null
   const getLabel = override.getLabel ?? (() => 'label')
+  const nodes = override.nodes ?? [rootNode]
+  const activeNodeId = override.activeNodeId ?? 'node_000'
   render(
     <CognitiveTimeline
-      nodes={[rootNode]}
-      activeNodeId="node_000"
+      nodes={nodes}
+      activeNodeId={activeNodeId}
       onGoBack={vi.fn()}
       onSubmit={onSubmit as never}
       getLabel={getLabel as never}
@@ -147,5 +151,148 @@ describe('CognitiveTimeline', () => {
     expect(onReset).not.toHaveBeenCalled()
     fireEvent.click(screen.getByTestId('tag-observation'))
     expect(onReset).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a single linear branch at one indentation level', () => {
+    const nodes: GraphNode[] = [
+      rootNode,
+      {
+        id: 'node_001',
+        trigger: { kind: 'mechanical', action: 'cell_click' },
+        stateSnapshot: [[1]],
+        parentId: 'node_000',
+        timestamp: 1,
+      },
+      {
+        id: 'node_002',
+        trigger: { kind: 'mechanical', action: 'copy_from_input' },
+        stateSnapshot: [[1]],
+        parentId: 'node_001',
+        timestamp: 2,
+      },
+    ]
+
+    renderTimeline({ nodes, activeNodeId: 'node_002' })
+
+    const root = screen.getByTestId('timeline-node-node_000')
+    const first = screen.getByTestId('timeline-node-node_001')
+    const second = screen.getByTestId('timeline-node-node_002')
+    // root's children are wrapped in an ml-6 container
+    expect(first.parentElement).toBe(second.parentElement)
+    expect(first.parentElement).not.toBe(root.parentElement)
+    expect(first.parentElement?.className).toContain('ml-6')
+  })
+
+  it('does not render a collapse toggle on a linear continuation in the same branch', () => {
+    const nodes: GraphNode[] = [
+      rootNode,
+      {
+        id: 'node_001',
+        trigger: { kind: 'mechanical', action: 'cell_click' },
+        stateSnapshot: [[1]],
+        parentId: 'node_000',
+        timestamp: 1,
+      },
+      {
+        id: 'node_002',
+        trigger: { kind: 'mechanical', action: 'resize' },
+        stateSnapshot: [[1]],
+        parentId: 'node_001',
+        timestamp: 2,
+      },
+    ]
+
+    renderTimeline({ nodes, activeNodeId: 'node_002' })
+
+    // node_001 is a previous event on the same branch line (single child,
+    // not top-level) -> no collapse toggle, just a spacer.
+    expect(screen.queryByTestId('collapse-node_001')).not.toBeInTheDocument()
+    // root still has a toggle (top-level branch).
+    expect(screen.getByTestId('collapse-node_000')).toBeInTheDocument()
+  })
+
+  it('renders a collapse toggle on a real branch point with multiple children', () => {
+    const nodes: GraphNode[] = [
+      rootNode,
+      {
+        id: 'node_001',
+        trigger: { kind: 'mechanical', action: 'cell_click' },
+        stateSnapshot: [[1]],
+        parentId: 'node_000',
+        timestamp: 1,
+      },
+      {
+        id: 'node_002',
+        trigger: { kind: 'mechanical', action: 'fill_selected' },
+        stateSnapshot: [[1]],
+        parentId: 'node_001',
+        timestamp: 2,
+      },
+      {
+        id: 'node_003',
+        trigger: { kind: 'mechanical', action: 'paste' },
+        stateSnapshot: [[1]],
+        parentId: 'node_001',
+        timestamp: 3,
+      },
+    ]
+
+    renderTimeline({ nodes, activeNodeId: 'node_003' })
+
+    // node_001 forks into two children -> it is a real branch point.
+    expect(screen.getByTestId('collapse-node_001')).toBeInTheDocument()
+    expect(screen.queryByTestId('collapse-node_002')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('collapse-node_003')).not.toBeInTheDocument()
+  })
+
+  it('aligns a leaf active node with its sibling that has a collapse toggle', () => {
+    // node_000 forks into two children: 001 (a real branch point with two
+    // children of its own) and 002 (an active leaf). They are siblings in the
+    // same ml-6 container; 001 renders a collapse toggle, 002 renders a spacer.
+    // Both must occupy the same width so their icon/label align vertically.
+    const nodes: GraphNode[] = [
+      rootNode,
+      {
+        id: 'node_001',
+        trigger: { kind: 'mechanical', action: 'cell_click' },
+        stateSnapshot: [[1]],
+        parentId: 'node_000',
+        timestamp: 1,
+      },
+      {
+        id: 'node_002',
+        trigger: { kind: 'mechanical', action: 'resize' },
+        stateSnapshot: [[1]],
+        parentId: 'node_000',
+        timestamp: 2,
+      },
+      {
+        id: 'node_003',
+        trigger: { kind: 'mechanical', action: 'paste' },
+        stateSnapshot: [[1]],
+        parentId: 'node_001',
+        timestamp: 3,
+      },
+      {
+        id: 'node_004',
+        trigger: { kind: 'mechanical', action: 'fill_selected' },
+        stateSnapshot: [[1]],
+        parentId: 'node_001',
+        timestamp: 4,
+      },
+    ]
+
+    renderTimeline({ nodes, activeNodeId: 'node_002' })
+
+    const collapse = screen.getByTestId('collapse-node_001')
+    const leaf = screen.getByTestId('timeline-node-node_002')
+    const spacer = leaf.querySelector('span.shrink-0.w-3\\.5')
+
+    const collapseWidth = collapse.className.match(/w-[\d.]+/)?.[0]
+    const spacerWidth = spacer?.className.match(/w-[\d.]+/)?.[0]
+
+    expect(collapseWidth).toBe('w-3.5')
+    expect(spacer).not.toBeNull()
+    expect(spacerWidth).toBe(collapseWidth)
   })
 })

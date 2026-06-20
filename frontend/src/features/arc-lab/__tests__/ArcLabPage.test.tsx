@@ -147,6 +147,39 @@ describe('ArcLabPage', () => {
     expect(sizeInput.value).toBe('3x3')
   })
 
+  it('restart adds a restart event in the active branch and continues from root', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('copy-from-input'))
+    fireEvent.click(screen.getByTestId('symbol-3'))
+    fireEvent.mouseDown(outputCell(0, 0))
+    fireEvent.mouseUp(outputCell(0, 0))
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(3)
+
+    fireEvent.click(screen.getByTestId('reset-btn'))
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
+
+    const nodes = screen.getAllByTestId(/timeline-node-/)
+    expect(nodes).toHaveLength(4)
+    const restartNode = screen.getByTestId('timeline-node-node_003')
+    expect(restartNode.textContent).toContain('log.reset_output')
+    expect(restartNode.textContent).not.toContain('timeline.active')
+    expect(screen.queryByTestId('go-back-node_003')).not.toBeInTheDocument()
+    expect(screen.getByTestId('timeline-node-node_000').textContent).toContain(
+      'timeline.active',
+    )
+
+    fireEvent.mouseDown(outputCell(0, 0))
+    fireEvent.mouseUp(outputCell(0, 0))
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(5)
+    expect(screen.getByTestId('timeline-node-node_004').textContent).toContain(
+      'timeline.active',
+    )
+    expect(screen.getByTestId('timeline-node-node_000').textContent).not.toContain(
+      'timeline.active',
+    )
+  })
+
   it('closes the reset confirm dialog on cancel without resetting', async () => {
     renderPage()
     await waitForTask()
@@ -260,6 +293,30 @@ describe('ArcLabPage', () => {
     const last = nodes[nodes.length - 1]
     expect(last.textContent).toContain('🤔')
     expect(last.textContent).toContain('no entiendo los píxeles rojos')
+  })
+
+  it('starts a new paint event after resuming an earlier branch', async () => {
+    renderPage()
+    await waitForTask()
+
+    fireEvent.click(screen.getByTestId('copy-from-input'))
+    fireEvent.click(screen.getByTestId('symbol-3'))
+    fireEvent.mouseDown(outputCell(0, 0))
+    fireEvent.mouseUp(outputCell(0, 0))
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(3)
+
+    fireEvent.click(screen.getByTestId('go-back-node_001'))
+    fireEvent.click(screen.getByTestId('symbol-4'))
+    fireEvent.mouseDown(outputCell(0, 1))
+    fireEvent.mouseUp(outputCell(0, 1))
+
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(4)
+    expect(screen.getByTestId('timeline-node-node_003').textContent).toContain(
+      'log.cell_click',
+    )
+    expect(screen.getByTestId('timeline-node-node_003').textContent).toContain(
+      'timeline.active',
+    )
   })
 
   it('intercepts a paint click after 1 minute of inactivity', async () => {

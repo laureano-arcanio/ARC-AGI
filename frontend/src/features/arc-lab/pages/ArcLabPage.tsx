@@ -220,22 +220,17 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     case 'RESET_OUTPUT': {
       const outputGrid = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
       const rootNode = state.graphNodes[0]
-      const id = makeNodeId(state.nextNodeId)
-      const node: GraphNode = {
-        id,
-        trigger: { kind: 'mechanical', action: 'reset_output' },
-        stateSnapshot: cloneGrid(outputGrid),
-        parentId: rootNode?.id ?? state.activeNodeId,
-        timestamp: Date.now(),
-      }
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'reset_output' },
+      )
       return {
         ...state,
         outputGrid,
         sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
         selectedCells: new Set(),
-        graphNodes: [...state.graphNodes, node],
-        activeNodeId: id,
-        nextNodeId: state.nextNodeId + 1,
+        ...graph,
+        activeNodeId: rootNode?.id ?? graph.activeNodeId,
         message: { kind: 'info', text: 'timeline.branch_discarded' },
       }
     }
@@ -246,7 +241,6 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         return { ...state, message: { kind: 'error', text: 'toast.no_test_pair' } }
       }
       const correct = gridsEqual(state.outputGrid, reference)
-      console.log('SUBMIT events:', JSON.stringify(state.graphNodes, null, 2))
       const graph = addNode(
         state,
         { kind: 'mechanical', action: 'submit', details: { correct } },
@@ -275,6 +269,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         const cellEntry = { x: action.x, y: action.y, symbol: state.selectedSymbol }
         const lastNode = state.graphNodes[state.graphNodes.length - 1]
         if (
+          state.activeNodeId === lastNode?.id &&
           lastNode?.trigger.kind === 'mechanical' &&
           lastNode.trigger.action === 'cell_click'
         ) {
