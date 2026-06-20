@@ -19,7 +19,10 @@ export function Layout({ children }: LayoutProps) {
             <a href="/" className="text-gray-400 transition hover:text-white">
               {t('nav.home')}
             </a>
-            <a href="/solve/random" className="text-gray-400 transition hover:text-white">
+            <a href="/dashboard" className="text-gray-400 transition hover:text-white">
+              {t('nav.dashboard')}
+            </a>
+            <a href="/solve/default/random" className="text-gray-400 transition hover:text-white">
               {t('nav.solve')}
             </a>
           </div>

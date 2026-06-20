@@ -3,13 +3,19 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.errors import ObjectNotFoundError
+from app.models.event import Event
 from app.models.example_table import ExampleTable
+from app.models.user import User, UserRole
+from app.schemas.event import EventCreate, EventRead
 from app.schemas.example_table import (
     ExampleTableCreate,
     ExampleTableRead,
     ExampleTableUpdate,
 )
+from app.schemas.user import UserCreate, UserRead
+from app.services.event import EventService
 from app.services.example_table import ExampleTableService
+from app.services.user import UserService
 
 
 @pytest.fixture
@@ -130,3 +136,157 @@ class TestExampleTableServiceDelete:
         mock_repo.delete.side_effect = ObjectNotFoundError("ExampleTable", 999)
         with pytest.raises(ObjectNotFoundError):
             await service.delete(999)
+
+
+@pytest.fixture
+def user_mock_repo() -> AsyncMock:
+    repo = AsyncMock()
+
+    async def create_side_effect(data):
+        extra = {k: v for k, v in data.items() if k not in ("uuid", "role")}
+        return User(
+            id=1,
+            uuid=data.get("uuid", "auto-uuid"),
+            role=data.get("role", UserRole.SOLVER),
+            **extra,
+        )
+
+    repo.create.side_effect = create_side_effect
+    repo.get_by_id.side_effect = ObjectNotFoundError("User", 0)
+    repo.get_by_uuid.side_effect = ObjectNotFoundError("User", "unknown")
+    return repo
+
+
+@pytest.fixture
+def user_service(user_mock_repo: AsyncMock) -> UserService:
+    svc = UserService(repository=user_mock_repo)
+    svc.read_schema = UserRead
+    return svc
+
+
+class TestUserServiceCreate:
+    async def test_creates_and_returns_schema(
+        self, user_service: UserService, user_mock_repo: AsyncMock
+    ) -> None:
+        result = await user_service.create(UserCreate())
+        assert isinstance(result, UserRead)
+        assert result.id == 1
+        user_mock_repo.create.assert_awaited_with({"role": "solver"})
+
+
+class TestUserServiceGetById:
+    async def test_returns_schema_when_found(
+        self, user_service: UserService, user_mock_repo: AsyncMock
+    ) -> None:
+        user_mock_repo.get_by_id.side_effect = None
+        user_mock_repo.get_by_id.return_value = User(
+            id=3, uuid="uuid-3", role=UserRole.SOLVER
+        )
+        result = await user_service.get_by_id(3)
+        assert isinstance(result, UserRead)
+        assert result.id == 3
+        assert result.uuid == "uuid-3"
+        assert result.role == "solver"
+
+    async def test_raises_when_not_found(
+        self, user_service: UserService
+    ) -> None:
+        with pytest.raises(ObjectNotFoundError):
+            await user_service.get_by_id(999)
+
+
+class TestUserServiceGetByUuid:
+    async def test_returns_schema_when_found(
+        self, user_service: UserService, user_mock_repo: AsyncMock
+    ) -> None:
+        user_mock_repo.get_by_uuid.side_effect = None
+        user_mock_repo.get_by_uuid.return_value = User(
+            id=7, uuid="my-uuid", role=UserRole.SOLVER
+        )
+        result = await user_service.get_by_uuid("my-uuid")
+        assert isinstance(result, UserRead)
+        assert result.id == 7
+        assert result.uuid == "my-uuid"
+        assert result.role == "solver"
+        user_mock_repo.get_by_uuid.assert_awaited_with("my-uuid")
+
+    async def test_raises_when_not_found(
+        self, user_service: UserService
+    ) -> None:
+        with pytest.raises(ObjectNotFoundError):
+            await user_service.get_by_uuid("nonexistent")
+
+
+@pytest.fixture
+def event_mock_repo() -> AsyncMock:
+    repo = AsyncMock()
+
+    async def create_side_effect(data):
+        return Event(id=1, **data)
+
+    repo.create.side_effect = create_side_effect
+    repo.get_by_user_and_task.return_value = []
+    return repo
+
+
+@pytest.fixture
+def event_service(event_mock_repo: AsyncMock) -> EventService:
+    svc = EventService(repository=event_mock_repo)
+    svc.read_schema = EventRead
+    return svc
+
+
+class TestEventServiceCreate:
+    async def test_creates_and_returns_schema(
+        self, event_service: EventService, event_mock_repo: AsyncMock
+    ) -> None:
+        create_data = EventCreate(
+            user_id=1,
+            task_id="abc",
+            node_id="node_001",
+            trigger={"kind": "mechanical", "action": "cell_click"},
+            state_snapshot=[[0, 1]],
+            timestamp=1625000000000,
+        )
+        result = await event_service.create(create_data)
+        assert isinstance(result, EventRead)
+        assert result.node_id == "node_001"
+        event_mock_repo.create.assert_awaited_once()
+
+
+class TestEventServiceGetByUserAndTask:
+    async def test_returns_empty_list(
+        self, event_service: EventService, event_mock_repo: AsyncMock
+    ) -> None:
+        result = await event_service.get_events_by_user_and_task(1, "abc")
+        assert result == []
+        event_mock_repo.get_by_user_and_task.assert_awaited_with(1, "abc")
+
+    async def test_returns_list_of_schemas(
+        self, event_service: EventService, event_mock_repo: AsyncMock
+    ) -> None:
+        event_mock_repo.get_by_user_and_task.return_value = [
+            Event(
+                id=1,
+                user_id=1,
+                task_id="abc",
+                node_id="node_001",
+                trigger={"kind": "mechanical"},
+                state_snapshot=[[0]],
+                timestamp=1,
+            ),
+            Event(
+                id=2,
+                user_id=1,
+                task_id="abc",
+                node_id="node_002",
+                trigger={"kind": "mechanical"},
+                state_snapshot=[[1]],
+                timestamp=2,
+            ),
+        ]
+        result = await event_service.get_events_by_user_and_task(1, "abc")
+        assert len(result) == 2
+        assert isinstance(result[0], EventRead)
+        assert result[0].node_id == "node_001"
+        assert result[1].node_id == "node_002"

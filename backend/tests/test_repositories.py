@@ -1,8 +1,12 @@
 import pytest
 
 from app.errors import ObjectNotFoundError
+from app.models.event import Event
 from app.models.example_table import ExampleTable
+from app.models.user import User
+from app.repositories.event import EventRepository
 from app.repositories.example_table import ExampleTableRepository
+from app.repositories.user import UserRepository
 from tests.conftest import MockAsyncSession, MockResult
 
 
@@ -127,3 +131,115 @@ class TestExampleTableRepositoryDelete:
         db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
         with pytest.raises(ObjectNotFoundError):
             await repo.delete(999)
+
+
+@pytest.fixture
+def user_repo(db_session: MockAsyncSession) -> UserRepository:
+    return UserRepository(db_session=db_session)
+
+
+class TestUserRepositoryCreate:
+    async def test_creates_instance(
+        self, user_repo: UserRepository, db_session: MockAsyncSession
+    ) -> None:
+        result = await user_repo.create({"uuid": "generated-uuid", "role": "solver"})
+        assert isinstance(result, User)
+        assert result.uuid == "generated-uuid"
+        assert result.role == "solver"
+        assert len(db_session.added) == 1
+        assert db_session.flushed is True
+
+
+class TestUserRepositoryGetById:
+    async def test_returns_instance_when_found(
+        self,
+        user_repo: UserRepository,
+        db_session: MockAsyncSession,
+        sample_user: User,
+    ) -> None:
+        db_session.set_execute_result(
+            MockResult(scalar_one_or_none_result=sample_user)
+        )
+        result = await user_repo.get_by_id(1)
+        assert result.id == 1
+        assert result.uuid == "test-uuid-1234"
+        assert result.role == "solver"
+
+    async def test_raises_when_not_found(
+        self, user_repo: UserRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
+        with pytest.raises(ObjectNotFoundError):
+            await user_repo.get_by_id(999)
+
+
+class TestUserRepositoryGetByUuid:
+    async def test_returns_instance_when_found(
+        self,
+        user_repo: UserRepository,
+        db_session: MockAsyncSession,
+        sample_user: User,
+    ) -> None:
+        db_session.set_execute_result(
+            MockResult(scalar_one_or_none_result=sample_user)
+        )
+        result = await user_repo.get_by_uuid("test-uuid-1234")
+        assert result.id == 1
+        assert result.uuid == "test-uuid-1234"
+        assert result.role == "solver"
+
+    async def test_raises_when_not_found(
+        self, user_repo: UserRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
+        with pytest.raises(ObjectNotFoundError):
+            await user_repo.get_by_uuid("nonexistent-uuid")
+
+
+@pytest.fixture
+def event_repo(db_session: MockAsyncSession) -> EventRepository:
+    return EventRepository(db_session=db_session)
+
+
+class TestEventRepositoryCreate:
+    async def test_creates_instance(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        data = {
+            "user_id": 1,
+            "task_id": "abc",
+            "node_id": "node_001",
+            "parent_node_id": "node_000",
+            "trigger": {"kind": "mechanical", "action": "cell_click"},
+            "state_snapshot": [[0, 1, 0]],
+            "timestamp": 1625000000000,
+        }
+        result = await event_repo.create(data)
+        assert result.user_id == 1
+        assert result.task_id == "abc"
+        assert result.node_id == "node_001"
+        assert len(db_session.added) == 1
+        assert db_session.flushed is True
+
+
+class TestEventRepositoryGetByUserAndTask:
+    async def test_returns_empty_list_when_no_events(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalars_all_result=[]))
+        result = await event_repo.get_by_user_and_task(1, "abc")
+        assert result == []
+
+    async def test_returns_events(
+        self,
+        event_repo: EventRepository,
+        db_session: MockAsyncSession,
+        sample_events: list[Event],
+    ) -> None:
+        db_session.set_execute_result(
+            MockResult(scalars_all_result=sample_events)
+        )
+        result = await event_repo.get_by_user_and_task(1, "00576224")
+        assert len(result) == 2
+        assert result[0].node_id == "node_001"
+        assert result[1].node_id == "node_002"

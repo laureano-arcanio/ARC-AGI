@@ -2,11 +2,13 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.schemas.event import EventCreate, EventRead, EventUpdate
 from app.schemas.example_table import (
     ExampleTableCreate,
     ExampleTableRead,
     ExampleTableUpdate,
 )
+from app.schemas.user import UserCreate, UserRead
 
 
 class TestExampleTableCreate:
@@ -88,3 +90,184 @@ class TestExampleTableRead:
         assert data.id == 10
         assert data.name == "orm-test"
         assert data.description == "from orm"
+
+
+class TestUserCreate:
+    def test_creates_without_fields(self) -> None:
+        data = UserCreate()
+        assert isinstance(data, UserCreate)
+        assert data.role == "solver"
+
+    def test_creates_with_role(self) -> None:
+        data = UserCreate(role="admin")
+        assert data.role == "admin"
+
+    def test_model_dump(self) -> None:
+        data = UserCreate()
+        dumped = data.model_dump()
+        assert dumped == {"role": "solver"}
+
+    def test_model_dump_with_role(self) -> None:
+        data = UserCreate(role="admin")
+        dumped = data.model_dump()
+        assert dumped == {"role": "admin"}
+
+
+class TestUserRead:
+    def test_full_read_schema(self) -> None:
+        now = datetime.now(UTC)
+        data = UserRead(
+            id=1, uuid="abc-123", role="solver", created_at=now, updated_at=now
+        )
+        assert data.id == 1
+        assert data.uuid == "abc-123"
+        assert data.role == "solver"
+        assert data.created_at == now
+        assert data.updated_at == now
+
+    def test_read_defaults(self) -> None:
+        data = UserRead(id=2, uuid="def-456", role="admin")
+        assert data.created_at is None
+        assert data.updated_at is None
+
+    def test_from_attributes(self) -> None:
+        from pydantic import BaseModel
+
+        class FakeORM(BaseModel):
+            id: int = 1
+            uuid: str = "orm-uuid"
+            role: str = "solver"
+            created_at: datetime | None = datetime.now(UTC)
+            updated_at: datetime | None = None
+
+            model_config = {"from_attributes": True}
+
+        data = UserRead.model_validate(FakeORM())
+        assert data.id == 1
+        assert data.uuid == "orm-uuid"
+        assert data.role == "solver"
+
+
+class TestEventCreate:
+    def test_valid_create(self) -> None:
+        data = EventCreate(
+            user_id=1,
+            task_id="00576224",
+            node_id="node_001",
+            parent_node_id="node_000",
+            trigger={"kind": "mechanical", "action": "cell_click"},
+            state_snapshot=[[0, 1, 0]],
+            timestamp=1625000000000,
+        )
+        assert data.user_id == 1
+        assert data.task_id == "00576224"
+        assert data.node_id == "node_001"
+        assert data.parent_node_id == "node_000"
+        assert data.trigger == {"kind": "mechanical", "action": "cell_click"}
+        assert data.state_snapshot == [[0, 1, 0]]
+        assert data.timestamp == 1625000000000
+
+    def test_create_without_optional_parent(self) -> None:
+        data = EventCreate(
+            user_id=1,
+            task_id="abc",
+            node_id="node_000",
+            trigger={"kind": "mechanical", "action": "load_task"},
+            state_snapshot=[[0, 0], [0, 0]],
+            timestamp=1625000000000,
+        )
+        assert data.parent_node_id is None
+
+    def test_missing_required_raises(self) -> None:
+        import pydantic
+
+        with pytest.raises(pydantic.ValidationError):
+            EventCreate()  # type: ignore[call-arg]
+
+    def test_model_dump_for_repo(self) -> None:
+        data = EventCreate(
+            user_id=1,
+            task_id="abc",
+            node_id="node_000",
+            trigger={"kind": "mechanical"},
+            state_snapshot=[[0]],
+            timestamp=1,
+        )
+        dumped = data.model_dump()
+        assert dumped["user_id"] == 1
+        assert dumped["parent_node_id"] is None
+
+    def test_camelcase_alias(self) -> None:
+        data = EventCreate.model_construct(
+            user_id=1,
+            task_id="abc",
+            node_id="node_000",
+            trigger={"kind": "mechanical"},
+            state_snapshot=[[0]],
+            timestamp=1,
+        )
+        dumped = data.model_dump(by_alias=True)
+        assert "userId" in dumped
+        assert "taskId" in dumped
+        assert "nodeId" in dumped
+        assert "parentNodeId" in dumped
+        assert "stateSnapshot" in dumped
+
+
+class TestEventUpdate:
+    def test_empty_update(self) -> None:
+        data = EventUpdate()
+        assert isinstance(data, EventUpdate)
+
+
+class TestEventRead:
+    def test_full_read_schema(self) -> None:
+        now = datetime.now(UTC)
+        data = EventRead(
+            id=1,
+            user_id=1,
+            task_id="abc",
+            node_id="node_000",
+            trigger={"kind": "mechanical", "action": "cell_click"},
+            state_snapshot=[[0, 1, 0]],
+            timestamp=1625000000000,
+            created_at=now,
+            updated_at=now,
+        )
+        assert data.id == 1
+        assert data.task_id == "abc"
+        assert data.trigger == {"kind": "mechanical", "action": "cell_click"}
+
+    def test_read_with_nulls(self) -> None:
+        data = EventRead(
+            id=1,
+            user_id=1,
+            task_id="abc",
+            node_id="node_000",
+            trigger={},
+            state_snapshot=[],
+            timestamp=0,
+        )
+        assert data.parent_node_id is None
+        assert data.created_at is None
+
+    def test_from_attributes(self) -> None:
+        from pydantic import BaseModel
+
+        class FakeORM(BaseModel):
+            id: int = 1
+            user_id: int = 1
+            task_id: str = "abc"
+            node_id: str = "node_000"
+            parent_node_id: str | None = None
+            trigger: dict = {"kind": "mechanical"}
+            state_snapshot: list = [[0]]
+            timestamp: int = 1
+            created_at: datetime | None = None
+            updated_at: datetime | None = None
+
+            model_config = {"from_attributes": True}
+
+        data = EventRead.model_validate(FakeORM())
+        assert data.id == 1
+        assert data.task_id == "abc"

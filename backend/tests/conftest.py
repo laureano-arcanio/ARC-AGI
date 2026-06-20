@@ -7,7 +7,9 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.event import Event
 from app.models.example_table import ExampleTable
+from app.models.user import User, UserRole
 
 
 class MockResult:
@@ -67,6 +69,51 @@ def sample_example_tables() -> list[ExampleTable]:
     return [
         ExampleTable(id=1, name="first", description="first entry"),
         ExampleTable(id=2, name="second", description="second entry"),
+    ]
+
+
+@pytest.fixture
+def sample_user() -> User:
+    return User(id=1, uuid="test-uuid-1234", role=UserRole.SOLVER)
+
+
+@pytest.fixture
+def sample_event() -> Event:
+    return Event(
+        id=1,
+        user_id=1,
+        task_id="00576224",
+        node_id="node_001",
+        parent_node_id="node_000",
+        trigger={"kind": "mechanical", "action": "cell_click"},
+        state_snapshot=[[0, 1, 0], [0, 0, 0]],
+        timestamp=1625000000000,
+    )
+
+
+@pytest.fixture
+def sample_events() -> list[Event]:
+    return [
+        Event(
+            id=1,
+            user_id=1,
+            task_id="00576224",
+            node_id="node_001",
+            parent_node_id="node_000",
+            trigger={"kind": "mechanical", "action": "cell_click"},
+            state_snapshot=[[0, 1, 0]],
+            timestamp=1625000000000,
+        ),
+        Event(
+            id=2,
+            user_id=1,
+            task_id="00576224",
+            node_id="node_002",
+            parent_node_id="node_001",
+            trigger={"kind": "mechanical", "action": "submit"},
+            state_snapshot=[[1, 0, 0]],
+            timestamp=1625000001000,
+        ),
     ]
 
 

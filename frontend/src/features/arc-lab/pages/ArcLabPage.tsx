@@ -1,6 +1,8 @@
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRandomTasks, useTaskById } from '../queries'
+import { postEvent } from '../api'
+import { getUserByUuid } from '../../dashboard/api'
 import { useTranslation } from '../../../lib/i18n'
 import { ConfirmDialog } from '../../../components/common'
 import {
@@ -427,14 +429,63 @@ function getNodeLabel(
 }
 
 export function ArcLabPage() {
-  const { taskId } = useParams<{ taskId: string }>()
+  const { taskId, uuid } = useParams<{ taskId: string; uuid: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
   const [abandonOpen, setAbandonOpen] = useState(false)
   const [hypothesisText, setHypothesisText] = useState('')
 
+  const [userId, setUserId] = useState<number | null>(null)
+  const [userError, setUserError] = useState(false)
+
+  useEffect(() => {
+    if (uuid) {
+      let cancelled = false
+      getUserByUuid(uuid)
+        .then((user) => {
+          if (!cancelled) {
+            setUserId(user.id)
+            setUserError(false)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setUserError(true)
+        })
+      return () => {
+        cancelled = true
+      }
+    } else {
+      setUserId(1)
+    }
+  }, [uuid])
+
   const atRoot = state.activeNodeId === 'node_000'
+
+  const sentHashes = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!taskId || taskId === 'random') return
+    if (userId === null) return
+    for (const node of state.graphNodes) {
+      const hash = `${node.id}:${typeof node.trigger === 'string' ? node.trigger : JSON.stringify(node)}`
+      if (sentHashes.current.has(hash)) continue
+      postEvent({
+        userId,
+        taskId,
+        nodeId: node.id,
+        parentNodeId: node.parentId,
+        trigger: node.trigger,
+        stateSnapshot: node.stateSnapshot,
+        timestamp: node.timestamp,
+      }).catch(() => {})
+      sentHashes.current.add(hash)
+    }
+  }, [state.graphNodes, taskId, userId])
+
+  useEffect(() => {
+    sentHashes.current = new Set()
+  }, [taskId])
 
   const { data: randomTasks, isFetched: randomFetched } = useRandomTasks(
     1,
@@ -444,9 +495,12 @@ export function ArcLabPage() {
 
   useEffect(() => {
     if (taskId === 'random' && randomFetched && randomTasks && randomTasks.length > 0) {
-      navigate(`/solve/${randomTasks[0].id}`, { replace: true })
+      const target = uuid
+        ? `/solve/${uuid}/${randomTasks[0].id}`
+        : `/solve/${randomTasks[0].id}`
+      navigate(target, { replace: true })
     }
-  }, [taskId, randomFetched, randomTasks, navigate])
+  }, [taskId, randomFetched, randomTasks, navigate, uuid])
 
   useEffect(() => {
     if (specificTask) {
@@ -504,14 +558,44 @@ export function ArcLabPage() {
     setHypothesisText('')
   }
 
+  const handleSubmit = () => {
+    console.log('[SUBMIT]', JSON.stringify({
+      outputGrid: state.outputGrid,
+      testIndex: state.currentTestIndex,
+      reference: state.test[state.currentTestIndex]?.output,
+      graphNodes: state.graphNodes.map((n) => ({
+        id: n.id,
+        trigger: n.trigger,
+        parentId: n.parentId,
+      })),
+    }, null, 2))
+    dispatch({ type: 'SUBMIT' })
+  }
+
   return (
     <div data-testid="arc-lab-page">
+      {userError ? (
+        <div className="flex flex-col items-center justify-center gap-4 pt-24 text-center">
+          <p className="text-lg text-red-400">{t('dashboard.invalid_uuid')}</p>
+          <a
+            href="/"
+            className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white transition hover:bg-gray-600"
+          >
+            {t('dashboard.back')}
+          </a>
+        </div>
+      ) : (
+      <>
       <div className="flex flex-col gap-5">
         <DemonstrationPanel pairs={state.train} />
 
         <div className="flex flex-col gap-5 lg:flex-row">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <TaskControls onNextTask={() => navigate('/solve/random')} />
+            <TaskControls
+              onNextTask={() =>
+                navigate(uuid ? `/solve/${uuid}/random` : '/solve/random')
+              }
+            />
 
             <TestInputPanel
               input={state.inputGrid}
@@ -534,7 +618,7 @@ export function ArcLabPage() {
               onResize={() => dispatch({ type: 'RESIZE' })}
               onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
               onReset={handleReset}
-              onSubmit={() => dispatch({ type: 'SUBMIT' })}
+              onSubmit={handleSubmit}
               onAbandon={() => setAbandonOpen(true)}
               onCellClick={handleCellClick}
               onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}
@@ -567,6 +651,8 @@ export function ArcLabPage() {
         onConfirm={handleAbandonConfirm}
         onCancel={handleAbandonCancel}
       />
+      </>
+      )}
     </div>
   )
 }

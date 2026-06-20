@@ -7,13 +7,14 @@ const es = {
   'nav.home': 'Inicio',
   'nav.health': 'Salud',
   'nav.solve': 'Resolver',
+  'nav.dashboard': 'Panel',
 
   'language.es': 'Español',
   'language.en': 'English',
 
   'home.title': 'ARC-AGI',
   'home.subtitle': 'Resuelve puzzles de razonamiento visual ARC-AGI infiriendo patrones a partir de ejemplos de entrada y salida.',
-  'home.start': 'Iniciar tarea',
+  'home.start': 'Empezar',
 
   'panel.demonstration': 'Demostración de la tarea',
   'panel.input': 'Entrada',
@@ -80,6 +81,18 @@ const es = {
   'log.reset_output': 'Reinicio desde cero',
   'log.submit': 'Solución enviada',
   'log.abandon': 'Tarea abandonada',
+
+  'dashboard.title': 'Panel de usuario',
+  'dashboard.subtitle': 'Crea un nuevo usuario o ingresa tu UUID existente para comenzar a resolver tareas.',
+  'dashboard.create': 'Crear nuevo usuario',
+  'dashboard.creating': 'Creando...',
+  'dashboard.or': 'o',
+  'dashboard.uuid_placeholder': 'Pega tu UUID aquí',
+  'dashboard.use_uuid': 'Usar',
+  'dashboard.uuid_empty': 'Ingresa un UUID.',
+  'dashboard.create_error': 'Error al crear usuario. Intenta de nuevo.',
+  'dashboard.invalid_uuid': 'UUID no encontrado. Verifica el enlace o crea un nuevo usuario.',
+  'dashboard.back': 'Volver al panel',
 }
 
 const en: Record<string, string> = {
@@ -87,13 +100,14 @@ const en: Record<string, string> = {
   'nav.home': 'Home',
   'nav.health': 'Health',
   'nav.solve': 'Solve',
+  'nav.dashboard': 'Dashboard',
 
   'language.es': 'Español',
   'language.en': 'English',
 
   'home.title': 'ARC-AGI',
   'home.subtitle': 'Solve ARC-AGI visual reasoning puzzles by inferring patterns from input-output examples.',
-  'home.start': 'Start task',
+  'home.start': 'Start',
 
   'panel.demonstration': 'Task demonstration',
   'panel.input': 'Input',
@@ -160,6 +174,18 @@ const en: Record<string, string> = {
   'log.reset_output': 'Reset from scratch',
   'log.submit': 'Solution submitted',
   'log.abandon': 'Task abandoned',
+
+  'dashboard.title': 'User Dashboard',
+  'dashboard.subtitle': 'Create a new user or enter your existing UUID to start solving tasks.',
+  'dashboard.create': 'Create new user',
+  'dashboard.creating': 'Creating...',
+  'dashboard.or': 'or',
+  'dashboard.uuid_placeholder': 'Paste your UUID here',
+  'dashboard.use_uuid': 'Use',
+  'dashboard.uuid_empty': 'Enter a UUID.',
+  'dashboard.create_error': 'Error creating user. Try again.',
+  'dashboard.invalid_uuid': 'UUID not found. Check the link or create a new user.',
+  'dashboard.back': 'Back to dashboard',
 }
 
 export const translations = { es, en }

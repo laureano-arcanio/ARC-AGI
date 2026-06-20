@@ -81,3 +81,13 @@ export const COLOR_MAP: Record<number, string> = {
   8: '#7FDBFF',
   9: '#870C25',
 }
+
+export type EventPayload = {
+  userId: number
+  taskId: string
+  nodeId: string
+  parentNodeId: string | null
+  trigger: GraphTrigger
+  stateSnapshot: GridData
+  timestamp: number
+}
