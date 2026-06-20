@@ -95,9 +95,24 @@ describe('ArcLabPage', () => {
     expect(screen.getByTestId('toast').textContent).toContain('toast.no_next_test')
   })
 
-  it('edits a cell in the output grid', async () => {
+  it('shows the hypothesis input when at root', async () => {
     renderPage()
     await waitForTask()
+    expect(screen.getByTestId('hypothesis-submit')).toBeInTheDocument()
+  })
+
+  it('hides the hypothesis input after submitting and enables editing', async () => {
+    renderPage()
+    await waitForTask()
+    expect(screen.getByTestId('hypothesis-submit')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
+    expect(screen.queryByTestId('hypothesis-submit')).not.toBeInTheDocument()
+
     fireEvent.click(screen.getByTestId('symbol-3'))
     const cell = outputCell(0, 0)
     fireEvent.mouseDown(cell)
@@ -105,9 +120,28 @@ describe('ArcLabPage', () => {
     expect(cell.getAttribute('data-symbol')).toBe('3')
   })
 
+  it('logs a hypothesis cognitive node in the timeline', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
+    const nodes = screen.getAllByTestId(/timeline-node-/)
+    const last = nodes[nodes.length - 1]
+    expect(last.textContent).toContain('💡')
+    expect(last.textContent).toContain('one two three four five')
+  })
+
   it('reports wrong solution on submit', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
     fireEvent.click(screen.getByTestId('submit-btn'))
     expect(screen.getByTestId('toast').getAttribute('data-kind')).toBe('error')
     expect(screen.getByTestId('toast').textContent).toContain('toast.wrong')
@@ -116,6 +150,12 @@ describe('ArcLabPage', () => {
   it('reports correct solution when output matches', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     fireEvent.click(screen.getByTestId('symbol-1'))
     for (const [x, y] of [
       [0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2],
@@ -132,47 +172,78 @@ describe('ArcLabPage', () => {
   it('copies the input grid into the output editor', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     fireEvent.click(screen.getByTestId('copy-from-input'))
     const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
     expect(sizeInput.value).toBe('3x3')
   })
 
-  it('opens a confirm dialog when reset is clicked and resets on confirm', async () => {
+  it('resets the output grid without confirmation and shows hypothesis input', async () => {
     renderPage()
     await waitForTask()
-    fireEvent.click(screen.getByTestId('reset-btn'))
-    expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
+    // Submit hypothesis first to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
+    fireEvent.click(screen.getByTestId('copy-from-input'))
     const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
     expect(sizeInput.value).toBe('3x3')
+    fireEvent.change(sizeInput, { target: { value: '5x5' } })
+    fireEvent.click(screen.getByTestId('resize-btn'))
+    expect(sizeInput.value).toBe('5x5')
+
+    // Reset directly — no confirm dialog
+    fireEvent.click(screen.getByTestId('reset-btn'))
+    expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
+    expect(sizeInput.value).toBe('3x3')
+    // Hypothesis input is shown again (at root)
+    expect(screen.getByTestId('hypothesis-submit')).toBeInTheDocument()
   })
 
   it('restart adds a restart event in the active branch and continues from root', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     fireEvent.click(screen.getByTestId('copy-from-input'))
     fireEvent.click(screen.getByTestId('symbol-3'))
     fireEvent.mouseDown(outputCell(0, 0))
     fireEvent.mouseUp(outputCell(0, 0))
-    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(3)
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(4) // root + hypothesis + copy + cell
 
     fireEvent.click(screen.getByTestId('reset-btn'))
-    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
 
     const nodes = screen.getAllByTestId(/timeline-node-/)
-    expect(nodes).toHaveLength(4)
-    const restartNode = screen.getByTestId('timeline-node-node_003')
+    expect(nodes).toHaveLength(5)
+    const restartNode = screen.getByTestId('timeline-node-node_004')
     expect(restartNode.textContent).toContain('log.reset_output')
     expect(restartNode.textContent).not.toContain('timeline.active')
-    expect(screen.queryByTestId('go-back-node_003')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('go-back-node_004')).not.toBeInTheDocument()
     expect(screen.getByTestId('timeline-node-node_000').textContent).toContain(
       'timeline.active',
     )
 
+    // Submit hypothesis again to re-enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     fireEvent.mouseDown(outputCell(0, 0))
     fireEvent.mouseUp(outputCell(0, 0))
-    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(5)
-    expect(screen.getByTestId('timeline-node-node_004').textContent).toContain(
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(7)
+    expect(screen.getByTestId('timeline-node-node_006').textContent).toContain(
       'timeline.active',
     )
     expect(screen.getByTestId('timeline-node-node_000').textContent).not.toContain(
@@ -180,27 +251,15 @@ describe('ArcLabPage', () => {
     )
   })
 
-  it('closes the reset confirm dialog on cancel without resetting', async () => {
-    renderPage()
-    await waitForTask()
-    fireEvent.click(screen.getByTestId('copy-from-input'))
-    const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
-    expect(sizeInput.value).toBe('3x3')
-    // change the size to something else first
-    fireEvent.change(sizeInput, { target: { value: '5x5' } })
-    fireEvent.click(screen.getByTestId('resize-btn'))
-    expect(sizeInput.value).toBe('5x5')
-    // now try reset but cancel
-    fireEvent.click(screen.getByTestId('reset-btn'))
-    expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'))
-    expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
-    expect(sizeInput.value).toBe('5x5')
-  })
-
   it('resizes the output grid', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
     fireEvent.change(sizeInput, { target: { value: '5x5' } })
     fireEvent.click(screen.getByTestId('resize-btn'))
@@ -210,6 +269,12 @@ describe('ArcLabPage', () => {
   it('shows an error for an invalid resize size', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
     fireEvent.change(sizeInput, { target: { value: '99x99' } })
     fireEvent.click(screen.getByTestId('resize-btn'))
@@ -219,6 +284,12 @@ describe('ArcLabPage', () => {
   it('copies and pastes a selection via keyboard (C/V)', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     fireEvent.click(screen.getByTestId('symbol-4'))
     const cell00 = outputCell(0, 0)
     fireEvent.mouseDown(cell00)
@@ -242,6 +313,12 @@ describe('ArcLabPage', () => {
   it('fills selected cells when picking a symbol in select mode', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     // Enter select mode by dragging
     fireEvent.mouseDown(outputCell(0, 0))
     fireEvent.mouseEnter(outputCell(0, 2))
@@ -272,6 +349,12 @@ describe('ArcLabPage', () => {
   it('abandons: logs a timeline event and navigates home on confirm', async () => {
     const { navigate } = renderPage()
     await waitForTask()
+    // Submit hypothesis first so timeline has extra node
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
     const initialNodes = screen.getAllByTestId(/timeline-node-/).length
     fireEvent.click(screen.getByTestId('abandon-btn'))
     fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
@@ -281,170 +364,52 @@ describe('ArcLabPage', () => {
     expect(nodes[nodes.length - 1].textContent).toContain('log.abandon')
   })
 
-  it('logs a confusion cognitive node with the 🤔 marker', async () => {
-    renderPage()
-    await waitForTask()
-    fireEvent.click(screen.getByTestId('tag-confusion'))
-    fireEvent.change(screen.getByTestId('cognitive-input'), {
-      target: { value: 'no entiendo los píxeles rojos' },
-    })
-    fireEvent.click(screen.getByTestId('cognitive-submit'))
-    const nodes = screen.getAllByTestId(/timeline-node-/)
-    const last = nodes[nodes.length - 1]
-    expect(last.textContent).toContain('🤔')
-    expect(last.textContent).toContain('no entiendo los píxeles rojos')
-  })
-
   it('starts a new paint event after resuming an earlier branch', async () => {
     renderPage()
     await waitForTask()
+    // Submit hypothesis first
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
 
     fireEvent.click(screen.getByTestId('copy-from-input'))
     fireEvent.click(screen.getByTestId('symbol-3'))
     fireEvent.mouseDown(outputCell(0, 0))
     fireEvent.mouseUp(outputCell(0, 0))
-    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(3)
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(4) // root + hypothesis + copy + cell
 
-    fireEvent.click(screen.getByTestId('go-back-node_001'))
+    fireEvent.click(screen.getByTestId('go-back-node_002'))
     fireEvent.click(screen.getByTestId('symbol-4'))
     fireEvent.mouseDown(outputCell(0, 1))
     fireEvent.mouseUp(outputCell(0, 1))
 
-    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(4)
-    expect(screen.getByTestId('timeline-node-node_003').textContent).toContain(
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(5)
+    expect(screen.getByTestId('timeline-node-node_004').textContent).toContain(
       'log.cell_click',
     )
-    expect(screen.getByTestId('timeline-node-node_003').textContent).toContain(
+    expect(screen.getByTestId('timeline-node-node_004').textContent).toContain(
       'timeline.active',
     )
   })
 
-  it('intercepts a paint click after 1 minute of inactivity', async () => {
-    renderPage()
+  it('resets the hypothesis input when a new task loads', async () => {
+    const { rerender } = renderPage()
     await waitForTask()
-    fireEvent.click(screen.getByTestId('symbol-3'))
-    const first = outputCell(0, 0)
-    fireEvent.mouseDown(first)
-    fireEvent.mouseUp(first)
-    expect(first.getAttribute('data-symbol')).toBe('3')
+    expect(screen.getByTestId('hypothesis-submit')).toBeInTheDocument()
 
-    vi.useFakeTimers()
-    act(() => {
-      vi.advanceTimersByTime(61_000)
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
     })
-    const cell = outputCell(1, 1)
-    fireEvent.mouseDown(cell)
-    fireEvent.mouseUp(cell)
-    expect(cell.getAttribute('data-symbol')).toBe('0')
-    expect(screen.getByTestId('intercept-callout').textContent).toContain('callout.intercept')
-  })
 
-  it('intercepts a resize after 1 minute of inactivity and prevents it', async () => {
-    renderPage()
+    // Load a new task
+    mocks.useTaskById.mockReturnValue({
+      data: { ...taskWithTwoTests, id: 'task-2' },
+    })
+    rerender(<ArcLabPage />)
     await waitForTask()
-    const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
-    fireEvent.change(sizeInput, { target: { value: '5x5' } })
-    fireEvent.click(screen.getByTestId('resize-btn'))
-    expect(outputCell(4, 4)).toBeInTheDocument()
 
-    vi.useFakeTimers()
-    act(() => {
-      vi.advanceTimersByTime(61_000)
-    })
-    fireEvent.change(sizeInput, { target: { value: '2x2' } })
-    fireEvent.click(screen.getByTestId('resize-btn'))
-    expect(outputCell(4, 4)).toBeInTheDocument()
-    expect(screen.getByTestId('intercept-callout').textContent).toContain('callout.intercept')
-  })
-
-  it('intercepts reset and copy-from-input after 1 minute of inactivity', async () => {
-    renderPage()
-    await waitForTask()
-    fireEvent.click(screen.getByTestId('copy-from-input'))
-    const sizeInput = screen.getByTestId('output-grid-size') as HTMLInputElement
-    expect(sizeInput.value).toBe('3x3')
-
-    vi.useFakeTimers()
-    act(() => {
-      vi.advanceTimersByTime(61_000)
-    })
-    fireEvent.click(screen.getByTestId('reset-btn'))
-    expect(sizeInput.value).toBe('3x3')
-    expect(screen.getByTestId('intercept-callout').textContent).toContain('callout.intercept')
-  })
-
-  it('does not intercept submit (not a listed action)', async () => {
-    renderPage()
-    await waitForTask()
-    vi.useFakeTimers()
-    act(() => {
-      vi.advanceTimersByTime(61_000)
-    })
-    fireEvent.click(screen.getByTestId('submit-btn'))
-    expect(screen.queryByTestId('intercept-callout')).not.toBeInTheDocument()
-    expect(screen.getByTestId('toast').getAttribute('data-kind')).toBe('error')
-  })
-
-  it('allows painting again after the 1-second interception block', async () => {
-    renderPage()
-    await waitForTask()
-    fireEvent.click(screen.getByTestId('symbol-3'))
-    fireEvent.mouseDown(outputCell(0, 0))
-    fireEvent.mouseUp(outputCell(0, 0))
-
-    vi.useFakeTimers()
-    act(() => {
-      vi.advanceTimersByTime(61_000)
-    })
-    fireEvent.mouseDown(outputCell(1, 1))
-    fireEvent.mouseUp(outputCell(1, 1))
-    expect(outputCell(1, 1).getAttribute('data-symbol')).toBe('0')
-    expect(screen.getByTestId('intercept-callout').textContent).toContain('callout.intercept')
-
-    act(() => {
-      vi.advanceTimersByTime(1_200)
-    })
-    fireEvent.mouseDown(outputCell(1, 1))
-    fireEvent.mouseUp(outputCell(1, 1))
-    expect(outputCell(1, 1).getAttribute('data-symbol')).toBe('3')
-  })
-
-  it('dismisses the callout when typing in the cognitive input', async () => {
-    renderPage()
-    await waitForTask()
-    vi.useFakeTimers()
-    act(() => {
-      vi.advanceTimersByTime(61_000)
-    })
-    fireEvent.mouseDown(outputCell(0, 0))
-    fireEvent.mouseUp(outputCell(0, 0))
-    expect(screen.getByTestId('intercept-callout')).toBeInTheDocument()
-    fireEvent.change(screen.getByTestId('cognitive-input'), { target: { value: 'x' } })
-    expect(screen.queryByTestId('intercept-callout')).not.toBeInTheDocument()
-  })
-
-  it('resets the inactivity counter after documenting, allowing immediate paint', async () => {
-    renderPage()
-    await waitForTask()
-    fireEvent.click(screen.getByTestId('symbol-3'))
-    vi.useFakeTimers()
-    act(() => {
-      vi.advanceTimersByTime(61_000)
-    })
-    fireEvent.mouseDown(outputCell(0, 0))
-    fireEvent.mouseUp(outputCell(0, 0))
-    expect(outputCell(0, 0).getAttribute('data-symbol')).toBe('0')
-    expect(screen.getByTestId('intercept-callout')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByTestId('tag-observation'))
-    fireEvent.change(screen.getByTestId('cognitive-input'), {
-      target: { value: 'patrón diagonal' },
-    })
-    fireEvent.click(screen.getByTestId('cognitive-submit'))
-    expect(screen.queryByTestId('intercept-callout')).not.toBeInTheDocument()
-
-    fireEvent.mouseDown(outputCell(0, 0))
-    fireEvent.mouseUp(outputCell(0, 0))
-    expect(outputCell(0, 0).getAttribute('data-symbol')).toBe('3')
+    // Hypothesis input should be visible again and empty
+    expect(screen.getByTestId('hypothesis-submit')).toBeInTheDocument()
   })
 })

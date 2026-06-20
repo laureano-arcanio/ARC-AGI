@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRandomTasks, useTaskById } from '../queries'
 import { useTranslation } from '../../../lib/i18n'
@@ -33,7 +33,6 @@ import { OutputEditor } from '../components/OutputEditor'
 import { TaskControls } from '../components/TaskControls'
 import { Toast } from '../components/Toast'
 import { CognitiveTimeline } from '../components/CognitiveTimeline'
-import { usePauseInterception } from '../hooks/usePauseInterception'
 
 type ArcLabState = {
   train: TaskPair[]
@@ -78,10 +77,7 @@ function makeNodeId(n: number): string {
 }
 
 const COGNITIVE_EMOJI: Record<CognitiveIntent, string> = {
-  observation: '👁️',
   hypothesis: '💡',
-  failure: '❌',
-  confusion: '🤔',
 }
 
 function addNode(
@@ -436,26 +432,9 @@ export function ArcLabPage() {
   const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
   const [abandonOpen, setAbandonOpen] = useState(false)
-  const [resetOpen, setResetOpen] = useState(false)
-  const [calloutKey, setCalloutKey] = useState<string | null>(null)
-  const calloutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [hypothesisText, setHypothesisText] = useState('')
 
-  const dismissCallout = useCallback(() => {
-    setCalloutKey(null)
-    if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current)
-  }, [])
-
-  const handleIntercept = useCallback(() => {
-    setCalloutKey('callout.intercept')
-    if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current)
-    calloutTimerRef.current = setTimeout(dismissCallout, 6000)
-  }, [dismissCallout])
-
-  const { reset, interceptAction } = usePauseInterception({ onIntercept: handleIntercept })
-
-  useEffect(() => () => {
-    if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current)
-  }, [])
+  const atRoot = state.activeNodeId === 'node_000'
 
   const { data: randomTasks, isFetched: randomFetched } = useRandomTasks(
     1,
@@ -472,9 +451,9 @@ export function ArcLabPage() {
   useEffect(() => {
     if (specificTask) {
       dispatch({ type: 'LOAD_TASK', task: specificTask })
-      reset()
+      setHypothesisText('')
     }
-  }, [specificTask, reset])
+  }, [specificTask])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -492,7 +471,6 @@ export function ArcLabPage() {
   }, [])
 
   const handleSymbolSelect = (symbol: number) => {
-    if (state.toolMode === 'select' && interceptAction()) return
     dispatch({ type: 'SET_SYMBOL', symbol })
     if (state.toolMode === 'select') {
       dispatch({ type: 'FILL_SELECTED' })
@@ -501,12 +479,14 @@ export function ArcLabPage() {
   }
 
   const handleCellClick = (x: number, y: number) => {
-    if (interceptAction()) return
     dispatch({ type: 'CELL_CLICK', x, y })
   }
 
-  const handleCognitiveSubmit = (intent: CognitiveIntent, text: string) => {
-    dispatch({ type: 'ADD_COGNITIVE_NODE', intent, text })
+  const handleHypothesisSubmit = () => {
+    const trimmed = hypothesisText.trim()
+    if (!trimmed) return
+    dispatch({ type: 'ADD_COGNITIVE_NODE', intent: 'hypothesis', text: trimmed })
+    setHypothesisText('')
   }
 
   const handleAbandonConfirm = () => {
@@ -519,13 +499,9 @@ export function ArcLabPage() {
     setAbandonOpen(false)
   }
 
-  const handleResetConfirm = () => {
-    setResetOpen(false)
+  const handleReset = () => {
     dispatch({ type: 'RESET_OUTPUT' })
-  }
-
-  const handleResetCancel = () => {
-    setResetOpen(false)
+    setHypothesisText('')
   }
 
   return (
@@ -550,10 +526,14 @@ export function ArcLabPage() {
               selectedSymbol={state.selectedSymbol}
               selectedCells={state.selectedCells}
               sizeInput={state.sizeInput}
+              readOnly={atRoot}
+              hypothesisText={hypothesisText}
+              onHypothesisChange={setHypothesisText}
+              onHypothesisSubmit={handleHypothesisSubmit}
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
-              onResize={() => { if (!interceptAction()) dispatch({ type: 'RESIZE' }) }}
-              onCopyFromInput={() => { if (!interceptAction()) dispatch({ type: 'COPY_FROM_INPUT' }) }}
-              onReset={() => { if (!interceptAction()) setResetOpen(true) }}
+              onResize={() => dispatch({ type: 'RESIZE' })}
+              onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
+              onReset={handleReset}
               onSubmit={() => dispatch({ type: 'SUBMIT' })}
               onAbandon={() => setAbandonOpen(true)}
               onCellClick={handleCellClick}
@@ -572,11 +552,7 @@ export function ArcLabPage() {
             nodes={state.graphNodes}
             activeNodeId={state.activeNodeId}
             onGoBack={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
-            onSubmit={handleCognitiveSubmit}
             getLabel={(trigger) => getNodeLabel(trigger, t)}
-            callout={calloutKey ? t(calloutKey) : null}
-            onDismissCallout={dismissCallout}
-            onReset={reset}
           />
         </div>
       </div>
@@ -590,17 +566,6 @@ export function ArcLabPage() {
         cancelLabel={t('dialog.cancel')}
         onConfirm={handleAbandonConfirm}
         onCancel={handleAbandonCancel}
-      />
-
-      <ConfirmDialog
-        open={resetOpen}
-        variant="danger"
-        title={t('dialog.reset.title')}
-        message={t('dialog.reset.message')}
-        confirmLabel={t('dialog.confirm')}
-        cancelLabel={t('dialog.cancel')}
-        onConfirm={handleResetConfirm}
-        onCancel={handleResetCancel}
       />
     </div>
   )

@@ -40,7 +40,7 @@ export const MAX_GRID_SIZE = 30
 export const DEFAULT_GRID_HEIGHT = 3
 export const DEFAULT_GRID_WIDTH = 3
 
-export type CognitiveIntent = 'observation' | 'hypothesis' | 'failure' | 'confusion'
+export type CognitiveIntent = 'hypothesis'
 
 export const INACTIVITY_THRESHOLD_MS = 60_000
 

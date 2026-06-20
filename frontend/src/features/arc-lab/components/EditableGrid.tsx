@@ -10,6 +10,7 @@ type EditableGridProps = {
   selectedCells: Set<string>
   containerSize?: number
   maxCellSize?: number
+  readOnly?: boolean
   onCellClick: (x: number, y: number) => void
   onSelectionChange: (cells: Set<string>) => void
   onToolModeChange?: (mode: ToolMode) => void
@@ -22,6 +23,7 @@ export function EditableGrid({
   selectedCells,
   containerSize = 500,
   maxCellSize = 100,
+  readOnly = false,
   onCellClick,
   onSelectionChange,
   onToolModeChange,
@@ -60,6 +62,7 @@ export function EditableGrid({
   }, [onCellClick])
 
   const handleMouseDown = (x: number, y: number) => {
+    if (readOnly) return
     isMouseDownRef.current = true
     dragStartRef.current = { x, y }
     hasDragRef.current = false
@@ -71,6 +74,7 @@ export function EditableGrid({
   }
 
   const handleMouseEnter = (x: number, y: number) => {
+    if (readOnly) return
     if (!isMouseDownRef.current) return
 
     if (toolMode === 'edit' && dragStartRef.current) {
