@@ -11,7 +11,7 @@ type UserRead = {
 type AuthContextType = {
   userId: number | null
   userEmail: string | null
-  setUser: (id: number, email: string) => void
+  setUser: (id: number, email: string, role: string, token: string) => void
   clearUser: () => void
   isAdmin: boolean
   isLoading: boolean
@@ -19,58 +19,78 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-const STORAGE_KEY = 'currentUserId'
+const TOKEN_KEY = 'authToken'
+const USER_KEY = 'authUser'
 
-function readSavedId(): number | null {
+type SavedUser = {
+  token: string | null
+  userId: number | null
+  userEmail: string | null
+  userRole: string | null
+}
+
+function readSaved(): SavedUser {
   try {
-    const val = localStorage.getItem(STORAGE_KEY)
-    return val ? Number(val) : null
+    const token = localStorage.getItem(TOKEN_KEY)
+    const raw = localStorage.getItem(USER_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as { id: number; email: string; role: string }
+      return { token, userId: parsed.id, userEmail: parsed.email, userRole: parsed.role }
+    }
+    return { token, userId: null, userEmail: null, userRole: null }
   } catch {
-    return null
+    return { token: null, userId: null, userEmail: null, userRole: null }
   }
 }
 
-function persistId(id: number) {
+function persist(token: string, userId: number, email: string, role: string) {
   try {
-    localStorage.setItem(STORAGE_KEY, String(id))
+    localStorage.setItem(TOKEN_KEY, token)
+    localStorage.setItem(USER_KEY, JSON.stringify({ id: userId, email, role }))
   } catch {
     // storage unavailable
   }
 }
 
-function removeId() {
+function clear() {
   try {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
   } catch {
     // storage unavailable
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserIdState] = useState<number | null>(readSavedId)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const saved = readSaved()
+  const [userId, setUserIdState] = useState<number | null>(saved.userId)
+  const [userEmail, setUserEmailState] = useState<string | null>(saved.userEmail)
+  const [savedRole, setSavedRole] = useState<string | null>(saved.userRole)
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['auth', 'user', userId],
     queryFn: () => http.get<UserRead>(`/v1/users/${userId}`),
     enabled: userId !== null,
     staleTime: 5 * 60 * 1000,
+    retry: false,
   })
 
-  const setUser = useCallback((id: number, email: string) => {
-    persistId(id)
+  const setUser = useCallback((id: number, email: string, role: string, token: string) => {
+    persist(token, id, email, role)
     setUserIdState(id)
-    setUserEmail(email)
+    setUserEmailState(email)
+    setSavedRole(role)
   }, [])
 
   const clearUser = useCallback(() => {
-    removeId()
+    clear()
     setUserIdState(null)
-    setUserEmail(null)
+    setUserEmailState(null)
+    setSavedRole(null)
   }, [])
 
   const resolvedEmail = user?.email ?? userEmail
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = (user?.role ?? savedRole) === 'admin'
 
   return (
     <AuthContext.Provider

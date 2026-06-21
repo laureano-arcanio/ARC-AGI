@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.dependencies.auth import CurrentUserDep
 from app.dependencies.database import DatabaseSession
 from app.repositories.batch import BatchRepository
 from app.repositories.event import EventRepository
@@ -23,7 +24,10 @@ async def create(
     data: EventCreate,
     service: EventService = Depends(get_service),  # noqa: B008
     batch_repo: BatchRepository = Depends(get_batch_repo),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> EventRead:
+    if current_user.user_id != data.user_id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     has_access = await batch_repo.user_has_access(data.user_id, data.task_id)
     if not has_access:
         raise HTTPException(
@@ -42,7 +46,10 @@ async def get_by_user_and_task(
     task_id: str,
     attempt_id: int | None = Query(None, alias="attemptId"),
     service: EventService = Depends(get_service),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> list[EventRead]:
+    if current_user.user_id != user_id and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     return await service.get_events_by_user_and_task(
         user_id, task_id, attempt_id=attempt_id
     )

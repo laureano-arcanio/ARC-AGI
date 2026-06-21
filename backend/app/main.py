@@ -46,13 +46,13 @@ app.include_router(arc_task.router)
 async def seed_users() -> None:
     async with sessionmanager.session() as session:
         result = await session.execute(
-            select(User).where(User.email == "admin@arc-agi.local")
+            select(User).where(User.email == "admin@arc.com")
         )
         if not result.scalar_one_or_none():
             existing = await session.execute(select(User).where(User.id == 1))
             admin = existing.scalar_one_or_none()
             if admin:
-                admin.email = "admin@arc-agi.local"
+                admin.email = "admin@arc.com"
                 admin.password_hash = _hash_password("admin")
                 admin.role = UserRole.ADMIN
                 session.add(admin)
@@ -60,20 +60,20 @@ async def seed_users() -> None:
                 session.add(
                     User(
                         id=1,
-                        email="admin@arc-agi.local",
+                        email="admin@arc.com",
                         password_hash=_hash_password("admin"),
                         role=UserRole.ADMIN,
                     )
                 )
 
         result2 = await session.execute(
-            select(User).where(User.email == "solver@arc-agi.local")
+            select(User).where(User.email == "solver@arc.com")
         )
         if not result2.scalar_one_or_none():
             existing2 = await session.execute(select(User).where(User.id == 2))
             solver = existing2.scalar_one_or_none()
             if solver:
-                solver.email = "solver@arc-agi.local"
+                solver.email = "solver@arc.com"
                 solver.password_hash = _hash_password("solver")
                 solver.role = UserRole.SOLVER
                 session.add(solver)
@@ -81,7 +81,7 @@ async def seed_users() -> None:
                 session.add(
                     User(
                         id=2,
-                        email="solver@arc-agi.local",
+                        email="solver@arc.com",
                         password_hash=_hash_password("solver"),
                         role=UserRole.SOLVER,
                     )

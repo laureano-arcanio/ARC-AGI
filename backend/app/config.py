@@ -9,6 +9,10 @@ load_dotenv()
 class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI Backend"
     API_V1_STR: str = "/api/v1"
+    SECRET_KEY: str = os.getenv(
+        "SECRET_KEY", "dev-secret-key-change-in-production-32chars"
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
     def get_database_url(self) -> str:
         """

@@ -30,7 +30,11 @@ export function DashboardPage() {
         email: email.trim(),
         password,
       })
-      setUser(user.id, user.email)
+      const loginResult = await loginMutation.mutateAsync({
+        email: email.trim(),
+        password,
+      })
+      setUser(loginResult.user.id, loginResult.user.email, loginResult.user.role, loginResult.accessToken)
       navigate(getRedirectPath(user.role))
     } catch {
       setError(t('dashboard.create_error'))
@@ -44,12 +48,12 @@ export function DashboardPage() {
     }
     setError('')
     try {
-      const user = await loginMutation.mutateAsync({
+      const result = await loginMutation.mutateAsync({
         email: email.trim(),
         password,
       })
-      setUser(user.id, user.email)
-      navigate(getRedirectPath(user.role))
+      setUser(result.user.id, result.user.email, result.user.role, result.accessToken)
+      navigate(getRedirectPath(result.user.role))
     } catch {
       setError(t('dashboard.invalid_credentials'))
     }

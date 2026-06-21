@@ -27,3 +27,9 @@ class UserRead(BaseAPISchema):
     role: UserRole
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class LoginResponse(BaseAPISchema):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserRead

@@ -15,6 +15,14 @@ class HttpClientError extends Error {
   }
 }
 
+function getToken(): string | null {
+  try {
+    return localStorage.getItem('authToken')
+  } catch {
+    return null
+  }
+}
+
 async function request<T>(path: string, options: HttpOptions = {}): Promise<T> {
   const { body, params, ...init } = options
 
@@ -26,12 +34,18 @@ async function request<T>(path: string, options: HttpOptions = {}): Promise<T> {
     })
   }
 
+  const token = getToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init.headers as Record<string, string> | undefined),
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const response = await fetch(url.toString(), {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...init.headers,
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   })
 

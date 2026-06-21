@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.dependencies.auth import AdminDep, CurrentUserDep
 from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
 from app.repositories.user import UserRepository
 from app.schemas.attempt import UserTaskSummary
-from app.schemas.user import UserCreate, UserLogin, UserRead, UserUpdate
+from app.schemas.user import LoginResponse, UserCreate, UserLogin, UserRead, UserUpdate
 from app.services.attempt import AttemptService
 from app.services.user import UserService
 
@@ -29,17 +30,18 @@ async def create(
     return await service.create(data)
 
 
-@router.post("/login", response_model=UserRead)
+@router.post("/login", response_model=LoginResponse)
 async def login(
     data: UserLogin,
     service: UserService = Depends(get_service),  # noqa: B008
-) -> UserRead:
+) -> LoginResponse:
     return await service.authenticate(data.email, data.password)
 
 
 @router.get("/", response_model=list[UserRead])
 async def get_all(
     service: UserService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> list[UserRead]:
     return await service.get_all()
 
@@ -49,6 +51,7 @@ async def update(
     id: int,
     data: UserUpdate,
     service: UserService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> UserRead:
     return await service.update(id, data)
 
@@ -57,6 +60,7 @@ async def update(
 async def delete(
     id: int,
     service: UserService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> None:
     await service.delete(id)
 
@@ -65,7 +69,10 @@ async def delete(
 async def get_user_tasks(
     id: int,
     service: AttemptService = Depends(get_attempt_service),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> list[UserTaskSummary]:
+    if current_user.role != "admin" and current_user.user_id != id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     return await service.get_user_tasks(id)
 
 
@@ -73,5 +80,8 @@ async def get_user_tasks(
 async def get_by_id(
     id: int,
     service: UserService = Depends(get_service),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> UserRead:
+    if current_user.role != "admin" and current_user.user_id != id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     return await service.get_by_id(id)

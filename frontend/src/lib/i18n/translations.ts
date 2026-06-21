@@ -100,6 +100,7 @@ const es = {
   'nav.admin_users': 'Usuarios',
   'nav.admin_batches': 'Lotes',
   'nav.my_tasks': 'Mis Tareas',
+  'nav.logout': 'Cerrar sesión',
 
   'admin.title': 'Panel de Administración — Usuarios',
   'admin.loading': 'Cargando usuarios...',
@@ -273,6 +274,7 @@ const en: Record<string, string> = {
   'nav.admin_users': 'Users',
   'nav.admin_batches': 'Batches',
   'nav.my_tasks': 'My Tasks',
+  'nav.logout': 'Log out',
 
   'admin.title': 'Admin Panel — Users',
   'admin.loading': 'Loading users...',

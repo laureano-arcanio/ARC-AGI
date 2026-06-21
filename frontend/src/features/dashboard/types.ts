@@ -5,3 +5,9 @@ export type UserRead = {
   createdAt: string | null
   updatedAt: string | null
 }
+
+export type LoginResponse = {
+  accessToken: string
+  tokenType: string
+  user: UserRead
+}

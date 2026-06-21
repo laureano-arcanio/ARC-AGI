@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
+from app.dependencies.auth import AdminDep
 from app.dependencies.database import DatabaseSession
 from app.repositories.batch import BatchAssignmentRepository, BatchRepository
 from app.schemas.batch import BatchCreate, BatchRead, BatchUpdate
@@ -25,6 +26,7 @@ async def get_assignment_service(
 async def create_batch(
     data: BatchCreate,
     service: BatchService = Depends(get_batch_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> BatchRead:
     return await service.create(data)
 
@@ -32,6 +34,7 @@ async def create_batch(
 @router.get("/", response_model=list[BatchRead])
 async def list_batches(
     service: BatchService = Depends(get_batch_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> list[BatchRead]:
     return await service.get_all()
 
@@ -40,6 +43,7 @@ async def list_batches(
 async def get_batch(
     id: int,
     service: BatchService = Depends(get_batch_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> BatchRead:
     return await service.get_by_id(id)
 
@@ -49,6 +53,7 @@ async def update_batch(
     id: int,
     data: BatchUpdate,
     service: BatchService = Depends(get_batch_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> BatchRead:
     return await service.update(id, data)
 
@@ -57,6 +62,7 @@ async def update_batch(
 async def delete_batch(
     id: int,
     service: BatchService = Depends(get_batch_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> None:
     await service.delete(id)
 
@@ -65,6 +71,7 @@ async def delete_batch(
 async def get_user_batches(
     user_id: int,
     service: BatchService = Depends(get_batch_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> list[BatchRead]:
     return await service.get_batches_for_user(user_id)
 
@@ -73,6 +80,7 @@ async def get_user_batches(
 async def get_user_accessible_task_ids(
     user_id: int,
     service: BatchService = Depends(get_batch_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> list[str]:
     return await service.get_accessible_task_ids(user_id)
 
@@ -86,6 +94,7 @@ async def assign_batch_to_user(
     batch_id: int,
     user_id: int,
     service: BatchAssignmentService = Depends(get_assignment_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> BatchAssignmentRead:
     return await service.create(
         BatchAssignmentCreate(batch_id=batch_id, user_id=user_id)
@@ -100,5 +109,6 @@ async def unassign_batch_from_user(
     batch_id: int,
     user_id: int,
     service: BatchAssignmentService = Depends(get_assignment_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> None:
     await service.unassign(batch_id, user_id)

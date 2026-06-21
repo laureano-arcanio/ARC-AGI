@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation, LanguageSwitcher } from '../lib/i18n'
 import { useAuth } from '../lib/auth'
 
@@ -7,8 +8,14 @@ type LayoutProps = {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const navigate = useNavigate()
   const { t } = useTranslation()
-  const { isAdmin, userId } = useAuth()
+  const { isAdmin, userId, clearUser } = useAuth()
+
+  const handleLogout = () => {
+    clearUser()
+    navigate('/dashboard')
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -40,7 +47,15 @@ export function Layout({ children }: LayoutProps) {
               {t('nav.dashboard')}
             </a>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            {userId && (
+              <button
+                onClick={handleLogout}
+                className="rounded-md border border-gray-700 px-2.5 py-1 text-xs text-gray-400 transition hover:border-red-800 hover:text-red-400"
+              >
+                {t('nav.logout')}
+              </button>
+            )}
             <LanguageSwitcher />
           </div>
         </div>
