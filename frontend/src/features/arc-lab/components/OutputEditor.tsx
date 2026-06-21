@@ -25,6 +25,10 @@ type OutputEditorProps = {
   onSelectionChange: (cells: Set<string>) => void
   onToolModeChange: (mode: ToolMode) => void
   onSymbolSelect: (symbol: number) => void
+  onPrev: () => void
+  onNext: () => void
+  canGoPrev: boolean
+  canGoNext: boolean
 }
 
 export function OutputEditor({
@@ -48,6 +52,10 @@ export function OutputEditor({
   onSelectionChange,
   onToolModeChange,
   onSymbolSelect,
+  onPrev,
+  onNext,
+  canGoPrev,
+  canGoNext,
 }: OutputEditorProps) {
   const { t } = useTranslation()
   const wordCount = hypothesisText.trim().split(/\s+/).filter(Boolean).length
@@ -59,23 +67,47 @@ export function OutputEditor({
 
   return (
     <div data-testid="output-editor" className="mt-4 rounded-xl border border-gray-800 bg-gray-900 p-4">
-      <div className="mb-4 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onAbandon}
-          data-testid="abandon-btn"
-          className="rounded-md bg-red-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
-        >
-          {t('button.abandon')}
-        </button>
-        <button
-          type="button"
-          onClick={onSubmit}
-          data-testid="submit-btn"
-          className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
-        >
-          {t('button.submit')}
-        </button>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onPrev}
+            disabled={!canGoPrev}
+            data-testid="prev-btn"
+            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30"
+            title={t('button.prev')}
+          >
+            ← {t('button.prev')}
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={!canGoNext}
+            data-testid="next-btn"
+            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30"
+            title={t('button.next')}
+          >
+            {t('button.next')} →
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onAbandon}
+            data-testid="abandon-btn"
+            className="rounded-md bg-red-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+          >
+            {t('button.abandon')}
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            data-testid="submit-btn"
+            className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
+          >
+            {t('button.submit')}
+          </button>
+        </div>
       </div>
 
       <div data-testid="output-grid" className="relative flex justify-center">

@@ -22,6 +22,10 @@ const baseProps = {
   onSelectionChange: vi.fn(),
   onToolModeChange: vi.fn(),
   onSymbolSelect: vi.fn(),
+  onPrev: vi.fn(),
+  onNext: vi.fn(),
+  canGoPrev: true,
+  canGoNext: true,
 }
 
 describe('OutputEditor', () => {

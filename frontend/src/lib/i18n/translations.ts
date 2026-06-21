@@ -23,6 +23,8 @@ const es = {
 
   'panel.test_input': 'Entrada de prueba',
   'panel.multi_test_warning': 'Completa esta entrada de prueba para desbloquear la siguiente.',
+  'button.prev': 'Anterior',
+  'button.next': 'Siguiente',
   'button.next_test': 'Siguiente entrada',
   'button.next_task': 'Siguiente tarea',
   'button.resize': 'Redimensionar',
@@ -132,6 +134,8 @@ const en: Record<string, string> = {
 
   'panel.test_input': 'Test input',
   'panel.multi_test_warning': 'Complete this test input to unlock the next.',
+  'button.prev': 'Previous',
+  'button.next': 'Next',
   'button.next_test': 'Next test input',
   'button.next_task': 'Next task',
   'button.resize': 'Resize',

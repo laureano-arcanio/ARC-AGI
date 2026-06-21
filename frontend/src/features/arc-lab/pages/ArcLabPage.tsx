@@ -51,6 +51,8 @@ type ArcLabState = {
   graphNodes: GraphNode[]
   activeNodeId: string | null
   nextNodeId: number
+  navigationHistory: string[]
+  navigationIndex: number
 }
 
 type Action =
@@ -73,6 +75,8 @@ type Action =
   | { type: 'DISMISS_MESSAGE' }
   | { type: 'TRAVEL_TO_NODE'; nodeId: string }
   | { type: 'ADD_COGNITIVE_NODE'; intent: CognitiveIntent; text: string }
+  | { type: 'NAVIGATE_PREV' }
+  | { type: 'NAVIGATE_NEXT' }
 
 function makeNodeId(n: number): string {
   return `node_${String(n).padStart(3, '0')}`
@@ -101,6 +105,26 @@ function addNode(
   }
 }
 
+function updateHistory(
+  state: ArcLabState,
+  newActiveNodeId: string,
+  isNewNode: boolean,
+): Pick<ArcLabState, 'navigationHistory' | 'navigationIndex'> {
+  if (isNewNode) {
+    const history = [
+      ...state.navigationHistory.slice(0, state.navigationIndex + 1),
+      newActiveNodeId,
+    ]
+    return { navigationHistory: history, navigationIndex: history.length - 1 }
+  }
+  const idx = state.navigationHistory.indexOf(newActiveNodeId)
+  if (idx >= 0) {
+    return { navigationHistory: state.navigationHistory, navigationIndex: idx }
+  }
+  const history = [...state.navigationHistory, newActiveNodeId]
+  return { navigationHistory: history, navigationIndex: history.length - 1 }
+}
+
 const initialRootNode: GraphNode = {
   id: 'node_000',
   trigger: { kind: 'mechanical', action: 'load_task' },
@@ -124,6 +148,8 @@ const initialState: ArcLabState = {
   graphNodes: [initialRootNode],
   activeNodeId: 'node_000',
   nextNodeId: 1,
+  navigationHistory: ['node_000'],
+  navigationIndex: 0,
 }
 
 function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
@@ -160,6 +186,8 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         graphNodes: [root],
         activeNodeId: 'node_000',
         nextNodeId: 1,
+        navigationHistory: ['node_000'],
+        navigationIndex: 0,
       }
     }
 
@@ -197,7 +225,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'resize', details: { size: formatSize(parsed.height, parsed.width) } },
       )
-      return { ...state, outputGrid, selectedCells: new Set(), ...graph }
+      return { ...state, outputGrid, selectedCells: new Set(), ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
     }
 
     case 'COPY_FROM_INPUT': {
@@ -212,6 +240,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         sizeInput: formatSize(outputGrid.length, outputGrid[0].length),
         selectedCells: new Set(),
         ...graph,
+        ...updateHistory(state, graph.activeNodeId!, true),
       }
     }
 
@@ -222,13 +251,21 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'reset_output' },
       )
+      const afterReset = updateHistory(state, graph.activeNodeId!, true)
+      const rootId = rootNode?.id ?? graph.activeNodeId!
+      const afterJump = updateHistory(
+        { ...state, ...afterReset },
+        rootId,
+        false,
+      )
       return {
         ...state,
         outputGrid,
         sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
         selectedCells: new Set(),
         ...graph,
-        activeNodeId: rootNode?.id ?? graph.activeNodeId,
+        activeNodeId: rootId,
+        ...afterJump,
         message: { kind: 'info', text: 'timeline.branch_discarded' },
       }
     }
@@ -246,6 +283,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return {
         ...state,
         ...graph,
+        ...updateHistory(state, graph.activeNodeId!, true),
         message: correct
           ? { kind: 'info', text: 'toast.correct' }
           : { kind: 'error', text: 'toast.wrong' },
@@ -257,7 +295,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         state,
         { kind: 'mechanical', action: 'abandon' },
       )
-      return { ...state, ...graph }
+      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
     }
 
     case 'CELL_CLICK': {
@@ -288,7 +326,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           { ...state, outputGrid },
           { kind: 'mechanical', action: 'cell_click', details: { cells: [cellEntry] } },
         )
-        return { ...state, outputGrid, ...graph }
+        return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
       }
       if (state.toolMode === 'floodfill') {
         const outputGrid = cloneGrid(state.outputGrid)
@@ -297,7 +335,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           { ...state, outputGrid },
           { kind: 'mechanical', action: 'fill_selected', details: { x: action.x, y: action.y, symbol: state.selectedSymbol } },
         )
-        return { ...state, outputGrid, ...graph }
+        return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
       }
       return state
     }
@@ -318,7 +356,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'fill_selected', details: { count: state.selectedCells.size, symbol: state.selectedSymbol } },
       )
-      return { ...state, outputGrid, ...graph }
+      return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
     }
 
     case 'COPY_SELECTION': {
@@ -352,7 +390,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'paste' },
       )
-      return { ...state, outputGrid, ...graph }
+      return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
     }
 
     case 'SET_MESSAGE':
@@ -368,6 +406,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeId: target.id,
+        ...updateHistory(state, target.id, false),
       }
     }
 
@@ -376,7 +415,33 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         state,
         { kind: 'cognitive', intent: action.intent, text: action.text },
       )
-      return { ...state, ...graph }
+      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
+    }
+
+    case 'NAVIGATE_PREV': {
+      if (state.navigationIndex <= 0) return state
+      const prevId = state.navigationHistory[state.navigationIndex - 1]
+      const target = state.graphNodes.find((n) => n.id === prevId)
+      if (!target) return state
+      return {
+        ...state,
+        outputGrid: cloneGrid(target.stateSnapshot),
+        activeNodeId: prevId,
+        navigationIndex: state.navigationIndex - 1,
+      }
+    }
+
+    case 'NAVIGATE_NEXT': {
+      if (state.navigationIndex >= state.navigationHistory.length - 1) return state
+      const nextId = state.navigationHistory[state.navigationIndex + 1]
+      const target = state.graphNodes.find((n) => n.id === nextId)
+      if (!target) return state
+      return {
+        ...state,
+        outputGrid: cloneGrid(target.stateSnapshot),
+        activeNodeId: nextId,
+        navigationIndex: state.navigationIndex + 1,
+      }
     }
 
     default:
@@ -461,6 +526,8 @@ export function ArcLabPage() {
   }, [uuid])
 
   const atRoot = state.activeNodeId === 'node_000'
+  const canGoPrev = state.navigationIndex > 0
+  const canGoNext = state.navigationIndex < state.navigationHistory.length - 1
 
   const sentHashes = useRef<Set<string>>(new Set())
   const attemptIdRef = useRef<number | null>(null)
@@ -641,6 +708,10 @@ export function ArcLabPage() {
               onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}
               onToolModeChange={(mode) => dispatch({ type: 'SET_TOOL_MODE', mode })}
               onSymbolSelect={handleSymbolSelect}
+              onPrev={() => dispatch({ type: 'NAVIGATE_PREV' })}
+              onNext={() => dispatch({ type: 'NAVIGATE_NEXT' })}
+              canGoPrev={canGoPrev}
+              canGoNext={canGoNext}
             />
 
             <Toast
