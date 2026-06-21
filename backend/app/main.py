@@ -11,7 +11,6 @@ from app.errors import (
     invalid_credentials_handler,
     object_not_found_handler,
 )
-from app.models.batch import Batch, BatchAssignment
 from app.models.user import User, UserRole
 from app.routers import arc_task, attempt, batch, event, example_table, user
 from app.services.user import _hash_password
@@ -85,37 +84,6 @@ async def seed_users() -> None:
                         password_hash=_hash_password("solver"),
                         role=UserRole.SOLVER,
                     )
-                )
-
-        await session.flush()
-
-        result_batch = await session.execute(
-            select(Batch).where(Batch.name == "Default Batch")
-        )
-        if not result_batch.scalar_one_or_none():
-            batch = Batch(
-                id=1,
-                name="Default Batch",
-                task_ids=[
-                    "007bbfb7",
-                    "00d62c1b",
-                    "017c7c7b",
-                    "025d127b",
-                    "045e512c",
-                ],
-            )
-            session.add(batch)
-            await session.flush()
-
-            result_assignment = await session.execute(
-                select(BatchAssignment).where(
-                    BatchAssignment.batch_id == 1,
-                    BatchAssignment.user_id == 2,
-                )
-            )
-            if not result_assignment.scalar_one_or_none():
-                session.add(
-                    BatchAssignment(id=1, batch_id=1, user_id=2)
                 )
 
         await session.commit()

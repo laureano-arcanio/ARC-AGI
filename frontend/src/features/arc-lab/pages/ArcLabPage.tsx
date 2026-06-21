@@ -32,7 +32,6 @@ import {
 import { DemonstrationPanel } from '../components/DemonstrationPanel'
 import { TestInputPanel } from '../components/TestInputPanel'
 import { OutputEditor } from '../components/OutputEditor'
-import { TaskControls } from '../components/TaskControls'
 import { Toast } from '../components/Toast'
 import { CognitiveTimeline } from '../components/CognitiveTimeline'
 import { getAttempts } from '../../admin-user-detail/api'
@@ -726,18 +725,11 @@ export function ArcLabPage() {
 
         <div className="flex flex-col gap-5 lg:flex-row">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <TaskControls
-                onNextTask={() =>
-                  navigate(routeUserId ? `/solve/${routeUserId}/random` : '/solve/random')
-                }
-              />
-              {taskId && taskId !== 'random' && attemptCount !== null && (
-                <span className="text-sm text-gray-500">
-                  {t('arc_lab.attempt_count', { count: attemptCount })}
-                </span>
-              )}
-            </div>
+            {taskId && taskId !== 'random' && attemptCount !== null && (
+              <span className="text-sm text-gray-500">
+                {t('arc_lab.attempt_count', { count: attemptCount })}
+              </span>
+            )}
 
             <TestInputPanel
               input={state.inputGrid}
