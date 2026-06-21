@@ -5,8 +5,10 @@ import pytest
 from fastapi import FastAPI, status
 from httpx import ASGITransport, AsyncClient
 
+from app.dependencies.auth import CurrentUser, get_current_user
 from app.errors import global_exception_handler
-from app.routers.arc_task import get_service, router
+from app.repositories.batch import BatchRepository
+from app.routers.arc_task import get_batch_repo, get_service, router
 from app.schemas.arc_task import ArcTaskPair, ArcTaskRead
 from app.services.arc_task import ArcTaskService
 
@@ -14,7 +16,7 @@ from app.services.arc_task import ArcTaskService
 @pytest.fixture
 def mock_service() -> AsyncMock:
     svc = AsyncMock(spec=ArcTaskService)
-    svc.get_random_tasks.return_value = [
+    svc.get_random_tasks_from_ids.return_value = [
         ArcTaskRead(
             id="t1",
             train=[ArcTaskPair(input=[[1]], output=[[2]])],
@@ -30,11 +32,26 @@ def mock_service() -> AsyncMock:
 
 
 @pytest.fixture
-def app(mock_service: AsyncMock) -> FastAPI:
+def mock_batch_repo() -> AsyncMock:
+    repo = AsyncMock(spec=BatchRepository)
+    repo.get_accessible_task_ids.return_value = ["t1", "t2"]
+    return repo
+
+
+@pytest.fixture
+def app(
+    mock_service: AsyncMock, mock_batch_repo: AsyncMock
+) -> FastAPI:
+
+    async def mock_get_current_user() -> CurrentUser:
+        return CurrentUser(user_id=1, role="solver")
+
     application = FastAPI()
     application.exception_handler(Exception)(global_exception_handler)
     application.include_router(router)
     application.dependency_overrides[get_service] = lambda: mock_service
+    application.dependency_overrides[get_batch_repo] = lambda: mock_batch_repo
+    application.dependency_overrides[get_current_user] = mock_get_current_user
     return application
 
 
@@ -55,14 +72,14 @@ class TestArcTaskRouterGetRandom:
         assert len(data) == 2
         assert data[0]["id"] == "t1"
         assert data[0]["test"][0]["output"] == [[4]]
-        mock_service.get_random_tasks.assert_awaited_once()
-        assert mock_service.get_random_tasks.await_args.kwargs["count"] == 10
+        mock_service.get_random_tasks_from_ids.assert_awaited_once()
+        assert mock_service.get_random_tasks_from_ids.await_args.kwargs["count"] == 10
 
     async def test_passes_count_query_param(
         self, client: AsyncClient, mock_service: AsyncMock
     ) -> None:
         await client.get("/api/v1/arc-tasks/random?count=5")
-        assert mock_service.get_random_tasks.await_args.kwargs["count"] == 5
+        assert mock_service.get_random_tasks_from_ids.await_args.kwargs["count"] == 5
 
     async def test_rejects_count_below_one(self, client: AsyncClient) -> None:
         response = await client.get("/api/v1/arc-tasks/random?count=0")
@@ -72,10 +89,23 @@ class TestArcTaskRouterGetRandom:
         response = await client.get("/api/v1/arc-tasks/random?count=101")
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    async def test_returns_empty_list_when_service_has_no_tasks(
-        self, client: AsyncClient, mock_service: AsyncMock
+    async def test_returns_empty_list_when_no_accessible_tasks(
+        self, client: AsyncClient, mock_batch_repo: AsyncMock
     ) -> None:
-        mock_service.get_random_tasks.return_value = []
+        mock_batch_repo.get_accessible_task_ids.return_value = []
         response = await client.get("/api/v1/arc-tasks/random")
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
+
+    async def test_returns_401_without_token(
+        self, mock_service: AsyncMock, mock_batch_repo: AsyncMock
+    ) -> None:
+        app_no_auth = FastAPI()
+        app_no_auth.exception_handler(Exception)(global_exception_handler)
+        app_no_auth.include_router(router)
+        app_no_auth.dependency_overrides[get_service] = lambda: mock_service
+        app_no_auth.dependency_overrides[get_batch_repo] = lambda: mock_batch_repo
+        transport = ASGITransport(app=app_no_auth)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/arc-tasks/random")
+        assert response.status_code == status.HTTP_403_FORBIDDEN

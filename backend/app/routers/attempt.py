@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.dependencies.auth import CurrentUserDep
+from app.dependencies.auth import CurrentUserDep, require_owner_or_admin
 from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
 from app.repositories.batch import BatchRepository
@@ -26,8 +26,7 @@ async def create(
     batch_repo: BatchRepository = Depends(get_batch_repo),  # noqa: B008
     current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> AttemptRead:
-    if current_user.user_id != data.user_id and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    require_owner_or_admin(data.user_id, current_user)
     has_access = await batch_repo.user_has_access(data.user_id, data.task_id)
     if not has_access:
         raise HTTPException(
@@ -47,6 +46,5 @@ async def get_by_user_and_task(
     service: AttemptService = Depends(get_service),  # noqa: B008
     current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> list[AttemptRead]:
-    if current_user.user_id != user_id and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    require_owner_or_admin(user_id, current_user)
     return await service.get_by_user_and_task(user_id, task_id)

@@ -26,11 +26,18 @@ from app.services.example_table import ExampleTableService
 
 @pytest.fixture
 def app(mock_service: AsyncMock) -> FastAPI:
+    from app.dependencies.auth import CurrentUser, get_current_user, require_admin
+
+    async def mock_admin() -> CurrentUser:
+        return CurrentUser(user_id=1, role="admin")
+
     application = FastAPI()
     application.exception_handler(ObjectNotFoundError)(object_not_found_handler)
     application.exception_handler(Exception)(global_exception_handler)
     application.include_router(router)
     application.dependency_overrides[get_service] = lambda: mock_service
+    application.dependency_overrides[get_current_user] = mock_admin
+    application.dependency_overrides[require_admin] = mock_admin
     return application
 
 
@@ -496,3 +503,90 @@ class TestAttemptRouterGetByUserAndTask:
         data = response.json()
         assert len(data) == 2
         assert data[0]["id"] == 2
+
+
+# ---- Example Table Auth Tests ----
+
+
+@pytest.fixture
+def example_table_unauth_app(mock_service: AsyncMock) -> FastAPI:
+    from app.dependencies.auth import CurrentUser, get_current_user, require_admin
+
+    async def mock_solver() -> CurrentUser:
+        return CurrentUser(user_id=2, role="solver")
+
+    async def mock_require_admin_fail() -> CurrentUser:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+
+    application = FastAPI()
+    application.exception_handler(ObjectNotFoundError)(object_not_found_handler)
+    application.exception_handler(Exception)(global_exception_handler)
+    application.include_router(router)
+    application.dependency_overrides[get_service] = lambda: mock_service
+    application.dependency_overrides[get_current_user] = mock_solver
+    application.dependency_overrides[require_admin] = mock_require_admin_fail
+    return application
+
+
+@pytest.fixture
+async def unauth_client(
+    example_table_unauth_app: FastAPI,
+) -> AsyncIterator[AsyncClient]:
+    from httpx import ASGITransport
+
+    transport = ASGITransport(app=example_table_unauth_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+class TestExampleTableRouterAuth:
+    async def test_get_all_returns_403_for_non_admin(
+        self, unauth_client: AsyncClient
+    ) -> None:
+        response = await unauth_client.get("/api/v1/example-tables/")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_get_by_id_returns_403_for_non_admin(
+        self, unauth_client: AsyncClient
+    ) -> None:
+        response = await unauth_client.get("/api/v1/example-tables/1")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_create_returns_403_for_non_admin(
+        self, unauth_client: AsyncClient
+    ) -> None:
+        response = await unauth_client.post(
+            "/api/v1/example-tables/", json={"name": "test"}
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_update_returns_403_for_non_admin(
+        self, unauth_client: AsyncClient
+    ) -> None:
+        response = await unauth_client.put(
+            "/api/v1/example-tables/1", json={"name": "test"}
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_delete_returns_403_for_non_admin(
+        self, unauth_client: AsyncClient
+    ) -> None:
+        response = await unauth_client.delete("/api/v1/example-tables/1")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_returns_403_without_token(
+        self, mock_service: AsyncMock
+    ) -> None:
+        from httpx import ASGITransport
+
+        app_no_auth = FastAPI()
+        app_no_auth.exception_handler(ObjectNotFoundError)(object_not_found_handler)
+        app_no_auth.exception_handler(Exception)(global_exception_handler)
+        app_no_auth.include_router(router)
+        app_no_auth.dependency_overrides[get_service] = lambda: mock_service
+        transport = ASGITransport(app=app_no_auth)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.get("/api/v1/example-tables/")
+        assert response.status_code == status.HTTP_403_FORBIDDEN

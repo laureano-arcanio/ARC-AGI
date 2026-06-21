@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
+from app.dependencies.auth import AdminDep
 from app.dependencies.database import DatabaseSession
 from app.repositories.example_table import ExampleTableRepository
 from app.schemas.example_table import (
@@ -20,6 +21,7 @@ async def get_service(db_session: DatabaseSession) -> ExampleTableService:
 @router.get("/", response_model=list[ExampleTableRead])
 async def get_all(
     service: ExampleTableService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> list[ExampleTableRead]:
     return await service.get_all()
 
@@ -28,6 +30,7 @@ async def get_all(
 async def get_by_id(
     id: int,
     service: ExampleTableService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> ExampleTableRead:
     return await service.get_by_id(id)
 
@@ -36,6 +39,7 @@ async def get_by_id(
 async def create(
     data: ExampleTableCreate,
     service: ExampleTableService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> ExampleTableRead:
     return await service.create(data)
 
@@ -45,6 +49,7 @@ async def update(
     id: int,
     data: ExampleTableUpdate,
     service: ExampleTableService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> ExampleTableRead:
     return await service.update(id, data)
 
@@ -53,5 +58,6 @@ async def update(
 async def delete(
     id: int,
     service: ExampleTableService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> None:
     await service.delete(id)

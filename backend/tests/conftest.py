@@ -1,6 +1,7 @@
 import os
 
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/test")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-purposes-32char")
 
 from unittest.mock import AsyncMock
 

@@ -63,3 +63,14 @@ async def require_admin(
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 AdminDep = Annotated[CurrentUser, Depends(require_admin)]
+
+
+def require_owner_or_admin(
+    user_id: int,
+    current_user: CurrentUser,
+) -> None:
+    if current_user.user_id != user_id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized",
+        )

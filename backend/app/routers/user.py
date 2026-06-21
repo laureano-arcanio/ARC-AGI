@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
-from app.dependencies.auth import AdminDep, CurrentUserDep
+from app.dependencies.auth import AdminDep, CurrentUserDep, require_owner_or_admin
 from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
 from app.repositories.user import UserRepository
@@ -71,8 +71,7 @@ async def get_user_tasks(
     service: AttemptService = Depends(get_attempt_service),  # noqa: B008
     current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> list[UserTaskSummary]:
-    if current_user.role != "admin" and current_user.user_id != id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    require_owner_or_admin(id, current_user)
     return await service.get_user_tasks(id)
 
 
@@ -82,6 +81,5 @@ async def get_by_id(
     service: UserService = Depends(get_service),  # noqa: B008
     current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> UserRead:
-    if current_user.role != "admin" and current_user.user_id != id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    require_owner_or_admin(id, current_user)
     return await service.get_by_id(id)
