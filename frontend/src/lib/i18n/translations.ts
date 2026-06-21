@@ -111,6 +111,24 @@ const es = {
   'admin.no_users': 'No hay usuarios.',
   'admin.delete_title': 'Eliminar usuario',
   'admin.delete_message': '¿Seguro que quieres eliminar este usuario? Esta acción no se puede deshacer.',
+
+  'admin_detail.title': 'Detalle del Usuario',
+  'admin_detail.loading': 'Cargando...',
+  'admin_detail.unauthorized': 'No tienes permisos para acceder a esta página.',
+  'admin_detail.error': 'Error al cargar datos.',
+  'admin_detail.back': 'Volver a usuarios',
+  'admin_detail.no_tasks': 'Este usuario no ha realizado ninguna tarea.',
+  'admin_detail.no_events': 'No hay eventos para esta tarea.',
+  'admin_detail.loading_events': 'Cargando eventos...',
+  'admin_detail.attempt': 'intento',
+  'admin_detail.attempts': 'intentos',
+  'admin_detail.attempt_n': 'Intento {n}',
+  'admin_detail.all_events': 'Todos',
+  'admin_detail.table.taskId': 'ID de Tarea',
+  'admin_detail.table.attempts': 'Intentos',
+  'admin_detail.table.nodeId': 'Nodo',
+  'admin_detail.table.timestamp': 'Timestamp',
+  'admin_detail.table.trigger': 'Trigger',
 }
 
 const en: Record<string, string> = {
@@ -222,6 +240,24 @@ const en: Record<string, string> = {
   'admin.no_users': 'No users found.',
   'admin.delete_title': 'Delete user',
   'admin.delete_message': 'Are you sure you want to delete this user? This action cannot be undone.',
+
+  'admin_detail.title': 'User Detail',
+  'admin_detail.loading': 'Loading...',
+  'admin_detail.unauthorized': 'You do not have permission to access this page.',
+  'admin_detail.error': 'Error loading data.',
+  'admin_detail.back': 'Back to users',
+  'admin_detail.no_tasks': 'This user has not completed any tasks.',
+  'admin_detail.no_events': 'No events found for this task.',
+  'admin_detail.loading_events': 'Loading events...',
+  'admin_detail.attempt': 'attempt',
+  'admin_detail.attempts': 'attempts',
+  'admin_detail.attempt_n': 'Attempt {n}',
+  'admin_detail.all_events': 'All',
+  'admin_detail.table.taskId': 'Task ID',
+  'admin_detail.table.attempts': 'Attempts',
+  'admin_detail.table.nodeId': 'Node',
+  'admin_detail.table.timestamp': 'Timestamp',
+  'admin_detail.table.trigger': 'Trigger',
 }
 
 export const translations = { es, en }

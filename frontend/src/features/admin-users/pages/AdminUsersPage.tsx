@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useUsers, useUpdateUser, useDeleteUser } from '../queries'
@@ -76,8 +77,13 @@ export function AdminUsersPage() {
             {users?.map((user) => (
               <tr key={user.id} className="transition hover:bg-gray-900/50">
                 <td className="px-4 py-3 text-gray-300">{user.id}</td>
-                <td className="max-w-[200px] truncate px-4 py-3 font-mono text-xs text-gray-300">
-                  {user.uuid}
+                <td className="max-w-[200px] truncate px-4 py-3 font-mono text-xs">
+                  <Link
+                    to={`/admin/users/${user.id}`}
+                    className="text-blue-400 transition hover:text-blue-300"
+                  >
+                    {user.uuid}
+                  </Link>
                 </td>
                 <td className="px-4 py-3">
                   <select
