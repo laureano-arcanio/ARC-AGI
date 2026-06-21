@@ -2,7 +2,7 @@ import { useEffect, useReducer, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRandomTasks, useTaskById } from '../queries'
 import { createAttempt, postEvent } from '../api'
-import { getUserByUuid } from '../../dashboard/api'
+import { getUserAccessibleTaskIds } from '../../batches/api'
 import { useTranslation } from '../../../lib/i18n'
 import { ConfirmDialog } from '../../../components/common'
 import {
@@ -35,6 +35,7 @@ import { OutputEditor } from '../components/OutputEditor'
 import { TaskControls } from '../components/TaskControls'
 import { Toast } from '../components/Toast'
 import { CognitiveTimeline } from '../components/CognitiveTimeline'
+import { getAttempts } from '../../admin-user-detail/api'
 
 type ArcLabState = {
   train: TaskPair[]
@@ -494,7 +495,7 @@ function getNodeLabel(
 }
 
 export function ArcLabPage() {
-  const { taskId, uuid } = useParams<{ taskId: string; uuid: string }>()
+  const { taskId, userId: routeUserId } = useParams<{ taskId: string; userId: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
@@ -503,27 +504,59 @@ export function ArcLabPage() {
 
   const [userId, setUserId] = useState<number | null>(null)
   const [userError, setUserError] = useState(false)
+  const [accessibleTaskIds, setAccessibleTaskIds] = useState<Set<string> | null>(null)
+  const [accessChecked, setAccessChecked] = useState(false)
+  const [attemptCount, setAttemptCount] = useState<number | null>(null)
 
   useEffect(() => {
-    if (uuid) {
-      let cancelled = false
-      getUserByUuid(uuid)
-        .then((user) => {
-          if (!cancelled) {
-            setUserId(user.id)
-            setUserError(false)
-          }
-        })
-        .catch(() => {
-          if (!cancelled) setUserError(true)
-        })
-      return () => {
-        cancelled = true
+    if (routeUserId) {
+      const numericId = Number(routeUserId)
+      if (!Number.isNaN(numericId)) {
+        setUserId(numericId)
+        setUserError(false)
+      } else {
+        setUserError(true)
       }
     } else {
       setUserId(1)
     }
-  }, [uuid])
+  }, [routeUserId])
+
+  useEffect(() => {
+    if (userId === null) return
+    let cancelled = false
+    getUserAccessibleTaskIds(userId)
+      .then((ids) => {
+        if (!cancelled) {
+          setAccessibleTaskIds(new Set(ids))
+          setAccessChecked(true)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAccessChecked(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
+
+  useEffect(() => {
+    if (!taskId || taskId === 'random' || userId === null) {
+      setAttemptCount(null)
+      return
+    }
+    let cancelled = false
+    getAttempts(userId, taskId)
+      .then((attempts) => {
+        if (!cancelled) setAttemptCount(attempts.length)
+      })
+      .catch(() => {
+        if (!cancelled) setAttemptCount(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [userId, taskId])
 
   const atRoot = state.activeNodeId === 'node_000'
   const canGoPrev = state.navigationIndex > 0
@@ -574,17 +607,18 @@ export function ArcLabPage() {
   const { data: randomTasks, isFetched: randomFetched } = useRandomTasks(
     1,
     taskId === 'random',
+    userId ?? undefined,
   )
   const { data: specificTask } = useTaskById(taskId ?? '')
 
   useEffect(() => {
     if (taskId === 'random' && randomFetched && randomTasks && randomTasks.length > 0) {
-      const target = uuid
-        ? `/solve/${uuid}/${randomTasks[0].id}`
+      const target = routeUserId
+        ? `/solve/${routeUserId}/${randomTasks[0].id}`
         : `/solve/${randomTasks[0].id}`
       navigate(target, { replace: true })
     }
-  }, [taskId, randomFetched, randomTasks, navigate, uuid])
+  }, [taskId, randomFetched, randomTasks, navigate, routeUserId])
 
   useEffect(() => {
     if (specificTask) {
@@ -656,16 +690,33 @@ export function ArcLabPage() {
     dispatch({ type: 'SUBMIT' })
   }
 
+  const accessDenied =
+    accessChecked &&
+    accessibleTaskIds !== null &&
+    taskId &&
+    taskId !== 'random' &&
+    !accessibleTaskIds.has(taskId)
+
   return (
     <div data-testid="arc-lab-page">
       {userError ? (
         <div className="flex flex-col items-center justify-center gap-4 pt-24 text-center">
-          <p className="text-lg text-red-400">{t('dashboard.invalid_uuid')}</p>
+          <p className="text-lg text-red-400">{t('dashboard.invalid_credentials')}</p>
           <a
             href="/"
             className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white transition hover:bg-gray-600"
           >
             {t('dashboard.back')}
+          </a>
+        </div>
+      ) : accessDenied ? (
+        <div className="flex flex-col items-center justify-center gap-4 pt-24 text-center">
+          <p className="text-lg text-red-400">{t('arc_lab.access_denied')}</p>
+          <a
+            href="/my-tasks"
+            className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white transition hover:bg-gray-600"
+          >
+            {t('arc_lab.back_to_tasks')}
           </a>
         </div>
       ) : (
@@ -675,11 +726,18 @@ export function ArcLabPage() {
 
         <div className="flex flex-col gap-5 lg:flex-row">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <TaskControls
-              onNextTask={() =>
-                navigate(uuid ? `/solve/${uuid}/random` : '/solve/random')
-              }
-            />
+            <div className="flex items-center justify-between">
+              <TaskControls
+                onNextTask={() =>
+                  navigate(routeUserId ? `/solve/${routeUserId}/random` : '/solve/random')
+                }
+              />
+              {taskId && taskId !== 'random' && attemptCount !== null && (
+                <span className="text-sm text-gray-500">
+                  {t('arc_lab.attempt_count', { count: attemptCount })}
+                </span>
+              )}
+            </div>
 
             <TestInputPanel
               input={state.inputGrid}

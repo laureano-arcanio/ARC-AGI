@@ -4,7 +4,7 @@ from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
 from app.repositories.user import UserRepository
 from app.schemas.attempt import UserTaskSummary
-from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.user import UserCreate, UserLogin, UserRead, UserUpdate
 from app.services.attempt import AttemptService
 from app.services.user import UserService
 
@@ -29,12 +29,12 @@ async def create(
     return await service.create(data)
 
 
-@router.get("/by-uuid/{uuid}", response_model=UserRead)
-async def get_by_uuid(
-    uuid: str,
+@router.post("/login", response_model=UserRead)
+async def login(
+    data: UserLogin,
     service: UserService = Depends(get_service),  # noqa: B008
 ) -> UserRead:
-    return await service.get_by_uuid(uuid)
+    return await service.authenticate(data.email, data.password)
 
 
 @router.get("/", response_model=list[UserRead])

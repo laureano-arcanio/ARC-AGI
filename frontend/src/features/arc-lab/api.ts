@@ -1,10 +1,12 @@
 import { http } from '../../lib/http'
 import type { ArcTaskRead, AttemptRead, EventPayload } from './types'
 
-export function fetchRandomTasks(count = 10): Promise<ArcTaskRead[]> {
-  return http.get<ArcTaskRead[]>('/v1/arc-tasks/random', {
-    params: { count: String(count) },
-  })
+export function fetchRandomTasks(count = 10, userId?: number): Promise<ArcTaskRead[]> {
+  const params: Record<string, string | undefined> = { count: String(count) }
+  if (userId !== undefined) {
+    params.userId = String(userId)
+  }
+  return http.get<ArcTaskRead[]>('/v1/arc-tasks/random', { params })
 }
 
 export function fetchTaskById(taskId: string): Promise<ArcTaskRead> {

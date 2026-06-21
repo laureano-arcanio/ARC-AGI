@@ -6,6 +6,8 @@ import { HealthPage } from '../features/health/pages/HealthPage'
 import { ArcLabPage } from '../features/arc-lab/pages/ArcLabPage'
 import { AdminUsersPage } from '../features/admin-users/pages/AdminUsersPage'
 import { AdminUserDetailPage } from '../features/admin-user-detail/pages/AdminUserDetailPage'
+import { AdminBatchesPage } from '../features/batches/pages/AdminBatchesPage'
+import { MyTasksPage } from '../features/my-tasks/pages/MyTasksPage'
 
 export function AppRouter() {
   return (
@@ -16,7 +18,9 @@ export function AppRouter() {
         <Route path="/health" element={<HealthPage />} />
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/users/:userId" element={<AdminUserDetailPage />} />
-        <Route path="/solve/:uuid/:taskId" element={<ArcLabPage />} />
+        <Route path="/admin/batches" element={<AdminBatchesPage />} />
+        <Route path="/my-tasks" element={<MyTasksPage />} />
+        <Route path="/solve/:userId/:taskId" element={<ArcLabPage />} />
         <Route path="/solve/:taskId" element={<ArcLabPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

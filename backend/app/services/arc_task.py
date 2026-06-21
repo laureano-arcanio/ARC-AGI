@@ -34,6 +34,23 @@ class ArcTaskService:
             for task_id in chosen_ids
         ]
 
+    async def get_random_tasks_from_ids(
+        self, count: int = 10, allowed_ids: list[str] | None = None
+    ) -> list[ArcTaskRead]:
+        challenges = self._load_json("arc-agi_training_challenges.json")
+        solutions = self._load_json("arc-agi_training_solutions.json")
+        if not allowed_ids:
+            return await self.get_random_tasks(count=count)
+        available_ids = [tid for tid in allowed_ids if tid in challenges]
+        if not available_ids:
+            return []
+        sample_size = min(count, len(available_ids))
+        chosen_ids = random.sample(available_ids, sample_size)
+        return [
+            self._build_task(task_id, challenges[task_id], solutions.get(task_id, []))
+            for task_id in chosen_ids
+        ]
+
     def _load_json(self, name: str) -> dict[str, Any]:
         path = self._static_dir / name
         with path.open("r", encoding="utf-8") as fh:

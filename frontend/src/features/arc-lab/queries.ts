@@ -7,10 +7,10 @@ export const arcQueryKeys = {
   taskById: (taskId: string) => [...arcQueryKeys.all, 'task', taskId] as const,
 }
 
-export function useRandomTasks(count = 10, enabled = true) {
+export function useRandomTasks(count = 10, enabled = true, userId?: number) {
   return useQuery({
     queryKey: arcQueryKeys.randomTasks(count),
-    queryFn: () => fetchRandomTasks(count),
+    queryFn: () => fetchRandomTasks(count, userId),
     enabled,
     staleTime: Infinity,
     refetchOnWindowFocus: false,

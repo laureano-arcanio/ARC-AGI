@@ -30,6 +30,8 @@ class AbstractBase(Base):
     )
 
 
+from app.models.attempt import Attempt  # noqa: E402, F401
+from app.models.batch import Batch, BatchAssignment  # noqa: E402, F401
 from app.models.event import Event  # noqa: E402, F401
 from app.models.example_table import ExampleTable  # noqa: E402, F401
 from app.models.user import User  # noqa: E402, F401

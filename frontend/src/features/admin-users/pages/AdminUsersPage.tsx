@@ -67,7 +67,7 @@ export function AdminUsersPage() {
           <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
             <tr>
               <th className="px-4 py-3 font-medium">{t('admin.table.id')}</th>
-              <th className="px-4 py-3 font-medium">{t('admin.table.uuid')}</th>
+              <th className="px-4 py-3 font-medium">{t('admin.table.email')}</th>
               <th className="px-4 py-3 font-medium">{t('admin.table.role')}</th>
               <th className="px-4 py-3 font-medium">{t('admin.table.createdAt')}</th>
               <th className="px-4 py-3 font-medium">{t('admin.table.actions')}</th>
@@ -77,12 +77,12 @@ export function AdminUsersPage() {
             {users?.map((user) => (
               <tr key={user.id} className="transition hover:bg-gray-900/50">
                 <td className="px-4 py-3 text-gray-300">{user.id}</td>
-                <td className="max-w-[200px] truncate px-4 py-3 font-mono text-xs">
+                <td className="px-4 py-3">
                   <Link
                     to={`/admin/users/${user.id}`}
                     className="text-blue-400 transition hover:text-blue-300"
                   >
-                    {user.uuid}
+                    {user.email}
                   </Link>
                 </td>
                 <td className="px-4 py-3">

@@ -1,10 +1,16 @@
 import { http } from '../../lib/http'
 import type { UserRead } from './types'
 
-export function createUser(): Promise<UserRead> {
-  return http.post<UserRead>('/v1/users/', {})
+export function createUser(
+  email: string,
+  password: string,
+): Promise<UserRead> {
+  return http.post<UserRead>('/v1/users/', { email, password })
 }
 
-export function getUserByUuid(uuid: string): Promise<UserRead> {
-  return http.get<UserRead>(`/v1/users/by-uuid/${encodeURIComponent(uuid)}`)
+export function loginUser(
+  email: string,
+  password: string,
+): Promise<UserRead> {
+  return http.post<UserRead>('/v1/users/login', { email, password })
 }

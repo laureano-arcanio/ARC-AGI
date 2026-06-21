@@ -144,9 +144,12 @@ class TestUserRepositoryCreate:
     async def test_creates_instance(
         self, user_repo: UserRepository, db_session: MockAsyncSession
     ) -> None:
-        result = await user_repo.create({"uuid": "generated-uuid", "role": "solver"})
+        result = await user_repo.create(
+            {"email": "user@test.com", "password_hash": "hash", "role": "solver"}
+        )
         assert isinstance(result, User)
-        assert result.uuid == "generated-uuid"
+        assert result.email == "user@test.com"
+        assert result.password_hash == "hash"
         assert result.role == "solver"
         assert len(db_session.added) == 1
         assert db_session.flushed is True
@@ -164,7 +167,7 @@ class TestUserRepositoryGetById:
         )
         result = await user_repo.get_by_id(1)
         assert result.id == 1
-        assert result.uuid == "test-uuid-1234"
+        assert result.email == "test@example.com"
         assert result.role == "solver"
 
     async def test_raises_when_not_found(
@@ -175,7 +178,7 @@ class TestUserRepositoryGetById:
             await user_repo.get_by_id(999)
 
 
-class TestUserRepositoryGetByUuid:
+class TestUserRepositoryGetByEmail:
     async def test_returns_instance_when_found(
         self,
         user_repo: UserRepository,
@@ -185,9 +188,9 @@ class TestUserRepositoryGetByUuid:
         db_session.set_execute_result(
             MockResult(scalar_one_or_none_result=sample_user)
         )
-        result = await user_repo.get_by_uuid("test-uuid-1234")
+        result = await user_repo.get_by_email("test@example.com")
         assert result.id == 1
-        assert result.uuid == "test-uuid-1234"
+        assert result.email == "test@example.com"
         assert result.role == "solver"
 
     async def test_raises_when_not_found(
@@ -195,7 +198,7 @@ class TestUserRepositoryGetByUuid:
     ) -> None:
         db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
         with pytest.raises(ObjectNotFoundError):
-            await user_repo.get_by_uuid("nonexistent-uuid")
+            await user_repo.get_by_email("nonexistent@test.com")
 
 
 @pytest.fixture

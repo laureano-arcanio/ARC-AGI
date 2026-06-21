@@ -6,8 +6,10 @@ from fastapi import FastAPI, status
 from httpx import AsyncClient
 
 from app.errors import (
+    InvalidCredentialsError,
     ObjectNotFoundError,
     global_exception_handler,
+    invalid_credentials_handler,
     object_not_found_handler,
 )
 from app.routers.example_table import get_service, router
@@ -18,7 +20,7 @@ from app.schemas.example_table import (
     ExampleTableRead,
     ExampleTableUpdate,
 )
-from app.schemas.user import UserRead
+from app.schemas.user import LoginResponse, UserRead
 from app.services.example_table import ExampleTableService
 
 
@@ -161,13 +163,23 @@ class TestExampleTableRouterDelete:
 
 @pytest.fixture
 def user_app(user_mock_service: AsyncMock) -> FastAPI:
+    from app.dependencies.auth import CurrentUser, get_current_user, require_admin
     from app.routers.user import get_service, router
+
+    async def mock_get_current_user() -> CurrentUser:
+        return CurrentUser(user_id=1, role="admin")
+
+    async def mock_require_admin() -> CurrentUser:
+        return CurrentUser(user_id=1, role="admin")
 
     application = FastAPI()
     application.exception_handler(ObjectNotFoundError)(object_not_found_handler)
+    application.exception_handler(InvalidCredentialsError)(invalid_credentials_handler)
     application.exception_handler(Exception)(global_exception_handler)
     application.include_router(router)
     application.dependency_overrides[get_service] = lambda: user_mock_service
+    application.dependency_overrides[get_current_user] = mock_get_current_user
+    application.dependency_overrides[require_admin] = mock_require_admin
     return application
 
 
@@ -177,8 +189,8 @@ def user_mock_service() -> AsyncMock:
 
     svc = AsyncMock(spec=UserService)
     svc.get_by_id.side_effect = ObjectNotFoundError("User", 0)
-    svc.get_by_uuid.side_effect = ObjectNotFoundError("User", "unknown")
-    svc.create.return_value = UserRead(id=1, uuid="generated-uuid", role="solver")
+    svc.authenticate.side_effect = InvalidCredentialsError()
+    svc.create.return_value = UserRead(id=1, email="created@test.com", role="solver")
     return svc
 
 
@@ -195,33 +207,57 @@ class TestUserRouterCreate:
     async def test_creates_and_returns_201(
         self, user_client: AsyncClient, user_mock_service: AsyncMock
     ) -> None:
-        response = await user_client.post("/api/v1/users/", json={})
+        response = await user_client.post(
+            "/api/v1/users/",
+            json={"email": "new@test.com", "password": "secret123"},
+        )
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["id"] == 1
-        assert response.json()["uuid"] == "generated-uuid"
+        assert response.json()["email"] == "created@test.com"
         assert response.json()["role"] == "solver"
         user_mock_service.create.assert_awaited_once()
 
+    async def test_returns_422_on_missing_email(
+        self, user_client: AsyncClient
+    ) -> None:
+        response = await user_client.post(
+            "/api/v1/users/",
+            json={"password": "secret123"},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-class TestUserRouterGetByUuid:
+
+class TestUserRouterLogin:
     async def test_returns_instance(
         self, user_client: AsyncClient, user_mock_service: AsyncMock
     ) -> None:
-        user_mock_service.get_by_uuid.side_effect = None
-        user_mock_service.get_by_uuid.return_value = UserRead(
-            id=5, uuid="abc-123", role="solver"
+        user_mock_service.authenticate.side_effect = None
+        user_mock_service.authenticate.return_value = LoginResponse(
+            access_token="test-token",
+            user=UserRead(id=5, email="login@test.com", role="solver"),
         )
-        response = await user_client.get("/api/v1/users/by-uuid/abc-123")
+        response = await user_client.post(
+            "/api/v1/users/login",
+            json={"email": "login@test.com", "password": "secret123"},
+        )
         assert response.status_code == 200
-        assert response.json()["id"] == 5
-        assert response.json()["uuid"] == "abc-123"
-        user_mock_service.get_by_uuid.assert_awaited_with("abc-123")
+        data = response.json()
+        assert data["accessToken"] == "test-token"
+        assert data["tokenType"] == "bearer"
+        assert data["user"]["id"] == 5
+        assert data["user"]["email"] == "login@test.com"
+        user_mock_service.authenticate.assert_awaited_with(
+            "login@test.com", "secret123"
+        )
 
-    async def test_returns_404_when_not_found(
+    async def test_returns_401_when_invalid(
         self, user_client: AsyncClient
     ) -> None:
-        response = await user_client.get("/api/v1/users/by-uuid/nonexistent")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        response = await user_client.post(
+            "/api/v1/users/login",
+            json={"email": "bad@test.com", "password": "wrong"},
+        )
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 class TestUserRouterGetById:
@@ -230,12 +266,12 @@ class TestUserRouterGetById:
     ) -> None:
         user_mock_service.get_by_id.side_effect = None
         user_mock_service.get_by_id.return_value = UserRead(
-            id=5, uuid="abc-123", role="solver"
+            id=5, email="user5@test.com", role="solver"
         )
         response = await user_client.get("/api/v1/users/5")
         assert response.status_code == 200
         assert response.json()["id"] == 5
-        assert response.json()["uuid"] == "abc-123"
+        assert response.json()["email"] == "user5@test.com"
 
     async def test_returns_404_when_not_found(
         self, user_client: AsyncClient
@@ -248,14 +284,29 @@ class TestUserRouterGetById:
 
 
 @pytest.fixture
-def event_app(event_mock_service: AsyncMock) -> FastAPI:
-    from app.routers.event import get_service, router
+def event_batch_mock() -> AsyncMock:
+    from app.repositories.batch import BatchRepository
+
+    repo = AsyncMock(spec=BatchRepository)
+    repo.user_has_access.return_value = True
+    return repo
+
+
+@pytest.fixture
+def event_app(event_mock_service: AsyncMock, event_batch_mock: AsyncMock) -> FastAPI:
+    from app.dependencies.auth import CurrentUser, get_current_user
+    from app.routers.event import get_batch_repo, get_service, router
+
+    async def mock_get_current_user() -> CurrentUser:
+        return CurrentUser(user_id=1, role="admin")
 
     application = FastAPI()
     application.exception_handler(ObjectNotFoundError)(object_not_found_handler)
     application.exception_handler(Exception)(global_exception_handler)
     application.include_router(router)
     application.dependency_overrides[get_service] = lambda: event_mock_service
+    application.dependency_overrides[get_batch_repo] = lambda: event_batch_mock
+    application.dependency_overrides[get_current_user] = mock_get_current_user
     return application
 
 
@@ -363,14 +414,22 @@ class TestEventRouterGetByUserAndTask:
 
 
 @pytest.fixture
-def attempt_app(attempt_mock_service: AsyncMock) -> FastAPI:
-    from app.routers.attempt import get_service, router
+def attempt_app(
+    attempt_mock_service: AsyncMock, event_batch_mock: AsyncMock
+) -> FastAPI:
+    from app.dependencies.auth import CurrentUser, get_current_user
+    from app.routers.attempt import get_batch_repo, get_service, router
+
+    async def mock_get_current_user() -> CurrentUser:
+        return CurrentUser(user_id=1, role="admin")
 
     application = FastAPI()
     application.exception_handler(ObjectNotFoundError)(object_not_found_handler)
     application.exception_handler(Exception)(global_exception_handler)
     application.include_router(router)
     application.dependency_overrides[get_service] = lambda: attempt_mock_service
+    application.dependency_overrides[get_batch_repo] = lambda: event_batch_mock
+    application.dependency_overrides[get_current_user] = mock_get_current_user
     return application
 
 

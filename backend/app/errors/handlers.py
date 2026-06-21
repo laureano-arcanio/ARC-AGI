@@ -1,6 +1,7 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
+from app.errors.invalid_credentials_error import InvalidCredentialsError
 from app.errors.object_not_found_error import ObjectNotFoundError
 
 
@@ -9,5 +10,14 @@ async def object_not_found_handler(
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
+        content={"message": exc.message},
+    )
+
+
+async def invalid_credentials_handler(
+    _request: Request, exc: InvalidCredentialsError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
         content={"message": exc.message},
     )

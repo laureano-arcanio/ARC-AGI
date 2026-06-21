@@ -2,100 +2,120 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useCreateUser } from '../queries'
-import { getUserByUuid } from '../api'
+import { useCreateUser, useLogin } from '../queries'
 
-function getRedirectPath(role: string, uuid: string): string {
-  return role === 'admin' ? '/admin/users' : `/solve/${uuid}/random`
+function getRedirectPath(role: string): string {
+  return role === 'admin' ? '/admin/users' : '/my-tasks'
 }
 
 export function DashboardPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { setUserUuid } = useAuth()
-  const [uuidInput, setUuidInput] = useState('')
-  const [lookupError, setLookupError] = useState('')
+  const { setUser } = useAuth()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
   const createUserMutation = useCreateUser()
+  const loginMutation = useLogin()
 
   const handleCreateUser = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError(t('dashboard.fields_required'))
+      return
+    }
+    setError('')
     try {
-      const user = await createUserMutation.mutateAsync()
-      setUserUuid(user.uuid)
-      navigate(getRedirectPath(user.role, user.uuid))
+      const user = await createUserMutation.mutateAsync({
+        email: email.trim(),
+        password,
+      })
+      setUser(user.id, user.email)
+      navigate(getRedirectPath(user.role))
     } catch {
-      setLookupError(t('dashboard.create_error'))
+      setError(t('dashboard.create_error'))
     }
   }
 
-  const handleUseUuid = async () => {
-    const trimmed = uuidInput.trim()
-    if (!trimmed) {
-      setLookupError(t('dashboard.uuid_empty'))
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError(t('dashboard.fields_required'))
       return
     }
-    setLookupError('')
+    setError('')
     try {
-      const user = await getUserByUuid(trimmed)
-      setUserUuid(trimmed)
-      navigate(getRedirectPath(user.role, user.uuid))
+      const user = await loginMutation.mutateAsync({
+        email: email.trim(),
+        password,
+      })
+      setUser(user.id, user.email)
+      navigate(getRedirectPath(user.role))
     } catch {
-      setLookupError(t('dashboard.invalid_uuid'))
+      setError(t('dashboard.invalid_credentials'))
     }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleUseUuid()
+      handleLogin()
     }
   }
+
+  const pending =
+    createUserMutation.isPending || loginMutation.isPending
 
   return (
     <div className="flex flex-col items-center justify-center gap-8 pt-24 text-center">
       <h1 className="text-5xl font-bold">{t('dashboard.title')}</h1>
       <p className="max-w-md text-gray-400">{t('dashboard.subtitle')}</p>
 
-      <div className="flex flex-col gap-6">
-        <button
-          onClick={handleCreateUser}
-          disabled={createUserMutation.isPending}
-          className="rounded-xl bg-blue-600 px-8 py-4 text-lg font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-        >
-          {createUserMutation.isPending
-            ? t('dashboard.creating')
-            : t('dashboard.create')}
-        </button>
+      <div className="flex w-full max-w-sm flex-col gap-4">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value)
+            setError('')
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={t('dashboard.email_placeholder')}
+          autoComplete="email"
+          className="rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value)
+            setError('')
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={t('dashboard.password_placeholder')}
+          autoComplete="current-password"
+          className="rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+        />
 
-        <div className="flex items-center gap-2">
-          <div className="h-px flex-1 bg-gray-700" />
-          <span className="text-sm text-gray-500">{t('dashboard.or')}</span>
-          <div className="h-px flex-1 bg-gray-700" />
-        </div>
+        {error && (
+          <p className="text-sm text-red-400">{error}</p>
+        )}
 
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={uuidInput}
-              onChange={(e) => {
-                setUuidInput(e.target.value)
-                setLookupError('')
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder={t('dashboard.uuid_placeholder')}
-              className="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
-            />
-            <button
-              onClick={handleUseUuid}
-              disabled={!uuidInput.trim()}
-              className="rounded-lg bg-gray-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-gray-600 disabled:opacity-50"
-            >
-              {t('dashboard.use_uuid')}
-            </button>
-          </div>
-          {lookupError && (
-            <p className="text-sm text-red-400">{lookupError}</p>
-          )}
+        <div className="flex gap-3">
+          <button
+            onClick={handleLogin}
+            disabled={pending}
+            className="flex-1 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+          >
+            {t('dashboard.login')}
+          </button>
+          <button
+            onClick={handleCreateUser}
+            disabled={pending}
+            className="flex-1 rounded-xl border border-gray-700 bg-transparent px-6 py-3 text-sm font-semibold text-gray-300 transition hover:bg-gray-800 disabled:opacity-50"
+          >
+            {createUserMutation.isPending
+              ? t('dashboard.creating')
+              : t('dashboard.create')}
+          </button>
         </div>
       </div>
     </div>

@@ -8,10 +8,10 @@ from app.repositories.base_repository import BaseRepository
 class UserRepository(BaseRepository[User]):
     model = User
 
-    async def get_by_uuid(self, uuid: str) -> User:
-        query = select(self.model).where(self.model.uuid == uuid)
+    async def get_by_email(self, email: str) -> User:
+        query = select(self.model).where(self.model.email == email)
         result = await self.db_session.execute(query)
         db_instance = result.scalar_one_or_none()
         if not db_instance:
-            raise ObjectNotFoundError(object_type="User", object_id=uuid)
+            raise ObjectNotFoundError(object_type="User", object_id=email)
         return db_instance

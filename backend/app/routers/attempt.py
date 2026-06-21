@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
+from app.repositories.batch import BatchRepository
 from app.schemas.attempt import AttemptCreate, AttemptRead
 from app.services.attempt import AttemptService
 
@@ -13,11 +14,22 @@ async def get_service(db_session: DatabaseSession) -> AttemptService:
     return AttemptService(repository=repository)
 
 
+async def get_batch_repo(db_session: DatabaseSession) -> BatchRepository:
+    return BatchRepository(db_session=db_session)
+
+
 @router.post("/", response_model=AttemptRead, status_code=status.HTTP_201_CREATED)
 async def create(
     data: AttemptCreate,
     service: AttemptService = Depends(get_service),  # noqa: B008
+    batch_repo: BatchRepository = Depends(get_batch_repo),  # noqa: B008
 ) -> AttemptRead:
+    has_access = await batch_repo.user_has_access(data.user_id, data.task_id)
+    if not has_access:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User {data.user_id} does not have access to task {data.task_id}",
+        )
     return await service.create(data)
 
 

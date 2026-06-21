@@ -75,7 +75,9 @@ def sample_example_tables() -> list[ExampleTable]:
 
 @pytest.fixture
 def sample_user() -> User:
-    return User(id=1, uuid="test-uuid-1234", role=UserRole.SOLVER)
+    return User(
+        id=1, email="test@example.com", password_hash="hashed", role=UserRole.SOLVER
+    )
 
 
 @pytest.fixture

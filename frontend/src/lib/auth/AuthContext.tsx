@@ -1,35 +1,44 @@
 import { createContext, useContext, useCallback, useState, type ReactNode } from 'react'
-import { useUserByUuid } from '../../features/dashboard/queries'
+import { useQuery } from '@tanstack/react-query'
+import { http } from '../http'
+
+type UserRead = {
+  id: number
+  email: string
+  role: string
+}
 
 type AuthContextType = {
-  userUuid: string | null
-  setUserUuid: (uuid: string) => void
-  clearUserUuid: () => void
+  userId: number | null
+  userEmail: string | null
+  setUser: (id: number, email: string) => void
+  clearUser: () => void
   isAdmin: boolean
   isLoading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-const STORAGE_KEY = 'currentUserUuid'
+const STORAGE_KEY = 'currentUserId'
 
-function readSavedUuid(): string | null {
+function readSavedId(): number | null {
   try {
-    return localStorage.getItem(STORAGE_KEY)
+    const val = localStorage.getItem(STORAGE_KEY)
+    return val ? Number(val) : null
   } catch {
     return null
   }
 }
 
-function persistUuid(uuid: string) {
+function persistId(id: number) {
   try {
-    localStorage.setItem(STORAGE_KEY, uuid)
+    localStorage.setItem(STORAGE_KEY, String(id))
   } catch {
     // storage unavailable
   }
 }
 
-function removeUuid() {
+function removeId() {
   try {
     localStorage.removeItem(STORAGE_KEY)
   } catch {
@@ -38,30 +47,40 @@ function removeUuid() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [userUuid, setUserUuidState] = useState<string | null>(readSavedUuid)
+  const [userId, setUserIdState] = useState<number | null>(readSavedId)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
-  const { data: user, isLoading } = useUserByUuid(userUuid ?? '')
+  const { data: user, isLoading } = useQuery({
+    queryKey: ['auth', 'user', userId],
+    queryFn: () => http.get<UserRead>(`/v1/users/${userId}`),
+    enabled: userId !== null,
+    staleTime: 5 * 60 * 1000,
+  })
 
-  const setUserUuid = useCallback((uuid: string) => {
-    persistUuid(uuid)
-    setUserUuidState(uuid)
+  const setUser = useCallback((id: number, email: string) => {
+    persistId(id)
+    setUserIdState(id)
+    setUserEmail(email)
   }, [])
 
-  const clearUserUuid = useCallback(() => {
-    removeUuid()
-    setUserUuidState(null)
+  const clearUser = useCallback(() => {
+    removeId()
+    setUserIdState(null)
+    setUserEmail(null)
   }, [])
 
+  const resolvedEmail = user?.email ?? userEmail
   const isAdmin = user?.role === 'admin'
 
   return (
     <AuthContext.Provider
       value={{
-        userUuid,
-        setUserUuid,
-        clearUserUuid,
+        userId,
+        userEmail: resolvedEmail,
+        setUser,
+        clearUser,
         isAdmin,
-        isLoading: userUuid ? isLoading : false,
+        isLoading: userId !== null ? isLoading : false,
       }}
     >
       {children}

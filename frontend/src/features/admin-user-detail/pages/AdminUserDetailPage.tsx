@@ -113,8 +113,8 @@ export function AdminUserDetailPage() {
             {t('admin_detail.title')}
           </h1>
           {user && (
-            <p className="mt-1 font-mono text-sm text-gray-400">
-              UUID: {user.uuid}
+            <p className="mt-1 text-sm text-gray-400">
+              {user.email}
             </p>
           )}
         </div>

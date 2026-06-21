@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from app.schemas.attempt import AttemptCreate, AttemptRead
 from app.schemas.event import EventCreate, EventRead, EventUpdate
@@ -95,39 +96,55 @@ class TestExampleTableRead:
 
 class TestUserCreate:
     def test_creates_without_fields(self) -> None:
-        data = UserCreate()
+        data = UserCreate(email="test@example.com", password="secret123")
         assert isinstance(data, UserCreate)
+        assert data.email == "test@example.com"
+        assert data.password == "secret123"
         assert data.role == "solver"
 
     def test_creates_with_role(self) -> None:
-        data = UserCreate(role="admin")
+        data = UserCreate(email="test@example.com", password="secret123", role="admin")
         assert data.role == "admin"
 
     def test_model_dump(self) -> None:
-        data = UserCreate()
+        data = UserCreate(email="test@example.com", password="secret123")
         dumped = data.model_dump()
-        assert dumped == {"role": "solver"}
+        assert dumped["email"] == "test@example.com"
+        assert dumped["password"] == "secret123"
+        assert dumped["role"] == "solver"
 
     def test_model_dump_with_role(self) -> None:
-        data = UserCreate(role="admin")
+        data = UserCreate(email="test@example.com", password="secret123", role="admin")
         dumped = data.model_dump()
-        assert dumped == {"role": "admin"}
+        assert dumped["role"] == "admin"
+
+    def test_missing_email_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            UserCreate(password="secret123")
+
+    def test_missing_password_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            UserCreate(email="test@example.com")
 
 
 class TestUserRead:
     def test_full_read_schema(self) -> None:
         now = datetime.now(UTC)
         data = UserRead(
-            id=1, uuid="abc-123", role="solver", created_at=now, updated_at=now
+            id=1,
+            email="test@example.com",
+            role="solver",
+            created_at=now,
+            updated_at=now,
         )
         assert data.id == 1
-        assert data.uuid == "abc-123"
+        assert data.email == "test@example.com"
         assert data.role == "solver"
         assert data.created_at == now
         assert data.updated_at == now
 
     def test_read_defaults(self) -> None:
-        data = UserRead(id=2, uuid="def-456", role="admin")
+        data = UserRead(id=2, email="user2@example.com", role="admin")
         assert data.created_at is None
         assert data.updated_at is None
 
@@ -136,7 +153,7 @@ class TestUserRead:
 
         class FakeORM(BaseModel):
             id: int = 1
-            uuid: str = "orm-uuid"
+            email: str = "orm@example.com"
             role: str = "solver"
             created_at: datetime | None = datetime.now(UTC)
             updated_at: datetime | None = None
@@ -145,7 +162,7 @@ class TestUserRead:
 
         data = UserRead.model_validate(FakeORM())
         assert data.id == 1
-        assert data.uuid == "orm-uuid"
+        assert data.email == "orm@example.com"
         assert data.role == "solver"
 
 

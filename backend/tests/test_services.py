@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.errors import ObjectNotFoundError
+from app.errors import InvalidCredentialsError, ObjectNotFoundError
 from app.models.attempt import Attempt
 from app.models.event import Event
 from app.models.example_table import ExampleTable
@@ -14,11 +14,11 @@ from app.schemas.example_table import (
     ExampleTableRead,
     ExampleTableUpdate,
 )
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import LoginResponse, UserCreate, UserRead
 from app.services.attempt import AttemptService
 from app.services.event import EventService
 from app.services.example_table import ExampleTableService
-from app.services.user import UserService
+from app.services.user import UserService, _hash_password
 
 
 @pytest.fixture
@@ -146,17 +146,16 @@ def user_mock_repo() -> AsyncMock:
     repo = AsyncMock()
 
     async def create_side_effect(data):
-        extra = {k: v for k, v in data.items() if k not in ("uuid", "role")}
         return User(
             id=1,
-            uuid=data.get("uuid", "auto-uuid"),
+            email=data.get("email", "user@test.com"),
+            password_hash=data.get("password_hash", "hash"),
             role=data.get("role", UserRole.SOLVER),
-            **extra,
         )
 
     repo.create.side_effect = create_side_effect
     repo.get_by_id.side_effect = ObjectNotFoundError("User", 0)
-    repo.get_by_uuid.side_effect = ObjectNotFoundError("User", "unknown")
+    repo.get_by_email.side_effect = ObjectNotFoundError("User", "unknown@test.com")
     return repo
 
 
@@ -171,10 +170,17 @@ class TestUserServiceCreate:
     async def test_creates_and_returns_schema(
         self, user_service: UserService, user_mock_repo: AsyncMock
     ) -> None:
-        result = await user_service.create(UserCreate())
+        result = await user_service.create(
+            UserCreate(email="user@test.com", password="secret123")
+        )
         assert isinstance(result, UserRead)
         assert result.id == 1
-        user_mock_repo.create.assert_awaited_with({"role": "solver"})
+        assert result.email == "user@test.com"
+        user_mock_repo.create.assert_awaited_once()
+        call_args = user_mock_repo.create.await_args[0][0]
+        assert call_args["email"] == "user@test.com"
+        assert "password_hash" in call_args
+        assert call_args["password_hash"] != "secret123"
 
 
 class TestUserServiceGetById:
@@ -183,12 +189,12 @@ class TestUserServiceGetById:
     ) -> None:
         user_mock_repo.get_by_id.side_effect = None
         user_mock_repo.get_by_id.return_value = User(
-            id=3, uuid="uuid-3", role=UserRole.SOLVER
+            id=3, email="user3@test.com", password_hash="hashed", role=UserRole.SOLVER
         )
         result = await user_service.get_by_id(3)
         assert isinstance(result, UserRead)
         assert result.id == 3
-        assert result.uuid == "uuid-3"
+        assert result.email == "user3@test.com"
         assert result.role == "solver"
 
     async def test_raises_when_not_found(
@@ -198,26 +204,39 @@ class TestUserServiceGetById:
             await user_service.get_by_id(999)
 
 
-class TestUserServiceGetByUuid:
-    async def test_returns_schema_when_found(
+class TestUserServiceAuthenticate:
+    async def test_returns_schema_when_valid(
         self, user_service: UserService, user_mock_repo: AsyncMock
     ) -> None:
-        user_mock_repo.get_by_uuid.side_effect = None
-        user_mock_repo.get_by_uuid.return_value = User(
-            id=7, uuid="my-uuid", role=UserRole.SOLVER
+        hashed = _hash_password("secret123")
+        user_mock_repo.get_by_email.side_effect = None
+        user_mock_repo.get_by_email.return_value = User(
+            id=7, email="auth@test.com", password_hash=hashed, role=UserRole.SOLVER
         )
-        result = await user_service.get_by_uuid("my-uuid")
-        assert isinstance(result, UserRead)
-        assert result.id == 7
-        assert result.uuid == "my-uuid"
-        assert result.role == "solver"
-        user_mock_repo.get_by_uuid.assert_awaited_with("my-uuid")
+        result = await user_service.authenticate("auth@test.com", "secret123")
+        assert isinstance(result, LoginResponse)
+        assert result.access_token
+        assert result.token_type == "bearer"
+        assert result.user.id == 7
+        assert result.user.email == "auth@test.com"
+        user_mock_repo.get_by_email.assert_awaited_with("auth@test.com")
 
     async def test_raises_when_not_found(
         self, user_service: UserService
     ) -> None:
-        with pytest.raises(ObjectNotFoundError):
-            await user_service.get_by_uuid("nonexistent")
+        with pytest.raises(InvalidCredentialsError):
+            await user_service.authenticate("nonexistent@test.com", "password")
+
+    async def test_raises_when_wrong_password(
+        self, user_service: UserService, user_mock_repo: AsyncMock
+    ) -> None:
+        hashed = _hash_password("secret123")
+        user_mock_repo.get_by_email.side_effect = None
+        user_mock_repo.get_by_email.return_value = User(
+            id=8, email="auth@test.com", password_hash=hashed, role=UserRole.SOLVER
+        )
+        with pytest.raises(InvalidCredentialsError):
+            await user_service.authenticate("auth@test.com", "wrongpass")
 
 
 @pytest.fixture
