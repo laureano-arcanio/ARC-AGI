@@ -7,7 +7,7 @@ const es = {
   'nav.home': 'Inicio',
   'nav.health': 'Salud',
   'nav.solve': 'Resolver',
-  'nav.dashboard': 'Panel',
+
 
   'language.es': 'Español',
   'language.en': 'English',
@@ -85,14 +85,11 @@ const es = {
   'log.abandon': 'Tarea abandonada',
 
   'dashboard.title': 'Panel de usuario',
-  'dashboard.subtitle': 'Crea un nuevo usuario o inicia sesión con tu email y contraseña.',
-  'dashboard.create': 'Crear usuario',
-  'dashboard.creating': 'Creando...',
+  'dashboard.subtitle': 'Inicia sesión con tu email y contraseña.',
   'dashboard.login': 'Iniciar sesión',
   'dashboard.email_placeholder': 'Email',
   'dashboard.password_placeholder': 'Contraseña',
   'dashboard.fields_required': 'Ingresa email y contraseña.',
-  'dashboard.create_error': 'Error al crear usuario. Intenta de nuevo.',
   'dashboard.invalid_credentials': 'Email o contraseña incorrectos.',
   'dashboard.back': 'Volver al panel',
 
@@ -109,10 +106,12 @@ const es = {
   'admin.table.id': 'ID',
   'admin.table.email': 'Email',
   'admin.table.role': 'Rol',
+  'admin.table.batches': 'Lotes',
   'admin.table.createdAt': 'Creado',
   'admin.table.actions': 'Acciones',
   'admin.delete': 'Eliminar',
   'admin.no_users': 'No hay usuarios.',
+  'admin.batches_placeholder': 'Sin lotes',
   'admin.delete_title': 'Eliminar usuario',
   'admin.delete_message': '¿Seguro que quieres eliminar este usuario? Esta acción no se puede deshacer.',
 
@@ -162,7 +161,6 @@ const es = {
   'my_tasks.title': 'Mis Tareas',
   'my_tasks.loading': 'Cargando tareas...',
   'my_tasks.please_login': 'Inicia sesión para ver tus tareas.',
-  'my_tasks.random_task': 'Tarea aleatoria',
   'my_tasks.no_batches': 'No tienes lotes asignados.',
   'my_tasks.no_batches_hint': 'Un administrador debe asignarte lotes para que puedas trabajar en tareas.',
   'my_tasks.tasks_count': 'tareas',
@@ -181,7 +179,7 @@ const en: Record<string, string> = {
   'nav.home': 'Home',
   'nav.health': 'Health',
   'nav.solve': 'Solve',
-  'nav.dashboard': 'Dashboard',
+
 
   'language.es': 'Español',
   'language.en': 'English',
@@ -259,14 +257,11 @@ const en: Record<string, string> = {
   'log.abandon': 'Task abandoned',
 
   'dashboard.title': 'User Dashboard',
-  'dashboard.subtitle': 'Create a new user or log in with your email and password.',
-  'dashboard.create': 'Create user',
-  'dashboard.creating': 'Creating...',
+  'dashboard.subtitle': 'Log in with your email and password.',
   'dashboard.login': 'Log in',
   'dashboard.email_placeholder': 'Email',
   'dashboard.password_placeholder': 'Password',
   'dashboard.fields_required': 'Enter email and password.',
-  'dashboard.create_error': 'Error creating user. Try again.',
   'dashboard.invalid_credentials': 'Invalid email or password.',
   'dashboard.back': 'Back to dashboard',
 
@@ -283,10 +278,12 @@ const en: Record<string, string> = {
   'admin.table.id': 'ID',
   'admin.table.email': 'Email',
   'admin.table.role': 'Role',
+  'admin.table.batches': 'Batches',
   'admin.table.createdAt': 'Created',
   'admin.table.actions': 'Actions',
   'admin.delete': 'Delete',
   'admin.no_users': 'No users found.',
+  'admin.batches_placeholder': 'No batches',
   'admin.delete_title': 'Delete user',
   'admin.delete_message': 'Are you sure you want to delete this user? This action cannot be undone.',
 
@@ -336,7 +333,6 @@ const en: Record<string, string> = {
   'my_tasks.title': 'My Tasks',
   'my_tasks.loading': 'Loading tasks...',
   'my_tasks.please_login': 'Log in to see your tasks.',
-  'my_tasks.random_task': 'Random task',
   'my_tasks.no_batches': 'You have no batches assigned.',
   'my_tasks.no_batches_hint': 'An admin needs to assign batches to you before you can work on tasks.',
   'my_tasks.tasks_count': 'tasks',

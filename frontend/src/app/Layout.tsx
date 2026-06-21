@@ -14,7 +14,7 @@ export function Layout({ children }: LayoutProps) {
 
   const handleLogout = () => {
     clearUser()
-    navigate('/dashboard')
+    navigate('/')
   }
 
   return (
@@ -43,9 +43,7 @@ export function Layout({ children }: LayoutProps) {
                 {t('nav.my_tasks')}
               </a>
             )}
-            <a href="/dashboard" className="text-gray-400 transition hover:text-white">
-              {t('nav.dashboard')}
-            </a>
+
           </div>
           <div className="ml-auto flex items-center gap-3">
             {userId && (

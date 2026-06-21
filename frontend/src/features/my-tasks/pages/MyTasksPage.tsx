@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useMyBatches, useMyTaskSummaries, useMyAccessibleTaskIds } from '../queries'
+import { useMyBatches, useMyTaskSummaries } from '../queries'
 
 export function MyTasksPage() {
   const { t } = useTranslation()
@@ -11,7 +11,6 @@ export function MyTasksPage() {
 
   const { data: batches, isLoading: batchesLoading } = useMyBatches(userId ?? 0)
   const { data: taskSummaries } = useMyTaskSummaries(userId ?? 0)
-  const { data: accessibleIds } = useMyAccessibleTaskIds(userId ?? 0)
   const [expandedBatch, setExpandedBatch] = useState<number | null>(null)
 
   if (authLoading || batchesLoading) {
@@ -45,25 +44,10 @@ export function MyTasksPage() {
     navigate(`/solve/${userId}/${taskId}`)
   }
 
-  const handleRandomTaskClick = () => {
-    if (accessibleIds && accessibleIds.length > 0) {
-      const idx = Math.floor(Math.random() * accessibleIds.length)
-      const taskId = accessibleIds[idx]
-      navigate(`/solve/${userId}/${taskId}`)
-    }
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t('my_tasks.title')}</h1>
-        <button
-          onClick={handleRandomTaskClick}
-          disabled={!accessibleIds || accessibleIds.length === 0}
-          className="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-        >
-          {t('my_tasks.random_task')}
-        </button>
       </div>
 
       {(batches?.length ?? 0) === 0 && (

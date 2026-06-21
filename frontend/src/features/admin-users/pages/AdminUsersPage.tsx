@@ -3,16 +3,44 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useUsers, useUpdateUser, useDeleteUser } from '../queries'
+import { useBatches, useAssignBatchToUser, useUnassignBatchFromUser } from '../../batches/queries'
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog'
+import { Multiselect } from '../../../components/ui/Multiselect'
 
 export function AdminUsersPage() {
   const { t } = useTranslation()
   const { isAdmin, isLoading: authLoading } = useAuth()
   const { data: users, isLoading, error } = useUsers()
+  const { data: batches, isLoading: batchesLoading } = useBatches()
   const updateUserMutation = useUpdateUser()
   const deleteUserMutation = useDeleteUser()
+  const assignMutation = useAssignBatchToUser()
+  const unassignMutation = useUnassignBatchFromUser()
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+
+  const batchOptions = (batches ?? []).map(b => ({
+    value: b.id,
+    label: b.name,
+  }))
+
+  const getUserBatchIds = (userId: number): number[] =>
+    (batches ?? [])
+      .filter(b => b.assignedUserIds.includes(userId))
+      .map(b => b.id)
+
+  const handleBatchToggle = (userId: number, batchId: number) => {
+    const isAssigned = (batches ?? []).some(
+      b => b.id === batchId && b.assignedUserIds.includes(userId)
+    )
+    if (isAssigned) {
+      unassignMutation.mutate({ batchId, userId })
+    } else {
+      assignMutation.mutate({ batchId, userId })
+    }
+  }
+
+  const isMutating = assignMutation.isPending || unassignMutation.isPending
 
   if (authLoading || isLoading) {
     return (
@@ -69,6 +97,7 @@ export function AdminUsersPage() {
               <th className="px-4 py-3 font-medium">{t('admin.table.id')}</th>
               <th className="px-4 py-3 font-medium">{t('admin.table.email')}</th>
               <th className="px-4 py-3 font-medium">{t('admin.table.role')}</th>
+              <th className="px-4 py-3 font-medium">{t('admin.table.batches')}</th>
               <th className="px-4 py-3 font-medium">{t('admin.table.createdAt')}</th>
               <th className="px-4 py-3 font-medium">{t('admin.table.actions')}</th>
             </tr>
@@ -95,6 +124,15 @@ export function AdminUsersPage() {
                     <option value="solver">solver</option>
                   </select>
                 </td>
+                <td className="px-4 py-3">
+                  <Multiselect
+                    options={batchOptions}
+                    selectedValues={getUserBatchIds(user.id)}
+                    onToggle={(batchId) => handleBatchToggle(user.id, batchId)}
+                    placeholder={batchesLoading ? '...' : t('admin.batches_placeholder')}
+                    disabled={isMutating}
+                  />
+                </td>
                 <td className="px-4 py-3 text-gray-500">
                   {user.createdAt
                     ? new Date(user.createdAt).toLocaleDateString()
@@ -112,7 +150,7 @@ export function AdminUsersPage() {
             ))}
             {users?.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                   {t('admin.no_users')}
                 </td>
               </tr>
