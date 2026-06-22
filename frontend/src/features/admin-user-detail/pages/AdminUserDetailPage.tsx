@@ -7,6 +7,7 @@ import {
   useUserTasks,
   useAttempts,
   useEvents,
+  useUpdateUserPassword,
 } from '../queries'
 
 export function AdminUserDetailPage() {
@@ -25,6 +26,11 @@ export function AdminUserDetailPage() {
     isLoading: tasksLoading,
     error: tasksError,
   } = useUserTasks(numericId)
+
+  const [passwordValue, setPasswordValue] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+  const passwordMutation = useUpdateUserPassword()
 
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
   const [selectedAttemptId, setSelectedAttemptId] = useState<number | null>(null)
@@ -118,6 +124,55 @@ export function AdminUserDetailPage() {
             </p>
           )}
         </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+        <h2 className="mb-3 text-sm font-semibold text-gray-400">
+          {t('admin_detail.change_password')}
+        </h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <input
+            type="password"
+            value={passwordValue}
+            onChange={(e) => {
+              setPasswordValue(e.target.value)
+              setPasswordError('')
+              setPasswordSuccess('')
+            }}
+            placeholder={t('dashboard.password_placeholder')}
+            autoComplete="new-password"
+            className="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+          />
+          <button
+            onClick={async () => {
+              if (!passwordValue.trim()) return
+              setPasswordError('')
+              setPasswordSuccess('')
+              try {
+                await passwordMutation.mutateAsync({
+                  userId: numericId,
+                  data: { password: passwordValue },
+                })
+                setPasswordSuccess(t('admin_detail.password_changed'))
+                setPasswordValue('')
+              } catch {
+                setPasswordError(t('admin_detail.password_error'))
+              }
+            }}
+            disabled={passwordMutation.isPending || !passwordValue.trim()}
+            className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+          >
+            {passwordMutation.isPending
+              ? t('admin_detail.password_saving')
+              : t('admin_detail.change_password')}
+          </button>
+        </div>
+        {passwordError && (
+          <p className="mt-2 text-sm text-red-400">{passwordError}</p>
+        )}
+        {passwordSuccess && (
+          <p className="mt-2 text-sm text-green-400">{passwordSuccess}</p>
+        )}
       </div>
 
       {tasks && tasks.length === 0 ? (

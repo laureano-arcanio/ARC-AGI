@@ -18,7 +18,12 @@ from app.schemas.example_table import (
     ExampleTableRead,
     ExampleTableUpdate,
 )
-from app.schemas.user import LoginResponse, UserCreate, UserRead
+from app.schemas.user import (
+    LoginResponse,
+    UserCreate,
+    UserPasswordUpdate,
+    UserRead,
+)
 from app.services.attempt import AttemptService
 from app.services.event import EventService
 from app.services.example_table import ExampleTableService
@@ -157,7 +162,16 @@ def user_mock_repo() -> AsyncMock:
             role=data.get("role", UserRole.SOLVER),
         )
 
+    async def update_side_effect(user_id, data):
+        return User(
+            id=user_id,
+            email=f"user{user_id}@test.com",
+            password_hash=data.get("password_hash", "hash"),
+            role=UserRole.SOLVER,
+        )
+
     repo.create.side_effect = create_side_effect
+    repo.update.side_effect = update_side_effect
     repo.get_by_id.side_effect = ObjectNotFoundError("User", 0)
     repo.get_by_email.side_effect = ObjectNotFoundError("User", "unknown@test.com")
     return repo
@@ -257,6 +271,30 @@ class TestUserServiceAuthenticate:
         )
         with pytest.raises(InvalidCredentialsError):
             await user_service.authenticate("auth@test.com", "wrongpass")
+
+
+class TestUserServiceChangePassword:
+    async def test_changes_and_returns_schema(
+        self, user_service: UserService, user_mock_repo: AsyncMock
+    ) -> None:
+        result = await user_service.change_password(
+            1, UserPasswordUpdate(password="new-secret")
+        )
+        assert isinstance(result, UserRead)
+        assert result.id == 1
+        user_mock_repo.update.assert_awaited_once()
+        call_args = user_mock_repo.update.await_args[0][1]
+        assert "password_hash" in call_args
+        assert call_args["password_hash"] != "new-secret"
+
+    async def test_raises_when_not_found(
+        self, user_service: UserService, user_mock_repo: AsyncMock
+    ) -> None:
+        user_mock_repo.update.side_effect = ObjectNotFoundError("User", 999)
+        with pytest.raises(ObjectNotFoundError):
+            await user_service.change_password(
+                999, UserPasswordUpdate(password="new-secret")
+            )
 
 
 @pytest.fixture

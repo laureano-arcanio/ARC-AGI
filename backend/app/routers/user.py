@@ -5,7 +5,14 @@ from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
 from app.repositories.user import UserRepository
 from app.schemas.attempt import UserTaskSummary
-from app.schemas.user import LoginResponse, UserCreate, UserLogin, UserRead, UserUpdate
+from app.schemas.user import (
+    LoginResponse,
+    UserCreate,
+    UserLogin,
+    UserPasswordUpdate,
+    UserRead,
+    UserUpdate,
+)
 from app.services.attempt import AttemptService
 from app.services.user import UserService
 
@@ -55,6 +62,16 @@ async def update(
     _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> UserRead:
     return await service.update(id, data)
+
+
+@router.put("/{id}/password", response_model=UserRead)
+async def change_password(
+    id: int,
+    data: UserPasswordUpdate,
+    service: UserService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
+) -> UserRead:
+    return await service.change_password(id, data)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)

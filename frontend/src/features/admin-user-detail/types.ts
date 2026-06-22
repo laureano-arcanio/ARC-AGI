@@ -11,6 +11,10 @@ export type AttemptRead = {
   updatedAt: string | null
 }
 
+export type UserPasswordUpdate = {
+  password: string
+}
+
 export type EventRead = {
   id: number
   userId: number

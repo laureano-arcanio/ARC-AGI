@@ -10,7 +10,7 @@ from app.schemas.example_table import (
     ExampleTableRead,
     ExampleTableUpdate,
 )
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserPasswordUpdate, UserRead
 
 
 class TestExampleTableCreate:
@@ -164,6 +164,20 @@ class TestUserRead:
         assert data.id == 1
         assert data.email == "orm@example.com"
         assert data.role == "solver"
+
+
+class TestUserPasswordUpdate:
+    def test_valid(self) -> None:
+        data = UserPasswordUpdate(password="new-secret")
+        assert data.password == "new-secret"
+
+    def test_missing_password_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            UserPasswordUpdate()
+
+    def test_model_dump(self) -> None:
+        data = UserPasswordUpdate(password="new-secret")
+        assert data.model_dump() == {"password": "new-secret"}
 
 
 class TestEventCreate:

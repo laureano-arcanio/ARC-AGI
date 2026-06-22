@@ -5,7 +5,13 @@ from app.dependencies.auth import _create_token
 from app.errors import DuplicateEmailError, InvalidCredentialsError, ObjectNotFoundError
 from app.models.user import User
 from app.repositories.user import UserRepository
-from app.schemas.user import LoginResponse, UserCreate, UserRead, UserUpdate
+from app.schemas.user import (
+    LoginResponse,
+    UserCreate,
+    UserPasswordUpdate,
+    UserRead,
+    UserUpdate,
+)
 from app.services.base_service import BaseService
 
 
@@ -41,6 +47,15 @@ class UserService(
             "role": data.role,
         }
         instance = await self.repository.create(db_data)
+        return self.read_schema.model_validate(instance)
+
+    async def change_password(
+        self, user_id: int, data: UserPasswordUpdate
+    ) -> UserRead:
+        instance = await self.repository.update(
+            user_id,
+            {"password_hash": _hash_password(data.password)},
+        )
         return self.read_schema.model_validate(instance)
 
     async def authenticate(self, email: str, password: str) -> LoginResponse:

@@ -21,6 +21,10 @@ class UserUpdate(BaseAPISchema):
     role: UserRole | None = None
 
 
+class UserPasswordUpdate(BaseAPISchema):
+    password: str
+
+
 class UserRead(BaseAPISchema):
     id: int
     email: str

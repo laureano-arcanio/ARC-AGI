@@ -198,6 +198,7 @@ def user_mock_service() -> AsyncMock:
     svc.get_by_id.side_effect = ObjectNotFoundError("User", 0)
     svc.authenticate.side_effect = InvalidCredentialsError()
     svc.create.return_value = UserRead(id=1, email="created@test.com", role="solver")
+    svc.change_password.side_effect = ObjectNotFoundError("User", 0)
     return svc
 
 
@@ -296,6 +297,52 @@ class TestUserRouterLogin:
             json={"email": "bad@test.com", "password": "wrong"},
         )
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestUserRouterChangePassword:
+    async def test_returns_200(
+        self, user_client: AsyncClient, user_mock_service: AsyncMock
+    ) -> None:
+        user_mock_service.change_password.side_effect = None
+        user_mock_service.change_password.return_value = UserRead(
+            id=5, email="user5@test.com", role="solver"
+        )
+        response = await user_client.put(
+            "/api/v1/users/5/password",
+            json={"password": "new-secret"},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == 5
+        user_mock_service.change_password.assert_awaited_with(
+            5, user_mock_service.change_password.await_args[0][1]
+        )
+
+    async def test_returns_404_when_not_found(
+        self, user_client: AsyncClient
+    ) -> None:
+        response = await user_client.put(
+            "/api/v1/users/999/password",
+            json={"password": "new-secret"},
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_returns_403_when_not_admin(
+        self, unauth_user_client: AsyncClient
+    ) -> None:
+        response = await unauth_user_client.put(
+            "/api/v1/users/5/password",
+            json={"password": "new-secret"},
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_returns_422_on_missing_password(
+        self, user_client: AsyncClient
+    ) -> None:
+        response = await user_client.put(
+            "/api/v1/users/5/password",
+            json={},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 class TestUserRouterGetById:

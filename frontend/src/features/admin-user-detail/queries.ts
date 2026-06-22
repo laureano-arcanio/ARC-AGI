@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { getUser, getUserTasks, getAttempts, getEvents } from './api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getUser, getUserTasks, getAttempts, getEvents, updateUserPassword } from './api'
 
 export const adminUserDetailQueryKeys = {
   all: ['admin-user-detail'] as const,
@@ -42,6 +42,25 @@ export function useAttempts(userId: number, taskId: string, enabled: boolean) {
     queryKey: adminUserDetailQueryKeys.attempts(userId, taskId),
     queryFn: () => getAttempts(userId, taskId),
     enabled,
+  })
+}
+
+export function useUpdateUserPassword() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      userId,
+      data,
+    }: {
+      userId: number
+      data: { password: string }
+    }) => updateUserPassword(userId, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: adminUserDetailQueryKeys.user(variables.userId),
+      })
+    },
   })
 }
 

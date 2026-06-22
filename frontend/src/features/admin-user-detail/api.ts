@@ -1,5 +1,5 @@
 import { http } from '../../lib/http'
-import type { UserTaskSummary, AttemptRead, EventRead } from './types'
+import type { UserPasswordUpdate, UserTaskSummary, AttemptRead, EventRead } from './types'
 
 export type UserRead = {
   id: number
@@ -7,6 +7,13 @@ export type UserRead = {
   role: string
   createdAt: string | null
   updatedAt: string | null
+}
+
+export function updateUserPassword(
+  userId: number,
+  data: UserPasswordUpdate,
+): Promise<UserRead> {
+  return http.put<UserRead>(`/v1/users/${userId}/password`, data)
 }
 
 export function getUser(userId: number): Promise<UserRead> {
