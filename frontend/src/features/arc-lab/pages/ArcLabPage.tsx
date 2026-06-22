@@ -55,6 +55,7 @@ type ArcLabState = {
   navigationHistory: string[]
   navigationIndex: number
   blockReason: BlockReason
+  pendingPivotReflection: boolean
 }
 
 type Action =
@@ -157,6 +158,7 @@ const initialState: ArcLabState = {
   navigationHistory: ['node_000'],
   navigationIndex: 0,
   blockReason: null,
+  pendingPivotReflection: false,
 }
 
 function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
@@ -196,6 +198,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         navigationHistory: ['node_000'],
         navigationIndex: 0,
         blockReason: null,
+        pendingPivotReflection: false,
       }
     }
 
@@ -223,6 +226,9 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return { ...state, sizeInput: action.value }
 
     case 'RESIZE': {
+      if (state.pendingPivotReflection) {
+        return { ...state, blockReason: 'branch_pivot', pendingPivotReflection: false }
+      }
       const parsed = parseSize(state.sizeInput)
       if (!parsed.ok) {
         return { ...state, message: { kind: 'error', text: parsed.error, params: parsed.params } }
@@ -237,6 +243,9 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     }
 
     case 'COPY_FROM_INPUT': {
+      if (state.pendingPivotReflection) {
+        return { ...state, blockReason: 'branch_pivot', pendingPivotReflection: false }
+      }
       const outputGrid = serializeGridToGridObject(state.inputGrid)
       const graph = addNode(
         { ...state, outputGrid },
@@ -275,6 +284,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         activeNodeId: rootId,
         ...afterJump,
         blockReason: null,
+        pendingPivotReflection: false,
         message: { kind: 'info', text: 'timeline.branch_discarded' },
       }
     }
@@ -386,6 +396,9 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     }
 
     case 'PASTE': {
+      if (state.pendingPivotReflection) {
+        return { ...state, blockReason: 'branch_pivot', pendingPivotReflection: false }
+      }
       if (!state.clipboard || state.clipboard.length === 0) {
         return { ...state, message: { kind: 'error', text: 'toast.no_data_paste' } }
       }
@@ -413,12 +426,13 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const target = state.graphNodes.find((n) => n.id === action.nodeId)
       if (!target) return state
       const lastNode = state.graphNodes[state.graphNodes.length - 1]
+      const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeId: target.id,
         ...updateHistory(state, target.id, false),
-        blockReason: target.id !== lastNode?.id ? 'branch_pivot' : state.blockReason,
+        pendingPivotReflection: isBackwards,
       }
     }
 
@@ -427,11 +441,11 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         state,
         { kind: 'cognitive', intent: action.intent, text: action.text },
       )
-      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
+      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeId!, true), pendingPivotReflection: false }
     }
 
     case 'SET_BLOCK_REASON': {
-      return { ...state, blockReason: action.reason }
+      return { ...state, blockReason: action.reason, pendingPivotReflection: false }
     }
 
     case 'SUBMIT_REFLECTION': {
@@ -444,6 +458,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         ...graph,
         ...updateHistory(state, graph.activeNodeId!, true),
         blockReason: null,
+        pendingPivotReflection: false,
       }
     }
 
@@ -453,12 +468,13 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const target = state.graphNodes.find((n) => n.id === prevId)
       if (!target) return state
       const lastNode = state.graphNodes[state.graphNodes.length - 1]
+      const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeId: prevId,
         navigationIndex: state.navigationIndex - 1,
-        blockReason: target.id !== lastNode?.id ? 'branch_pivot' : state.blockReason,
+        pendingPivotReflection: isBackwards,
       }
     }
 
@@ -468,12 +484,13 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const target = state.graphNodes.find((n) => n.id === nextId)
       if (!target) return state
       const lastNode = state.graphNodes[state.graphNodes.length - 1]
+      const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeId: nextId,
         navigationIndex: state.navigationIndex + 1,
-        blockReason: target.id !== lastNode?.id ? 'branch_pivot' : null,
+        pendingPivotReflection: isBackwards,
       }
     }
 
@@ -677,7 +694,16 @@ export function ArcLabPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  const interceptPivotReflection = (): boolean => {
+    if (state.pendingPivotReflection) {
+      dispatch({ type: 'SET_BLOCK_REASON', reason: 'branch_pivot' })
+      return true
+    }
+    return false
+  }
+
   const handleSymbolSelect = (symbol: number) => {
+    if (interceptPivotReflection()) return
     dispatch({ type: 'SET_SYMBOL', symbol })
     if (state.toolMode === 'select') {
       dispatch({ type: 'FILL_SELECTED' })
@@ -686,6 +712,7 @@ export function ArcLabPage() {
   }
 
   const handleCellClick = (x: number, y: number) => {
+    if (interceptPivotReflection()) return
     dispatch({ type: 'CELL_CLICK', x, y })
   }
 

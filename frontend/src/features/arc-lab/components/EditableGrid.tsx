@@ -48,9 +48,10 @@ export function EditableGrid({
   useEffect(() => {
     const handleMouseUp = () => {
       if (dragStartRef.current && !hasDragRef.current) {
-        if (toolModeRef.current !== 'select') {
-          onCellClick(dragStartRef.current.x, dragStartRef.current.y)
+        if (toolModeRef.current === 'select') {
+          onToolModeChange?.('edit')
         }
+        onCellClick(dragStartRef.current.x, dragStartRef.current.y)
       }
       isMouseDownRef.current = false
       isSelectingRef.current = false
@@ -59,7 +60,7 @@ export function EditableGrid({
     }
     window.addEventListener('mouseup', handleMouseUp)
     return () => window.removeEventListener('mouseup', handleMouseUp)
-  }, [onCellClick])
+  }, [onCellClick, onToolModeChange])
 
   const handleMouseDown = (x: number, y: number) => {
     if (readOnly) return
@@ -86,7 +87,14 @@ export function EditableGrid({
         onSelectionChange(new Set([cellKey(start.x, start.y), cellKey(x, y)]))
       }
     } else if (toolMode === 'select' && isSelectingRef.current) {
-      onSelectionChange(new Set([...selectedCells, cellKey(x, y)]))
+      hasDragRef.current = true
+      if (dragStartRef.current) {
+        onSelectionChange(new Set([
+          cellKey(dragStartRef.current.x, dragStartRef.current.y),
+          cellKey(x, y),
+          ...selectedCells,
+        ]))
+      }
     }
   }
 

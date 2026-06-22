@@ -60,9 +60,9 @@ describe('EditableGrid', () => {
     expect(onCellClick).toHaveBeenCalledWith(0, 0)
   })
 
-  it('does not call onCellClick in select mode (uses selection instead)', () => {
+  it('fills cell and switches to edit on single click in select mode', () => {
     const onCellClick = vi.fn()
-    const onSelectionChange = vi.fn()
+    const onToolModeChange = vi.fn()
     render(
       <EditableGrid
         grid={grid3}
@@ -70,14 +70,15 @@ describe('EditableGrid', () => {
         showNumbers={false}
         selectedCells={new Set()}
         onCellClick={onCellClick}
-        onSelectionChange={onSelectionChange}
+        onSelectionChange={vi.fn()}
+        onToolModeChange={onToolModeChange}
       />,
     )
     const cell = screen.getByTestId('0,0')
     fireEvent.mouseDown(cell)
     fireEvent.mouseUp(cell)
-    expect(onCellClick).not.toHaveBeenCalled()
-    expect(onSelectionChange).toHaveBeenCalled()
+    expect(onToolModeChange).toHaveBeenCalledWith('edit')
+    expect(onCellClick).toHaveBeenCalledWith(0, 0)
   })
 
   it('starts a selection on mousedown in select mode', () => {
