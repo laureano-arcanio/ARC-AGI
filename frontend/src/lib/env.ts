@@ -1,3 +1,3 @@
 export const env = {
-  apiUrl: '/api',
+  apiUrl: import.meta.env.VITE_API_URL || '/api',
 } as const
