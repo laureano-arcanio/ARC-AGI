@@ -1,6 +1,7 @@
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import cast, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import selectinload
 
 from app.errors import ObjectNotFoundError
@@ -57,7 +58,7 @@ class BatchRepository(BaseRepository[Batch]):
             .join(Batch, Batch.id == BatchAssignment.batch_id)
             .where(
                 BatchAssignment.user_id == user_id,
-                Batch.task_ids.contains([task_id]),
+                cast(Batch.task_ids, JSONB).contains([task_id]),
             )
         )
         result = await self.db_session.execute(query)

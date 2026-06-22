@@ -364,7 +364,7 @@ describe('ArcLabPage', () => {
     expect(nodes[nodes.length - 1].textContent).toContain('log.abandon')
   })
 
-  it('starts a new paint event after resuming an earlier branch', async () => {
+  it('shows pivot overlay immediately on resume and lets action go through after reflection', async () => {
     renderPage()
     await waitForTask()
     // Submit hypothesis first
@@ -379,16 +379,27 @@ describe('ArcLabPage', () => {
     fireEvent.mouseUp(outputCell(0, 0))
     expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(4) // root + hypothesis + copy + cell
 
+    // Resume from node_002 (hypothesis) — overlay appears immediately
     fireEvent.click(screen.getByTestId('go-back-node_002'))
+    expect(screen.getByTestId('branch-pivot-textarea')).toBeInTheDocument()
+
+    // Submit reflection
+    fireEvent.change(screen.getByTestId('branch-pivot-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('branch-pivot-submit'))
+    expect(screen.queryByTestId('branch-pivot-textarea')).not.toBeInTheDocument()
+
+    // Now grid is unlocked — click creates a new branch node
     fireEvent.click(screen.getByTestId('symbol-4'))
     fireEvent.mouseDown(outputCell(0, 1))
     fireEvent.mouseUp(outputCell(0, 1))
 
-    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(5)
-    expect(screen.getByTestId('timeline-node-node_004').textContent).toContain(
+    expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(6)
+    expect(screen.getByTestId('timeline-node-node_005').textContent).toContain(
       'log.cell_click',
     )
-    expect(screen.getByTestId('timeline-node-node_004').textContent).toContain(
+    expect(screen.getByTestId('timeline-node-node_005').textContent).toContain(
       'timeline.active',
     )
   })

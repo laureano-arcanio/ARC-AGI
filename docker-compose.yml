@@ -5,8 +5,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.api
     ports:
-      - "8000:8000"
-      - "5678:5678"
+      - "8001:8000"
     volumes:
       - ./backend:/app
     environment:
@@ -25,7 +24,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -46,7 +45,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: dev_db
     ports:
-      - 5432:5432
+      - 5433:5432
     expose:
       - "5432"
     volumes:

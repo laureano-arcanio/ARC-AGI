@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useTranslation } from '../../../lib/i18n'
-import type { GraphNode, GraphTrigger } from '../types'
+import type { CognitiveIntent, GraphNode, GraphTrigger } from '../types'
+
+const INTENT_ICON: Record<CognitiveIntent, string> = {
+  hypothesis: '💡',
+  failure_analysis: '❌',
+  branch_pivot: '🟢',
+}
 
 type CognitiveTimelineProps = {
   nodes: GraphNode[]
@@ -120,7 +126,9 @@ export function CognitiveTimeline({
 
           {/* Icon */}
           <span className="shrink-0 text-gray-600 mt-px">
-            {node.trigger.kind === 'cognitive' ? '💬' : '⚡'}
+            {node.trigger.kind === 'cognitive'
+              ? INTENT_ICON[node.trigger.intent] ?? '💬'
+              : '⚡'}
           </span>
 
           {/* Label */}

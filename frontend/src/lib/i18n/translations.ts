@@ -72,6 +72,16 @@ const es = {
   'hypothesis.submit': 'Registrar',
   'hypothesis.words': '{count} / 5 palabras mínimo',
 
+  'failure_analysis.label': 'Analiza tu error',
+  'failure_analysis.placeholder': 'La solución es incorrecta. ¿Por qué falló tu hipótesis y qué intentarás ahora?',
+  'failure_analysis.submit': 'Registrar',
+  'failure_analysis.words': '{count} / 5 palabras mínimo',
+
+  'branch_pivot.label': 'Nuevo camino',
+  'branch_pivot.placeholder': 'Estás abriendo un nuevo camino. ¿Por qué abandonaste la idea anterior y cuál es tu nueva hipótesis?',
+  'branch_pivot.submit': 'Registrar',
+  'branch_pivot.words': '{count} / 5 palabras mínimo',
+
   'log.load_task': 'Tarea cargada',
   'log.cell_click': 'Celda ({x},{y}) → color {symbol}',
   'log.cell_click_multi': '{count} celdas → colores {symbols}',
@@ -242,6 +252,16 @@ const en: Record<string, string> = {
   'hypothesis.placeholder': 'I think to solve this task ...',
   'hypothesis.submit': 'Register',
   'hypothesis.words': '{count} / 5 minimum words',
+
+  'failure_analysis.label': 'Analyze your error',
+  'failure_analysis.placeholder': 'The solution is incorrect. Why did your hypothesis fail, and what will you try now?',
+  'failure_analysis.submit': 'Register',
+  'failure_analysis.words': '{count} / 5 minimum words',
+
+  'branch_pivot.label': 'New path',
+  'branch_pivot.placeholder': 'You are opening a new path. Why did you abandon the previous idea, and what is your new hypothesis?',
+  'branch_pivot.submit': 'Register',
+  'branch_pivot.words': '{count} / 5 minimum words',
 
   'log.load_task': 'Task loaded',
   'log.cell_click': 'Cell ({x},{y}) → color {symbol}',

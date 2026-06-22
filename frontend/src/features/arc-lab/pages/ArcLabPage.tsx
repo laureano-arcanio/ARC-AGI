@@ -20,6 +20,7 @@ import {
   DEFAULT_GRID_HEIGHT,
   DEFAULT_GRID_WIDTH,
   type ArcTask,
+  type BlockReason,
   type ClipboardEntry,
   type CognitiveIntent,
   type GraphNode,
@@ -53,6 +54,7 @@ type ArcLabState = {
   nextNodeId: number
   navigationHistory: string[]
   navigationIndex: number
+  blockReason: BlockReason
 }
 
 type Action =
@@ -75,6 +77,8 @@ type Action =
   | { type: 'DISMISS_MESSAGE' }
   | { type: 'TRAVEL_TO_NODE'; nodeId: string }
   | { type: 'ADD_COGNITIVE_NODE'; intent: CognitiveIntent; text: string }
+  | { type: 'SUBMIT_REFLECTION'; intent: CognitiveIntent; text: string }
+  | { type: 'SET_BLOCK_REASON'; reason: BlockReason }
   | { type: 'NAVIGATE_PREV' }
   | { type: 'NAVIGATE_NEXT' }
 
@@ -84,6 +88,8 @@ function makeNodeId(n: number): string {
 
 const COGNITIVE_EMOJI: Record<CognitiveIntent, string> = {
   hypothesis: '💡',
+  failure_analysis: '❌',
+  branch_pivot: '🟢',
 }
 
 function addNode(
@@ -150,6 +156,7 @@ const initialState: ArcLabState = {
   nextNodeId: 1,
   navigationHistory: ['node_000'],
   navigationIndex: 0,
+  blockReason: null,
 }
 
 function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
@@ -188,6 +195,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         nextNodeId: 1,
         navigationHistory: ['node_000'],
         navigationIndex: 0,
+        blockReason: null,
       }
     }
 
@@ -266,6 +274,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         ...graph,
         activeNodeId: rootId,
         ...afterJump,
+        blockReason: null,
         message: { kind: 'info', text: 'timeline.branch_discarded' },
       }
     }
@@ -287,6 +296,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         message: correct
           ? { kind: 'info', text: 'toast.correct' }
           : { kind: 'error', text: 'toast.wrong' },
+        blockReason: correct ? null : 'failure_analysis',
       }
     }
 
@@ -402,11 +412,13 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     case 'TRAVEL_TO_NODE': {
       const target = state.graphNodes.find((n) => n.id === action.nodeId)
       if (!target) return state
+      const lastNode = state.graphNodes[state.graphNodes.length - 1]
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeId: target.id,
         ...updateHistory(state, target.id, false),
+        blockReason: target.id !== lastNode?.id ? 'branch_pivot' : state.blockReason,
       }
     }
 
@@ -418,16 +430,35 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return { ...state, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
     }
 
+    case 'SET_BLOCK_REASON': {
+      return { ...state, blockReason: action.reason }
+    }
+
+    case 'SUBMIT_REFLECTION': {
+      const graph = addNode(
+        state,
+        { kind: 'cognitive', intent: action.intent, text: action.text },
+      )
+      return {
+        ...state,
+        ...graph,
+        ...updateHistory(state, graph.activeNodeId!, true),
+        blockReason: null,
+      }
+    }
+
     case 'NAVIGATE_PREV': {
       if (state.navigationIndex <= 0) return state
       const prevId = state.navigationHistory[state.navigationIndex - 1]
       const target = state.graphNodes.find((n) => n.id === prevId)
       if (!target) return state
+      const lastNode = state.graphNodes[state.graphNodes.length - 1]
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeId: prevId,
         navigationIndex: state.navigationIndex - 1,
+        blockReason: target.id !== lastNode?.id ? 'branch_pivot' : state.blockReason,
       }
     }
 
@@ -436,11 +467,13 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const nextId = state.navigationHistory[state.navigationIndex + 1]
       const target = state.graphNodes.find((n) => n.id === nextId)
       if (!target) return state
+      const lastNode = state.graphNodes[state.graphNodes.length - 1]
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeId: nextId,
         navigationIndex: state.navigationIndex + 1,
+        blockReason: target.id !== lastNode?.id ? 'branch_pivot' : null,
       }
     }
 
@@ -500,6 +533,8 @@ export function ArcLabPage() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const [abandonOpen, setAbandonOpen] = useState(false)
   const [hypothesisText, setHypothesisText] = useState('')
+  const [failureAnalysisText, setFailureAnalysisText] = useState('')
+  const [branchPivotText, setBranchPivotText] = useState('')
 
   const [userId, setUserId] = useState<number | null>(null)
   const [userError, setUserError] = useState(false)
@@ -560,6 +595,7 @@ export function ArcLabPage() {
   const atRoot = state.activeNodeId === 'node_000'
   const canGoPrev = state.navigationIndex > 0
   const canGoNext = state.navigationIndex < state.navigationHistory.length - 1
+  const readOnly = atRoot || state.blockReason !== null
 
   const sentHashes = useRef<Set<string>>(new Set())
   const attemptIdRef = useRef<number | null>(null)
@@ -660,6 +696,22 @@ export function ArcLabPage() {
     setHypothesisText('')
   }
 
+  const handleFailureAnalysisSubmit = () => {
+    const trimmed = failureAnalysisText.trim()
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length
+    if (wordCount < 5) return
+    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'failure_analysis', text: trimmed })
+    setFailureAnalysisText('')
+  }
+
+  const handleBranchPivotSubmit = () => {
+    const trimmed = branchPivotText.trim()
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length
+    if (wordCount < 5) return
+    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'branch_pivot', text: trimmed })
+    setBranchPivotText('')
+  }
+
   const handleAbandonConfirm = () => {
     setAbandonOpen(false)
     dispatch({ type: 'ABANDON' })
@@ -673,6 +725,8 @@ export function ArcLabPage() {
   const handleReset = () => {
     dispatch({ type: 'RESET_OUTPUT' })
     setHypothesisText('')
+    setFailureAnalysisText('')
+    setBranchPivotText('')
   }
 
   const handleSubmit = () => {
@@ -744,10 +798,17 @@ export function ArcLabPage() {
               selectedSymbol={state.selectedSymbol}
               selectedCells={state.selectedCells}
               sizeInput={state.sizeInput}
-              readOnly={atRoot}
+              readOnly={readOnly}
+              blockReason={state.blockReason}
               hypothesisText={hypothesisText}
               onHypothesisChange={setHypothesisText}
               onHypothesisSubmit={handleHypothesisSubmit}
+              failureAnalysisText={failureAnalysisText}
+              onFailureAnalysisChange={setFailureAnalysisText}
+              onFailureAnalysisSubmit={handleFailureAnalysisSubmit}
+              branchPivotText={branchPivotText}
+              onBranchPivotChange={setBranchPivotText}
+              onBranchPivotSubmit={handleBranchPivotSubmit}
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
               onResize={() => dispatch({ type: 'RESIZE' })}
               onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
