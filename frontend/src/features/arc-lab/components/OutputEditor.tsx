@@ -129,123 +129,131 @@ export function OutputEditor({
         </div>
       </div>
 
-      <div data-testid="output-grid" className="flex justify-between gap-6">
-        <div className="flex-shrink-0">
-          <EditableGrid
-            grid={grid}
-            toolMode={toolMode}
-            showNumbers={showNumbers}
-            selectedCells={selectedCells}
-            readOnly={readOnly}
-            onCellClick={onCellClick}
-            onSelectionChange={onSelectionChange}
-            onToolModeChange={onToolModeChange}
-          />
-        </div>
+      <div data-testid="output-grid" className="relative flex justify-center">
+        <EditableGrid
+          grid={grid}
+          toolMode={toolMode}
+          showNumbers={showNumbers}
+          selectedCells={selectedCells}
+          readOnly={readOnly}
+          onCellClick={onCellClick}
+          onSelectionChange={onSelectionChange}
+          onToolModeChange={onToolModeChange}
+        />
 
-        {atRoot ? (
-          <div className="w-[30rem] self-start rounded-xl border border-gray-600 bg-gray-800 p-4 shadow-xl">
-            <label className="mb-1.5 block text-xs font-medium text-gray-300">
-              {t('hypothesis.label')}
-            </label>
-            <textarea
-              rows={5}
-              value={hypothesisText}
-              onChange={(e) => onHypothesisChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  onHypothesisSubmit()
-                }
-              }}
-              placeholder={t('hypothesis.placeholder')}
-              data-testid="hypothesis-textarea"
-              className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
-            />
-            <div className="mt-1.5 flex items-center justify-between">
-              <span className={`text-xs ${canSubmit ? 'text-green-400' : 'text-gray-500'}`}>
-                {t('hypothesis.words', { count: wordCount })}
-              </span>
-              <button
-                type="button"
-                onClick={onHypothesisSubmit}
-                disabled={!canSubmit}
-                data-testid="hypothesis-submit"
-                className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
-              >
-                {t('hypothesis.submit')}
-              </button>
+        {atRoot && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-[30rem] rounded-xl border border-gray-600 bg-gray-800 p-4 shadow-xl">
+              <label className="mb-1.5 block text-xs font-medium text-gray-300">
+                {t('hypothesis.label')}
+              </label>
+              <textarea
+                rows={5}
+                value={hypothesisText}
+                onChange={(e) => onHypothesisChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    onHypothesisSubmit()
+                  }
+                }}
+                placeholder={t('hypothesis.placeholder')}
+                data-testid="hypothesis-textarea"
+                className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+              />
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className={`text-xs ${canSubmit ? 'text-green-400' : 'text-gray-500'}`}>
+                  {t('hypothesis.words', { count: wordCount })}
+                </span>
+                <button
+                  type="button"
+                  onClick={onHypothesisSubmit}
+                  disabled={!canSubmit}
+                  data-testid="hypothesis-submit"
+                  className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+                >
+                  {t('hypothesis.submit')}
+                </button>
+              </div>
             </div>
           </div>
-        ) : blockReason === 'failure_analysis' ? (
-          <div className="w-[30rem] self-start rounded-xl border border-gray-600 bg-gray-800 p-4 shadow-xl">
-            <label className="mb-1.5 block text-xs font-medium text-gray-300">
-              {t('failure_analysis.label')}
-            </label>
-            <textarea
-              rows={5}
-              value={failureAnalysisText}
-              onChange={(e) => onFailureAnalysisChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  onFailureAnalysisSubmit()
-                }
-              }}
-              placeholder={t('failure_analysis.placeholder')}
-              data-testid="failure-analysis-textarea"
-              className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
-            />
-            <div className="mt-1.5 flex items-center justify-between">
-              <span className={`text-xs ${canSubmitFA ? 'text-green-400' : 'text-gray-500'}`}>
-                {t('failure_analysis.words', { count: faWordCount })}
-              </span>
-              <button
-                type="button"
-                onClick={onFailureAnalysisSubmit}
-                disabled={!canSubmitFA}
-                data-testid="failure-analysis-submit"
-                className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
-              >
-                {t('failure_analysis.submit')}
-              </button>
+        )}
+
+        {blockReason === 'failure_analysis' && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
+            <div className="w-[30rem] rounded-xl border border-gray-600 bg-gray-800 p-4 shadow-xl">
+              <label className="mb-1.5 block text-xs font-medium text-gray-300">
+                {t('failure_analysis.label')}
+              </label>
+              <textarea
+                rows={5}
+                value={failureAnalysisText}
+                onChange={(e) => onFailureAnalysisChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    onFailureAnalysisSubmit()
+                  }
+                }}
+                placeholder={t('failure_analysis.placeholder')}
+                data-testid="failure-analysis-textarea"
+                className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+              />
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className={`text-xs ${canSubmitFA ? 'text-green-400' : 'text-gray-500'}`}>
+                  {t('failure_analysis.words', { count: faWordCount })}
+                </span>
+                <button
+                  type="button"
+                  onClick={onFailureAnalysisSubmit}
+                  disabled={!canSubmitFA}
+                  data-testid="failure-analysis-submit"
+                  className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+                >
+                  {t('failure_analysis.submit')}
+                </button>
+              </div>
             </div>
           </div>
-        ) : blockReason === 'branch_pivot' ? (
-          <div className="w-[30rem] self-start rounded-xl border border-gray-600 bg-gray-800 p-4 shadow-xl">
-            <label className="mb-1.5 block text-xs font-medium text-gray-300">
-              {t('branch_pivot.label')}
-            </label>
-            <textarea
-              rows={5}
-              value={branchPivotText}
-              onChange={(e) => onBranchPivotChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  onBranchPivotSubmit()
-                }
-              }}
-              placeholder={t('branch_pivot.placeholder')}
-              data-testid="branch-pivot-textarea"
-              className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
-            />
-            <div className="mt-1.5 flex items-center justify-between">
-              <span className={`text-xs ${canSubmitBP ? 'text-green-400' : 'text-gray-500'}`}>
-                {t('branch_pivot.words', { count: bpWordCount })}
-              </span>
-              <button
-                type="button"
-                onClick={onBranchPivotSubmit}
-                disabled={!canSubmitBP}
-                data-testid="branch-pivot-submit"
-                className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
-              >
-                {t('branch_pivot.submit')}
-              </button>
+        )}
+
+        {blockReason === 'branch_pivot' && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
+            <div className="w-[30rem] rounded-xl border border-gray-600 bg-gray-800 p-4 shadow-xl">
+              <label className="mb-1.5 block text-xs font-medium text-gray-300">
+                {t('branch_pivot.label')}
+              </label>
+              <textarea
+                rows={5}
+                value={branchPivotText}
+                onChange={(e) => onBranchPivotChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    onBranchPivotSubmit()
+                  }
+                }}
+                placeholder={t('branch_pivot.placeholder')}
+                data-testid="branch-pivot-textarea"
+                className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+              />
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className={`text-xs ${canSubmitBP ? 'text-green-400' : 'text-gray-500'}`}>
+                  {t('branch_pivot.words', { count: bpWordCount })}
+                </span>
+                <button
+                  type="button"
+                  onClick={onBranchPivotSubmit}
+                  disabled={!canSubmitBP}
+                  data-testid="branch-pivot-submit"
+                  className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+                >
+                  {t('branch_pivot.submit')}
+                </button>
+              </div>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-center gap-6">
