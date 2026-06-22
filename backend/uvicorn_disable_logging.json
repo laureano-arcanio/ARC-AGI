@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "handlers": {
+    "null": {
+      "class": "logging.NullHandler"
+    }
+  },
+  "loggers": {
+    "uvicorn": {
+      "handlers": ["null"],
+      "level": "CRITICAL",
+      "propagate": false
+    },
+    "uvicorn.error": {
+      "level": "CRITICAL",
+      "propagate": false
+    },
+    "uvicorn.access": {
+      "handlers": ["null"],
+      "level": "CRITICAL",
+      "propagate": false
+    }
+  },
+  "root": {
+    "level": "INFO",
+    "handlers": []
+  }
+}
