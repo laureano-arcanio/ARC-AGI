@@ -130,8 +130,10 @@ describe('ArcLabPage', () => {
 
     const nodes = screen.getAllByTestId(/timeline-node-/)
     const last = nodes[nodes.length - 1]
-    expect(last.textContent).toContain('💡')
-    expect(last.textContent).toContain('one two three four five')
+    expect(last).toBeInTheDocument()
+    const lastWrapper = last.parentElement!
+    expect(lastWrapper.textContent).toContain('Hypothesis')
+    expect(lastWrapper.textContent).toContain('one two three four five')
   })
 
   it('reports wrong solution on submit', async () => {
@@ -227,11 +229,10 @@ describe('ArcLabPage', () => {
     const nodes = screen.getAllByTestId(/timeline-node-/)
     expect(nodes).toHaveLength(5)
     const restartNode = screen.getByTestId('timeline-node-node_004')
-    expect(restartNode.textContent).toContain('log.reset_output')
-    expect(restartNode.textContent).not.toContain('timeline.active')
+    expect(restartNode.parentElement!.textContent).toContain('Reset')
     expect(screen.queryByTestId('go-back-node_004')).not.toBeInTheDocument()
-    expect(screen.getByTestId('timeline-node-node_000').textContent).toContain(
-      'timeline.active',
+    expect(screen.getByTestId('timeline-node-node_000').className).toContain(
+      'bg-blue-600',
     )
 
     // Submit hypothesis again to re-enable editing
@@ -243,11 +244,11 @@ describe('ArcLabPage', () => {
     fireEvent.mouseDown(outputCell(0, 0))
     fireEvent.mouseUp(outputCell(0, 0))
     expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(7)
-    expect(screen.getByTestId('timeline-node-node_006').textContent).toContain(
-      'timeline.active',
+    expect(screen.getByTestId('timeline-node-node_006').className).toContain(
+      'bg-blue-600',
     )
-    expect(screen.getByTestId('timeline-node-node_000').textContent).not.toContain(
-      'timeline.active',
+    expect(screen.getByTestId('timeline-node-node_000').className).not.toContain(
+      'bg-blue-600',
     )
   })
 
@@ -361,7 +362,7 @@ describe('ArcLabPage', () => {
     expect(navigate).toHaveBeenCalledWith('/')
     const nodes = screen.getAllByTestId(/timeline-node-/)
     expect(nodes.length).toBe(initialNodes + 1)
-    expect(nodes[nodes.length - 1].textContent).toContain('log.abandon')
+    expect(nodes[nodes.length - 1].parentElement!.textContent).toContain('Abandon')
   })
 
   it('shows pivot overlay on first action after resume and lets action go through after reflection', async () => {
@@ -379,8 +380,8 @@ describe('ArcLabPage', () => {
     fireEvent.mouseUp(outputCell(0, 0))
     expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(4) // root + hypothesis + copy + cell
 
-    // Resume from node_002 (hypothesis) — grid is editable, no overlay yet
-    fireEvent.click(screen.getByTestId('go-back-node_002'))
+    // Navigate to node_002 (hypothesis) by clicking the timeline node
+    fireEvent.click(screen.getByTestId('timeline-node-node_002'))
     expect(screen.queryByTestId('branch-pivot-textarea')).not.toBeInTheDocument()
 
     // First action (paint click) triggers the overlay
@@ -401,11 +402,11 @@ describe('ArcLabPage', () => {
     fireEvent.mouseUp(outputCell(0, 1))
 
     expect(screen.getAllByTestId(/timeline-node-/)).toHaveLength(6)
-    expect(screen.getByTestId('timeline-node-node_005').textContent).toContain(
-      'log.cell_click',
+    expect(screen.getByTestId('timeline-node-node_005').parentElement!.textContent).toContain(
+      'Paint',
     )
-    expect(screen.getByTestId('timeline-node-node_005').textContent).toContain(
-      'timeline.active',
+    expect(screen.getByTestId('timeline-node-node_005').className).toContain(
+      'bg-blue-600',
     )
   })
 

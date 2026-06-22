@@ -23,8 +23,8 @@ const es = {
 
   'panel.test_input': 'Entrada de prueba',
   'panel.multi_test_warning': 'Completa esta entrada de prueba para desbloquear la siguiente.',
-  'button.prev': 'Anterior',
-  'button.next': 'Siguiente',
+  'button.prev': 'Deshacer',
+  'button.next': 'Rehacer',
   'button.next_test': 'Siguiente entrada',
   'button.resize': 'Redimensionar',
   'button.copy_input': 'Copiar entrada',
@@ -81,6 +81,11 @@ const es = {
   'branch_pivot.placeholder': 'Estás abriendo un nuevo camino. ¿Por qué abandonaste la idea anterior y cuál es tu nueva hipótesis?',
   'branch_pivot.submit': 'Registrar',
   'branch_pivot.words': '{count} / 5 palabras mínimo',
+
+  'correct_analysis.label': 'Explica tu razonamiento',
+  'correct_analysis.placeholder': 'La solución es correcta. Explica cómo razonaste para resolver el puzzle.',
+  'correct_analysis.submit': 'Registrar',
+  'correct_analysis.words': '{count} / 5 palabras mínimo',
 
   'log.load_task': 'Tarea cargada',
   'log.cell_click': 'Celda ({x},{y}) → color {symbol}',
@@ -204,8 +209,8 @@ const en: Record<string, string> = {
 
   'panel.test_input': 'Test input',
   'panel.multi_test_warning': 'Complete this test input to unlock the next.',
-  'button.prev': 'Previous',
-  'button.next': 'Next',
+  'button.prev': 'Undo',
+  'button.next': 'Redo',
   'button.next_test': 'Next test input',
   'button.resize': 'Resize',
   'button.copy_input': 'Copy input',
@@ -262,6 +267,11 @@ const en: Record<string, string> = {
   'branch_pivot.placeholder': 'You are opening a new path. Why did you abandon the previous idea, and what is your new hypothesis?',
   'branch_pivot.submit': 'Register',
   'branch_pivot.words': '{count} / 5 minimum words',
+
+  'correct_analysis.label': 'Explain your reasoning',
+  'correct_analysis.placeholder': 'The solution is correct. Explain how you reasoned to solve the puzzle.',
+  'correct_analysis.submit': 'Register',
+  'correct_analysis.words': '{count} / 5 minimum words',
 
   'log.load_task': 'Task loaded',
   'log.cell_click': 'Cell ({x},{y}) → color {symbol}',

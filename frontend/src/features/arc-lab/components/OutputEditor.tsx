@@ -22,6 +22,9 @@ type OutputEditorProps = {
   branchPivotText: string
   onBranchPivotChange: (value: string) => void
   onBranchPivotSubmit: () => void
+  correctAnalysisText: string
+  onCorrectAnalysisChange: (value: string) => void
+  onCorrectAnalysisSubmit: () => void
   onSizeInputChange: (value: string) => void
   onResize: () => void
   onCopyFromInput: () => void
@@ -56,6 +59,9 @@ export function OutputEditor({
   branchPivotText,
   onBranchPivotChange,
   onBranchPivotSubmit,
+  correctAnalysisText,
+  onCorrectAnalysisChange,
+  onCorrectAnalysisSubmit,
   onSizeInputChange,
   onResize,
   onCopyFromInput,
@@ -78,6 +84,8 @@ export function OutputEditor({
   const canSubmitFA = faWordCount >= 5
   const bpWordCount = branchPivotText.trim().split(/\s+/).filter(Boolean).length
   const canSubmitBP = bpWordCount >= 5
+  const caWordCount = correctAnalysisText.trim().split(/\s+/).filter(Boolean).length
+  const canSubmitCA = caWordCount >= 5
   const atRoot = readOnly && blockReason === null
 
   const handleSizeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -173,6 +181,44 @@ export function OutputEditor({
                   className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
                 >
                   {t('hypothesis.submit')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {blockReason === 'correct_analysis' && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
+            <div className="w-[30rem] rounded-xl border border-gray-600 bg-gray-800 p-4 shadow-xl">
+              <label className="mb-1.5 block text-xs font-medium text-gray-300">
+                {t('correct_analysis.label')}
+              </label>
+              <textarea
+                rows={5}
+                value={correctAnalysisText}
+                onChange={(e) => onCorrectAnalysisChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    onCorrectAnalysisSubmit()
+                  }
+                }}
+                placeholder={t('correct_analysis.placeholder')}
+                data-testid="correct-analysis-textarea"
+                className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+              />
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className={`text-xs ${canSubmitCA ? 'text-green-400' : 'text-gray-500'}`}>
+                  {t('correct_analysis.words', { count: caWordCount })}
+                </span>
+                <button
+                  type="button"
+                  onClick={onCorrectAnalysisSubmit}
+                  disabled={!canSubmitCA}
+                  data-testid="correct-analysis-submit"
+                  className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+                >
+                  {t('correct_analysis.submit')}
                 </button>
               </div>
             </div>

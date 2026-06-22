@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { CognitiveTimeline } from '../components/CognitiveTimeline'
 import type { GraphNode } from '../types'
 
@@ -11,6 +11,34 @@ const rootNode: GraphNode = {
   timestamp: 0,
 }
 
+function makeNode(
+  id: string,
+  parentId: string | null,
+  action: string = 'cell_click',
+): GraphNode {
+  return {
+    id,
+    trigger: { kind: 'mechanical' as const, action: action as never },
+    stateSnapshot: [[0]],
+    parentId,
+    timestamp: 0,
+  }
+}
+
+function makeSubmitNode(
+  id: string,
+  parentId: string | null,
+  correct: boolean,
+): GraphNode {
+  return {
+    id,
+    trigger: { kind: 'mechanical' as const, action: 'submit' as never, details: { correct } },
+    stateSnapshot: [[0]],
+    parentId,
+    timestamp: 0,
+  }
+}
+
 type Override = {
   getLabel?: (trigger: unknown) => string
   nodes?: GraphNode[]
@@ -18,17 +46,19 @@ type Override = {
 }
 
 function renderTimeline(override: Override = {}) {
-  const getLabel = override.getLabel ?? (() => 'label')
+  const getLabel = override.getLabel ?? (() => 'tooltip label')
   const nodes = override.nodes ?? [rootNode]
   const activeNodeId = override.activeNodeId ?? 'node_000'
+  const onNodeClick = vi.fn()
   render(
     <CognitiveTimeline
       nodes={nodes}
       activeNodeId={activeNodeId}
-      onGoBack={vi.fn()}
+      onNodeClick={onNodeClick as never}
       getLabel={getLabel as never}
     />,
   )
+  return { onNodeClick }
 }
 
 describe('CognitiveTimeline', () => {
@@ -42,169 +72,137 @@ describe('CognitiveTimeline', () => {
     expect(screen.getByTestId('timeline-node-node_000')).toBeInTheDocument()
   })
 
-  it('keeps a single linear branch at one indentation level', () => {
+  it('positions linear chain on a single row', () => {
     const nodes: GraphNode[] = [
       rootNode,
-      {
-        id: 'node_001',
-        trigger: { kind: 'mechanical', action: 'cell_click' },
-        stateSnapshot: [[1]],
-        parentId: 'node_000',
-        timestamp: 1,
-      },
-      {
-        id: 'node_002',
-        trigger: { kind: 'mechanical', action: 'copy_from_input' },
-        stateSnapshot: [[1]],
-        parentId: 'node_001',
-        timestamp: 2,
-      },
+      makeNode('node_001', 'node_000'),
+      makeNode('node_002', 'node_001'),
     ]
 
     renderTimeline({ nodes, activeNodeId: 'node_002' })
 
-    const root = screen.getByTestId('timeline-node-node_000')
-    const first = screen.getByTestId('timeline-node-node_001')
-    const second = screen.getByTestId('timeline-node-node_002')
-    expect(first.parentElement).toBe(second.parentElement)
-    expect(first.parentElement).not.toBe(root.parentElement)
-    expect(first.parentElement?.className).toContain('ml-6')
+    const root = screen.getByTestId('timeline-node-node_000').parentElement!
+    const first = screen.getByTestId('timeline-node-node_001').parentElement!
+    const second = screen.getByTestId('timeline-node-node_002').parentElement!
+
+    const rootTop = Number.parseFloat(root.style.top)
+    const firstTop = Number.parseFloat(first.style.top)
+    const secondTop = Number.parseFloat(second.style.top)
+
+    expect(firstTop).toBe(rootTop)
+    expect(secondTop).toBe(rootTop)
+
+    const rootLeft = Number.parseFloat(root.style.left)
+    const firstLeft = Number.parseFloat(first.style.left)
+    const secondLeft = Number.parseFloat(second.style.left)
+
+    expect(firstLeft).toBeGreaterThan(rootLeft)
+    expect(secondLeft).toBeGreaterThan(firstLeft)
   })
 
-  it('does not render a collapse toggle on a linear continuation in the same branch', () => {
+  it('places branch nodes on separate rows', () => {
     const nodes: GraphNode[] = [
       rootNode,
-      {
-        id: 'node_001',
-        trigger: { kind: 'mechanical', action: 'cell_click' },
-        stateSnapshot: [[1]],
-        parentId: 'node_000',
-        timestamp: 1,
-      },
-      {
-        id: 'node_002',
-        trigger: { kind: 'mechanical', action: 'resize' },
-        stateSnapshot: [[1]],
-        parentId: 'node_001',
-        timestamp: 2,
-      },
+      makeNode('node_001', 'node_000'),
+      makeNode('node_002', 'node_001'),
+      makeNode('node_003', 'node_001'),
     ]
 
     renderTimeline({ nodes, activeNodeId: 'node_002' })
 
-    expect(screen.queryByTestId('collapse-node_001')).not.toBeInTheDocument()
-    expect(screen.getByTestId('collapse-node_000')).toBeInTheDocument()
+    const activeNode = screen.getByTestId('timeline-node-node_002').parentElement!
+    const branchNode = screen.getByTestId('timeline-node-node_003').parentElement!
+
+    const activeTop = Number.parseFloat(activeNode.style.top)
+    const branchTop = Number.parseFloat(branchNode.style.top)
+
+    expect(branchTop).toBeGreaterThan(activeTop)
   })
 
-  it('renders a collapse toggle on a real branch point with multiple children', () => {
-    const nodes: GraphNode[] = [
-      rootNode,
-      {
-        id: 'node_001',
-        trigger: { kind: 'mechanical', action: 'cell_click' },
-        stateSnapshot: [[1]],
-        parentId: 'node_000',
-        timestamp: 1,
-      },
-      {
-        id: 'node_002',
-        trigger: { kind: 'mechanical', action: 'fill_selected' },
-        stateSnapshot: [[1]],
-        parentId: 'node_001',
-        timestamp: 2,
-      },
-      {
-        id: 'node_003',
-        trigger: { kind: 'mechanical', action: 'paste' },
-        stateSnapshot: [[1]],
-        parentId: 'node_001',
-        timestamp: 3,
-      },
-    ]
+  it('calls onNodeClick when a node is clicked', () => {
+    const { onNodeClick } = renderTimeline()
 
-    renderTimeline({ nodes, activeNodeId: 'node_003' })
-
-    expect(screen.getByTestId('collapse-node_001')).toBeInTheDocument()
-    expect(screen.queryByTestId('collapse-node_002')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('collapse-node_003')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('timeline-node-node_000'))
+    expect(onNodeClick).toHaveBeenCalledWith('node_000')
   })
 
-  it('aligns a leaf active node with its sibling that has a collapse toggle', () => {
+  it('highlights the active node with blue background', () => {
     const nodes: GraphNode[] = [
       rootNode,
-      {
-        id: 'node_001',
-        trigger: { kind: 'mechanical', action: 'cell_click' },
-        stateSnapshot: [[1]],
-        parentId: 'node_000',
-        timestamp: 1,
-      },
-      {
-        id: 'node_002',
-        trigger: { kind: 'mechanical', action: 'resize' },
-        stateSnapshot: [[1]],
-        parentId: 'node_000',
-        timestamp: 2,
-      },
-      {
-        id: 'node_003',
-        trigger: { kind: 'mechanical', action: 'paste' },
-        stateSnapshot: [[1]],
-        parentId: 'node_001',
-        timestamp: 3,
-      },
-      {
-        id: 'node_004',
-        trigger: { kind: 'mechanical', action: 'fill_selected' },
-        stateSnapshot: [[1]],
-        parentId: 'node_001',
-        timestamp: 4,
-      },
-    ]
-
-    renderTimeline({ nodes, activeNodeId: 'node_002' })
-
-    const collapse = screen.getByTestId('collapse-node_001')
-    const leaf = screen.getByTestId('timeline-node-node_002')
-    const spacer = leaf.querySelector('span.shrink-0.w-3\\.5')
-
-    const collapseWidth = collapse.className.match(/w-[\d.]+/)?.[0]
-    const spacerWidth = spacer?.className.match(/w-[\d.]+/)?.[0]
-
-    expect(collapseWidth).toBe('w-3.5')
-    expect(spacer).not.toBeNull()
-    expect(spacerWidth).toBe(collapseWidth)
-  })
-
-  it('shows the resume button on non-active, non-root, non-restart nodes', () => {
-    const nodes: GraphNode[] = [
-      rootNode,
-      {
-        id: 'node_001',
-        trigger: { kind: 'mechanical', action: 'cell_click' },
-        stateSnapshot: [[1]],
-        parentId: 'node_000',
-        timestamp: 1,
-      },
-    ]
-
-    renderTimeline({ nodes, activeNodeId: 'node_000' })
-    expect(screen.getByTestId('go-back-node_001')).toBeInTheDocument()
-  })
-
-  it('does not show the resume button on the active node', () => {
-    const nodes: GraphNode[] = [
-      rootNode,
-      {
-        id: 'node_001',
-        trigger: { kind: 'mechanical', action: 'cell_click' },
-        stateSnapshot: [[1]],
-        parentId: 'node_000',
-        timestamp: 1,
-      },
+      makeNode('node_001', 'node_000'),
+      makeNode('node_002', 'node_000'),
     ]
 
     renderTimeline({ nodes, activeNodeId: 'node_001' })
+
+    const active = screen.getByTestId('timeline-node-node_001')
+    expect(active.className).toContain('bg-blue-600')
+
+    const onPath = screen.getByTestId('timeline-node-node_000')
+    expect(onPath.className).toContain('bg-gray-800')
+
+    const branch = screen.getByTestId('timeline-node-node_002')
+    expect(branch.className).not.toContain('bg-blue-600')
+    expect(branch.className).toContain('opacity-55')
+  })
+
+  it('renders branch sub-children on the same branch row', () => {
+    const nodes: GraphNode[] = [
+      rootNode,
+      makeNode('node_001', 'node_000'),
+      makeNode('node_002', 'node_000'),
+      makeNode('node_003', 'node_002'),
+    ]
+
+    renderTimeline({ nodes, activeNodeId: 'node_001' })
+
+    const branch = screen.getByTestId('timeline-node-node_002').parentElement!
+    const subBranch = screen.getByTestId('timeline-node-node_003').parentElement!
+
+    const branchTop = Number.parseFloat(branch.style.top)
+    const subTop = Number.parseFloat(subBranch.style.top)
+
+    expect(subTop).toBe(branchTop)
+  })
+
+  it('does not render resume/go-back buttons', () => {
+    const nodes: GraphNode[] = [
+      rootNode,
+      makeNode('node_001', 'node_000'),
+    ]
+
+    renderTimeline({ nodes, activeNodeId: 'node_000' })
+
     expect(screen.queryByTestId('go-back-node_001')).not.toBeInTheDocument()
+  })
+
+  it('shows tooltip with label on hover', () => {
+    renderTimeline()
+    const node = screen.getByTestId('timeline-node-node_000')
+    const wrapper = node.parentElement!
+    expect(wrapper.className).toContain('group')
+    expect(wrapper.textContent).toContain('tooltip label')
+  })
+
+  it('uses success color for correct submit node', () => {
+    const nodes: GraphNode[] = [
+      rootNode,
+      makeSubmitNode('node_001', 'node_000', true),
+    ]
+
+    renderTimeline({ nodes, activeNodeId: 'node_000' })
+    const submitNode = screen.getByTestId('timeline-node-node_001')
+    expect(submitNode.className).toContain('text-emerald-400')
+  })
+
+  it('uses error color for wrong submit node', () => {
+    const nodes: GraphNode[] = [
+      rootNode,
+      makeSubmitNode('node_001', 'node_000', false),
+    ]
+
+    renderTimeline({ nodes, activeNodeId: 'node_000' })
+    const submitNode = screen.getByTestId('timeline-node-node_001')
+    expect(submitNode.className).toContain('text-red-400')
   })
 })

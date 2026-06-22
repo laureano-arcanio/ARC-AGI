@@ -87,12 +87,6 @@ function makeNodeId(n: number): string {
   return `node_${String(n).padStart(3, '0')}`
 }
 
-const COGNITIVE_EMOJI: Record<CognitiveIntent, string> = {
-  hypothesis: '💡',
-  failure_analysis: '❌',
-  branch_pivot: '🟢',
-}
-
 function addNode(
   state: ArcLabState,
   trigger: GraphTrigger,
@@ -306,7 +300,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         message: correct
           ? { kind: 'info', text: 'toast.correct' }
           : { kind: 'error', text: 'toast.wrong' },
-        blockReason: correct ? null : 'failure_analysis',
+        blockReason: correct ? 'correct_analysis' : 'failure_analysis',
       }
     }
 
@@ -499,44 +493,46 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
   }
 }
 
-function getNodeLabel(
-  trigger: GraphTrigger,
-  t: (key: string, params?: Record<string, string | number>) => string,
-): string {
+const COGNITIVE_COMPACT: Record<CognitiveIntent, string> = {
+  hypothesis: 'Hypothesis',
+  failure_analysis: 'Failure analysis',
+  branch_pivot: 'Branch pivot',
+  correct_analysis: 'Correct',
+}
+
+function getNodeLabel(trigger: GraphTrigger): string {
   if (trigger.kind === 'cognitive') {
-    return `${COGNITIVE_EMOJI[trigger.intent]} ${trigger.text}`
+    const base = COGNITIVE_COMPACT[trigger.intent]
+    return trigger.text ? `${base}: ${trigger.text}` : base
   }
   switch (trigger.action) {
     case 'load_task':
-      return t('log.load_task')
+      return 'Start'
     case 'cell_click': {
       const cells = (trigger.details?.cells as Array<{ x: number; y: number; symbol: number }>) ?? []
       if (cells.length === 1) {
-        return t('log.cell_click', { x: cells[0].x, y: cells[0].y, symbol: cells[0].symbol })
+        return `Paint (${cells[0].x},${cells[0].y})`
       }
-      const uniqueColors = [...new Set(cells.map((c) => c.symbol))].sort((a, b) => a - b)
-      return t('log.cell_click_multi', { count: cells.length, symbols: uniqueColors.join(', ') })
+      return `Paint \u00d7${cells.length}`
     }
     case 'fill_selected': {
-      const d = trigger.details ?? {}
-      return t('log.fill_selected', { count: Number(d.count), symbol: Number(d.symbol) })
+      const count = Number(trigger.details?.count ?? 0)
+      return `Fill \u00d7${count}`
     }
     case 'paste':
-      return t('log.paste')
+      return 'Paste'
     case 'resize': {
-      const d = trigger.details ?? {}
-      return t('log.resize', { size: String(d.size ?? '') })
+      return String(trigger.details?.size ?? '')
     }
     case 'copy_from_input':
-      return t('log.copy_from_input')
+      return 'Copy in'
     case 'reset_output':
-      return t('log.reset_output')
+      return 'Reset'
     case 'abandon':
-      return t('log.abandon')
+      return 'Abandon'
     case 'submit': {
       const d = trigger.details ?? {}
-      const correct = d.correct ? ' ✓' : ' ✗'
-      return t('log.submit') + correct
+      return d.correct ? '\u2713 Correct' : '\u2717 Wrong'
     }
     default:
       return trigger.action
@@ -552,6 +548,7 @@ export function ArcLabPage() {
   const [hypothesisText, setHypothesisText] = useState('')
   const [failureAnalysisText, setFailureAnalysisText] = useState('')
   const [branchPivotText, setBranchPivotText] = useState('')
+  const [correctAnalysisText, setCorrectAnalysisText] = useState('')
 
   const [userId, setUserId] = useState<number | null>(null)
   const [userError, setUserError] = useState(false)
@@ -739,6 +736,14 @@ export function ArcLabPage() {
     setBranchPivotText('')
   }
 
+  const handleCorrectAnalysisSubmit = () => {
+    const trimmed = correctAnalysisText.trim()
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length
+    if (wordCount < 5) return
+    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'correct_analysis', text: trimmed })
+    setCorrectAnalysisText('')
+  }
+
   const handleAbandonConfirm = () => {
     setAbandonOpen(false)
     dispatch({ type: 'ABANDON' })
@@ -754,6 +759,7 @@ export function ArcLabPage() {
     setHypothesisText('')
     setFailureAnalysisText('')
     setBranchPivotText('')
+    setCorrectAnalysisText('')
   }
 
   const handleSubmit = () => {
@@ -819,6 +825,18 @@ export function ArcLabPage() {
               onNext={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
             />
 
+            <CognitiveTimeline
+              nodes={state.graphNodes}
+              activeNodeId={state.activeNodeId}
+              onNodeClick={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
+              getLabel={(trigger) => getNodeLabel(trigger)}
+            />
+
+            <Toast
+              message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
+              onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
+            />
+
             <OutputEditor
               grid={state.outputGrid}
               toolMode={state.toolMode}
@@ -836,6 +854,9 @@ export function ArcLabPage() {
               branchPivotText={branchPivotText}
               onBranchPivotChange={setBranchPivotText}
               onBranchPivotSubmit={handleBranchPivotSubmit}
+              correctAnalysisText={correctAnalysisText}
+              onCorrectAnalysisChange={setCorrectAnalysisText}
+              onCorrectAnalysisSubmit={handleCorrectAnalysisSubmit}
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
               onResize={() => dispatch({ type: 'RESIZE' })}
               onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
@@ -851,19 +872,7 @@ export function ArcLabPage() {
               canGoPrev={canGoPrev}
               canGoNext={canGoNext}
             />
-
-            <Toast
-              message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
-              onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
-            />
           </div>
-
-          <CognitiveTimeline
-            nodes={state.graphNodes}
-            activeNodeId={state.activeNodeId}
-            onGoBack={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
-            getLabel={(trigger) => getNodeLabel(trigger, t)}
-          />
         </div>
       </div>
 
