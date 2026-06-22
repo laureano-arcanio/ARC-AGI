@@ -1,4 +1,18 @@
-export type GridData = number[][]
+import type {
+  GridData as SharedGridData,
+  CognitiveIntent as SharedCognitiveIntent,
+  MechanicalAction as SharedMechanicalAction,
+  GraphTrigger as SharedGraphTrigger,
+  GraphNode as SharedGraphNode,
+} from '../../shared/types/arc-graph'
+import { COLOR_MAP as SharedColorMap } from '../../shared/types/arc-graph'
+
+export type GridData = SharedGridData
+export type CognitiveIntent = SharedCognitiveIntent
+export type MechanicalAction = SharedMechanicalAction
+export type GraphTrigger = SharedGraphTrigger
+export type GraphNode = SharedGraphNode
+export const COLOR_MAP = SharedColorMap
 
 export type TaskPair = {
   input: GridData
@@ -40,49 +54,11 @@ export const MAX_GRID_SIZE = 30
 export const DEFAULT_GRID_HEIGHT = 3
 export const DEFAULT_GRID_WIDTH = 3
 
-export type CognitiveIntent = 'hypothesis' | 'failure_analysis' | 'branch_pivot' | 'correct_analysis'
-
 export type BlockReason = 'failure_analysis' | 'branch_pivot' | 'correct_analysis' | null
 
 export const INACTIVITY_THRESHOLD_MS = 60_000
 
 export const INTERCEPT_BLOCK_MS = 1_000
-
-export type MechanicalAction =
-  | 'cell_click'
-  | 'fill_selected'
-  | 'paste'
-  | 'resize'
-  | 'copy_from_input'
-  | 'reset_output'
-  | 'submit'
-  | 'abandon'
-  | 'load_task'
-
-export type GraphTrigger =
-  | { kind: 'mechanical'; action: MechanicalAction; details?: Record<string, unknown> }
-  | { kind: 'cognitive'; intent: CognitiveIntent; text: string }
-
-export type GraphNode = {
-  id: string
-  trigger: GraphTrigger
-  stateSnapshot: GridData
-  parentId: string | null
-  timestamp: number
-}
-
-export const COLOR_MAP: Record<number, string> = {
-  0: '#000000',
-  1: '#0074D9',
-  2: '#FF4136',
-  3: '#2ECC40',
-  4: '#FFDC00',
-  5: '#AAAAAA',
-  6: '#F012BE',
-  7: '#FF851B',
-  8: '#7FDBFF',
-  9: '#870C25',
-}
 
 export type EventPayload = {
   userId: number

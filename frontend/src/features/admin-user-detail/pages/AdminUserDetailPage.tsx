@@ -204,12 +204,21 @@ export function AdminUserDetailPage() {
                         <span className="font-mono text-gray-200">
                           {row.taskId}
                         </span>
-                        <span className="text-gray-400">
-                          {row.attemptCount}{' '}
-                          {row.attemptCount === 1
-                            ? t('admin_detail.attempt')
-                            : t('admin_detail.attempts')}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <Link
+                            to={`/admin/users/${numericId}/tasks/${row.taskId}/graph`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="rounded bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                          >
+                            {t('admin_detail.view_graph')}
+                          </Link>
+                          <span className="text-gray-400">
+                            {row.attemptCount}{' '}
+                            {row.attemptCount === 1
+                              ? t('admin_detail.attempt')
+                              : t('admin_detail.attempts')}
+                          </span>
+                        </div>
                       </div>
 
                       {expandedTaskId === row.taskId && (
