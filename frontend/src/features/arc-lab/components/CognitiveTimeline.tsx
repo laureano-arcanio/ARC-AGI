@@ -190,7 +190,7 @@ function getNodeMeta(trigger: GraphTrigger): {
     case 'abandon':
       return { icon: <AbandonIcon />, color: 'neutral' }
     default:
-      return { icon: <span className="text-[10px] font-bold">{action[0]?.toUpperCase() ?? '?'}</span>, color: 'neutral' }
+      return { icon: <span className="text-[10px] font-bold">?</span>, color: 'neutral' }
   }
 }
 
