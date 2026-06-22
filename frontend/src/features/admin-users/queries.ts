@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getUsers, updateUser, deleteUser } from './api'
+import { createUser, getUsers, updateUser, deleteUser } from './api'
+import type { UserCreate } from './types'
 
 export const adminUsersQueryKeys = {
   all: ['admin-users'] as const,
@@ -11,6 +12,17 @@ export function useUsers() {
     queryKey: adminUsersQueryKeys.list(),
     queryFn: getUsers,
     staleTime: 10 * 1000,
+  })
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: UserCreate) => createUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminUsersQueryKeys.all })
+    },
   })
 }
 

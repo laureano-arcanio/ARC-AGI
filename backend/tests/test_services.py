@@ -2,7 +2,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.errors import InvalidCredentialsError, ObjectNotFoundError
+from app.errors import (
+    DuplicateEmailError,
+    InvalidCredentialsError,
+    ObjectNotFoundError,
+)
 from app.models.attempt import Attempt
 from app.models.event import Event
 from app.models.example_table import ExampleTable
@@ -181,6 +185,22 @@ class TestUserServiceCreate:
         assert call_args["email"] == "user@test.com"
         assert "password_hash" in call_args
         assert call_args["password_hash"] != "secret123"
+
+    async def test_raises_when_duplicate_email(
+        self, user_service: UserService, user_mock_repo: AsyncMock
+    ) -> None:
+        user_mock_repo.get_by_email.side_effect = None
+        user_mock_repo.get_by_email.return_value = User(
+            id=1,
+            email="existing@test.com",
+            password_hash="hashed",
+            role=UserRole.SOLVER,
+        )
+        with pytest.raises(DuplicateEmailError):
+            await user_service.create(
+                UserCreate(email="existing@test.com", password="secret123")
+            )
+        user_mock_repo.create.assert_not_awaited()
 
 
 class TestUserServiceGetById:

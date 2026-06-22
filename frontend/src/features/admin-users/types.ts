@@ -6,6 +6,11 @@ export type UserRead = {
   updatedAt: string | null
 }
 
+export type UserCreate = {
+  email: string
+  password: string
+}
+
 export type UserUpdate = {
   role: string | null
 }

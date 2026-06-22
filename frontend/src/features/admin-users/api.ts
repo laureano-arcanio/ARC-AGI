@@ -1,8 +1,12 @@
 import { http } from '../../lib/http'
-import type { UserRead, UserUpdate } from './types'
+import type { UserCreate, UserRead, UserUpdate } from './types'
 
 export function getUsers(): Promise<UserRead[]> {
   return http.get<UserRead[]>('/v1/users/')
+}
+
+export function createUser(data: UserCreate): Promise<UserRead> {
+  return http.post<UserRead>('/v1/users/', data)
 }
 
 export function updateUser(id: number, data: UserUpdate): Promise<UserRead> {

@@ -26,6 +26,7 @@ async def get_attempt_service(db_session: DatabaseSession) -> AttemptService:
 async def create(
     data: UserCreate,
     service: UserService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> UserRead:
     return await service.create(data)
 

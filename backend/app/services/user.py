@@ -2,7 +2,7 @@ import hashlib
 import os
 
 from app.dependencies.auth import _create_token
-from app.errors import InvalidCredentialsError, ObjectNotFoundError
+from app.errors import DuplicateEmailError, InvalidCredentialsError, ObjectNotFoundError
 from app.models.user import User
 from app.repositories.user import UserRepository
 from app.schemas.user import LoginResponse, UserCreate, UserRead, UserUpdate
@@ -29,6 +29,12 @@ class UserService(
     read_schema = UserRead
 
     async def create(self, data: UserCreate) -> UserRead:
+        try:
+            await self.repository.get_by_email(data.email)
+        except ObjectNotFoundError:
+            pass
+        else:
+            raise DuplicateEmailError(email=data.email) from None
         db_data = {
             "email": data.email,
             "password_hash": _hash_password(data.password),

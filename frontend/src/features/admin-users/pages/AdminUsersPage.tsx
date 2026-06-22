@@ -2,20 +2,28 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useUsers, useUpdateUser, useDeleteUser } from '../queries'
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../queries'
 import { useBatches, useAssignBatchToUser, useUnassignBatchFromUser } from '../../batches/queries'
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog'
 import { Multiselect } from '../../../components/ui/Multiselect'
+import { HttpClientError } from '../../../lib/http'
 
 export function AdminUsersPage() {
   const { t } = useTranslation()
   const { isAdmin, isLoading: authLoading } = useAuth()
   const { data: users, isLoading, error } = useUsers()
   const { data: batches, isLoading: batchesLoading } = useBatches()
+  const createUserMutation = useCreateUser()
   const updateUserMutation = useUpdateUser()
   const deleteUserMutation = useDeleteUser()
   const assignMutation = useAssignBatchToUser()
   const unassignMutation = useUnassignBatchFromUser()
+
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [createError, setCreateError] = useState('')
+  const [createSuccess, setCreateSuccess] = useState('')
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
@@ -41,6 +49,42 @@ export function AdminUsersPage() {
   }
 
   const isMutating = assignMutation.isPending || unassignMutation.isPending
+
+  const resetCreateForm = () => {
+    setNewEmail('')
+    setNewPassword('')
+    setCreateError('')
+    setCreateSuccess('')
+  }
+
+  const handleCreateUser = async () => {
+    if (!newEmail.trim() || !newPassword.trim()) {
+      setCreateError(t('dashboard.fields_required'))
+      return
+    }
+    if (newPassword.length < 6) {
+      setCreateError(t('admin.create_error'))
+      return
+    }
+    setCreateError('')
+    setCreateSuccess('')
+    try {
+      await createUserMutation.mutateAsync({
+        email: newEmail.trim(),
+        password: newPassword,
+      })
+      setCreateSuccess(t('admin.create_success'))
+      setNewEmail('')
+      setNewPassword('')
+      setShowCreateForm(false)
+    } catch (err) {
+      if (err instanceof HttpClientError && err.status === 409) {
+        setCreateError(t('admin.email_exists'))
+      } else {
+        setCreateError(t('admin.create_error'))
+      }
+    }
+  }
 
   if (authLoading || isLoading) {
     return (
@@ -88,7 +132,64 @@ export function AdminUsersPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t('admin.title')}</h1>
+        <button
+          onClick={() => {
+            setShowCreateForm(!showCreateForm)
+            resetCreateForm()
+          }}
+          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+        >
+          {t('admin.create_user')}
+        </button>
       </div>
+
+      {showCreateForm && (
+        <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value)
+                  setCreateError('')
+                }}
+                placeholder={t('dashboard.email_placeholder')}
+                autoComplete="off"
+                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex-1">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value)
+                  setCreateError('')
+                }}
+                placeholder={t('dashboard.password_placeholder')}
+                autoComplete="new-password"
+                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <button
+              onClick={handleCreateUser}
+              disabled={createUserMutation.isPending}
+              className="rounded-xl bg-green-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+            >
+              {createUserMutation.isPending
+                ? t('admin.creating_user')
+                : t('admin.create_user_button')}
+            </button>
+          </div>
+          {createError && (
+            <p className="mt-3 text-sm text-red-400">{createError}</p>
+          )}
+          {createSuccess && !createError && (
+            <p className="mt-3 text-sm text-green-400">{createSuccess}</p>
+          )}
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-lg border border-gray-800">
         <table className="w-full text-left text-sm">

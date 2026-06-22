@@ -5,8 +5,10 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import sessionmanager
 from app.errors import (
+    DuplicateEmailError,
     InvalidCredentialsError,
     ObjectNotFoundError,
+    duplicate_email_handler,
     global_exception_handler,
     invalid_credentials_handler,
     object_not_found_handler,
@@ -29,6 +31,7 @@ app.add_middleware(
 )
 
 
+app.exception_handler(DuplicateEmailError)(duplicate_email_handler)
 app.exception_handler(ObjectNotFoundError)(object_not_found_handler)
 app.exception_handler(InvalidCredentialsError)(invalid_credentials_handler)
 app.exception_handler(Exception)(global_exception_handler)
@@ -86,6 +89,19 @@ async def seed_users() -> None:
                     )
                 )
 
+        await session.commit()
+
+        # Reset auto-increment sequence to avoid collision with manual id inserts
+        from sqlalchemy import text
+
+        await session.execute(
+            text(
+                "SELECT setval("
+                "pg_get_serial_sequence('\"user\"', 'id'), "
+                "COALESCE((SELECT MAX(id) FROM \"user\"), 1)"
+                ")"
+            )
+        )
         await session.commit()
 
 

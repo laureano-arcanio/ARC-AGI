@@ -210,6 +210,28 @@ async def user_client(user_app: FastAPI) -> AsyncIterator[AsyncClient]:
         yield ac
 
 
+@pytest.fixture
+def unauth_user_app(user_mock_service: AsyncMock) -> FastAPI:
+    from app.routers.user import get_service, router
+
+    application = FastAPI()
+    application.exception_handler(ObjectNotFoundError)(object_not_found_handler)
+    application.exception_handler(InvalidCredentialsError)(invalid_credentials_handler)
+    application.exception_handler(Exception)(global_exception_handler)
+    application.include_router(router)
+    application.dependency_overrides[get_service] = lambda: user_mock_service
+    return application
+
+
+@pytest.fixture
+async def unauth_user_client(unauth_user_app: FastAPI) -> AsyncIterator[AsyncClient]:
+    from httpx import ASGITransport
+
+    transport = ASGITransport(app=unauth_user_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
 class TestUserRouterCreate:
     async def test_creates_and_returns_201(
         self, user_client: AsyncClient, user_mock_service: AsyncMock
@@ -232,6 +254,15 @@ class TestUserRouterCreate:
             json={"password": "secret123"},
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    async def test_returns_403_when_not_admin(
+        self, unauth_user_client: AsyncClient
+    ) -> None:
+        response = await unauth_user_client.post(
+            "/api/v1/users/",
+            json={"email": "new@test.com", "password": "secret123"},
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 class TestUserRouterLogin:
