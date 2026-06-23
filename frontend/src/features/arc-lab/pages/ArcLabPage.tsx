@@ -630,7 +630,7 @@ export function ArcLabPage() {
   const currentActiveNodeId = state.activeNodeIdByTest[state.currentTestIndex] ?? null
   const currentNavHistory = state.navigationHistoryByTest[state.currentTestIndex] ?? []
   const currentNavIndex = state.navigationIndexByTest[state.currentTestIndex] ?? 0
-  const atRoot = currentNodes.some((n) => n.id === currentActiveNodeId && n.trigger.action === 'load_task')
+  const atRoot = currentNodes.some((n) => n.id === currentActiveNodeId && n.trigger.kind === 'mechanical' && n.trigger.action === 'load_task')
   const canGoPrev = currentNavIndex > 0
   const canGoNext = currentNavIndex < currentNavHistory.length - 1
   const readOnly = atRoot || state.blockReason !== null
