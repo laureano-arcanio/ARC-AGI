@@ -74,3 +74,9 @@ class AttemptService(
     ) -> list[UserTaskSummary]:
         rows = await self.repository.get_user_tasks(user_id)
         return [UserTaskSummary.model_validate(row) for row in rows]
+
+    async def delete_user_task(self, user_id: int, task_id: str) -> None:
+        await self.repository.delete_by_user_and_task(user_id, task_id)
+
+    async def delete(self, attempt_id: int) -> None:
+        await self.repository.delete_by_id(attempt_id)

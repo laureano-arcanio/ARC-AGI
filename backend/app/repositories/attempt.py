@@ -1,7 +1,9 @@
 from typing import Any
 
 from sqlalchemy import Boolean, cast, func, select
+from sqlalchemy import delete as sa_delete
 
+from app.errors import ObjectNotFoundError
 from app.models.attempt import Attempt
 from app.models.event import Event
 from app.repositories.base_repository import BaseRepository
@@ -58,3 +60,33 @@ class AttemptRepository(BaseRepository[Attempt]):
             {**data, "solved": data["task_id"] in solved_tasks}
             for data in task_map.values()
         ]
+
+    async def delete_by_user_and_task(
+        self, user_id: int, task_id: str
+    ) -> None:
+        stmt_events = sa_delete(Event).where(
+            Event.user_id == user_id,
+            Event.task_id == task_id,
+        )
+        await self.db_session.execute(stmt_events)
+
+        stmt_attempts = sa_delete(Attempt).where(
+            Attempt.user_id == user_id,
+            Attempt.task_id == task_id,
+        )
+        await self.db_session.execute(stmt_attempts)
+
+    async def delete_by_id(self, attempt_id: int) -> None:
+        stmt_events = sa_delete(Event).where(
+            Event.attempt_id == attempt_id,
+        )
+        await self.db_session.execute(stmt_events)
+
+        stmt_attempt = sa_delete(Attempt).where(
+            Attempt.id == attempt_id,
+        )
+        result = await self.db_session.execute(stmt_attempt)
+        if result.rowcount == 0:
+            raise ObjectNotFoundError(
+                object_type="Attempt", object_id=attempt_id
+            )

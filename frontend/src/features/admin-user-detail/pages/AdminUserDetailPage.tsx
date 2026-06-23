@@ -6,7 +6,53 @@ import {
   useUserDetail,
   useUserTasks,
   useUpdateUserPassword,
+  useDeleteUserTask,
 } from '../queries'
+
+function ConfirmDialog({
+  open,
+  count,
+  onCancel,
+  onConfirm,
+  isPending,
+}: {
+  open: boolean
+  count: number
+  onCancel: () => void
+  onConfirm: () => void
+  isPending: boolean
+}) {
+  const { t } = useTranslation()
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="w-full max-w-sm rounded-lg border border-gray-700 bg-gray-900 p-6 shadow-xl">
+        <h3 className="text-lg font-semibold text-gray-100">
+          {t('admin_detail.delete_confirm_title')}
+        </h3>
+        <p className="mt-2 text-sm text-gray-400">
+          {t('admin_detail.delete_confirm_message', { count })}
+        </p>
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            disabled={isPending}
+            className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-gray-700 disabled:opacity-50"
+          >
+            {t('admin_detail.delete_confirm_cancel')}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isPending}
+            className="rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50"
+          >
+            {isPending ? '...' : t('admin_detail.delete_confirm_confirm')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function AdminUserDetailPage() {
   const { t } = useTranslation()
@@ -30,6 +76,49 @@ export function AdminUserDetailPage() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const passwordMutation = useUpdateUserPassword()
+
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const deleteMutation = useDeleteUserTask()
+
+  function toggleSelect(taskId: string) {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(taskId)) {
+        next.delete(taskId)
+      } else {
+        next.add(taskId)
+      }
+      return next
+    })
+    setDeleteStatus('idle')
+  }
+
+  function toggleSelectAll() {
+    if (!tasks) return
+    setSelectedTaskIds((prev) => {
+      if (prev.size === tasks.length) {
+        return new Set()
+      }
+      return new Set(tasks.map((t) => t.taskId))
+    })
+    setDeleteStatus('idle')
+  }
+
+  async function handleDeleteConfirm() {
+    const ids = [...selectedTaskIds]
+    try {
+      for (const taskId of ids) {
+        await deleteMutation.mutateAsync({ userId: numericId, taskId })
+      }
+      setSelectedTaskIds(new Set())
+      setConfirmOpen(false)
+      setDeleteStatus('success')
+    } catch {
+      setDeleteStatus('error')
+    }
+  }
 
   if (authLoading || userLoading || tasksLoading) {
     return (
@@ -65,6 +154,8 @@ export function AdminUserDetailPage() {
       </div>
     )
   }
+
+  const allSelected = tasks ? selectedTaskIds.size === tasks.length : false
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,10 +235,48 @@ export function AdminUserDetailPage() {
           {t('admin_detail.no_tasks')}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-800">
+        <div>
+          <div className="flex items-center justify-between border-b border-gray-800 bg-gray-900/50 px-4 py-2">
+            <span className="text-xs font-medium text-gray-500">
+              {tasks?.length ?? 0} tasks
+              {selectedTaskIds.size > 0 && (
+                <span className="ml-2 text-blue-400">
+                  ({selectedTaskIds.size} selected)
+                </span>
+              )}
+            </span>
+            <button
+              onClick={() => {
+                if (selectedTaskIds.size === 0) return
+                setConfirmOpen(true)
+              }}
+              disabled={selectedTaskIds.size === 0 || deleteMutation.isPending}
+              className={`rounded px-3 py-1 text-xs font-medium transition ${
+                selectedTaskIds.size > 0
+                  ? 'bg-red-800 text-red-200 hover:bg-red-700'
+                  : 'bg-gray-800 text-gray-600'
+              } disabled:opacity-40`}
+            >
+              {t('admin_detail.delete_tasks')}
+            </button>
+          </div>
+          {deleteStatus === 'success' && (
+            <p className="px-4 py-2 text-xs text-green-400">{t('admin_detail.delete_success')}</p>
+          )}
+          {deleteStatus === 'error' && (
+            <p className="px-4 py-2 text-xs text-red-400">{t('admin_detail.delete_error')}</p>
+          )}
           <table className="w-full text-left text-sm">
             <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
               <tr>
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0"
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">
                   {t('admin_detail.table.taskId')}
                 </th>
@@ -160,32 +289,65 @@ export function AdminUserDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {tasks?.map((row) => (
-                <tr
-                  key={row.taskId}
-                  onClick={() => navigate(`/admin/users/${numericId}/task/${row.taskId}`)}
-                  className="cursor-pointer transition hover:bg-gray-900/50"
-                >
-                  <td className="px-4 py-3 font-mono text-gray-200">
-                    {row.taskId}
-                  </td>
-                  <td className="px-4 py-3 text-gray-400">
-                    {row.attemptCount}{' '}
-                    {row.attemptCount === 1
-                      ? t('admin_detail.attempt')
-                      : t('admin_detail.attempts')}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-400 transition group-hover:bg-gray-700">
-                      {t('admin_detail.view_graph')}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {tasks?.map((row) => {
+                const isSelected = selectedTaskIds.has(row.taskId)
+                return (
+                  <tr
+                    key={row.taskId}
+                    className={`transition ${
+                      isSelected ? 'bg-blue-950/20' : 'hover:bg-gray-900/50'
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(row.taskId)}
+                        className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0"
+                      />
+                    </td>
+                    <td
+                      className="cursor-pointer px-4 py-3 font-mono text-gray-200 hover:text-white"
+                      onClick={() => navigate(`/admin/users/${numericId}/task/${row.taskId}`)}
+                    >
+                      <span className="flex items-center gap-2">
+                        {row.taskId}
+                        {row.solved && (
+                          <span className="rounded bg-green-900/40 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                            solved
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400">
+                      {row.attemptCount}{' '}
+                      {row.attemptCount === 1
+                        ? t('admin_detail.attempt')
+                        : t('admin_detail.attempts')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => navigate(`/admin/users/${numericId}/task/${row.taskId}`)}
+                        className="rounded bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
+                      >
+                        {t('admin_detail.view_graph')}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        count={selectedTaskIds.size}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   )
 }

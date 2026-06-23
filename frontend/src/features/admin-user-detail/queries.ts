@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getUser, getUserTasks, getAttempts, getEvents, updateUserPassword } from './api'
+import { getUser, getUserTasks, getAttempts, getEvents, updateUserPassword, deleteUserTask, deleteAttempt } from './api'
 
 export const adminUserDetailQueryKeys = {
   all: ['admin-user-detail'] as const,
@@ -59,6 +59,43 @@ export function useUpdateUserPassword() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: adminUserDetailQueryKeys.user(variables.userId),
+      })
+    },
+  })
+}
+
+export function useDeleteUserTask() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      userId,
+      taskId,
+    }: {
+      userId: number
+      taskId: string
+    }) => deleteUserTask(userId, taskId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: adminUserDetailQueryKeys.tasks(variables.userId),
+      })
+    },
+  })
+}
+
+export function useDeleteAttempts(userId: number, taskId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (attemptIds: number[]) => {
+      return Promise.all(attemptIds.map((id) => deleteAttempt(id)))
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: adminUserDetailQueryKeys.attempts(userId, taskId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: adminUserDetailQueryKeys.events(userId, taskId, undefined),
       })
     },
   })

@@ -5,6 +5,7 @@ import { useAuth } from '../../../lib/auth'
 import {
   useAttempts,
   useEvents,
+  useDeleteAttempts,
 } from '../queries'
 import { eventsToGraphNodes, getNodeLabel } from '../utils'
 import { EventGraph } from '../components/EventGraph'
@@ -21,11 +22,15 @@ export function AdminUserTaskDetailPage() {
   const [selectedTestPairIndex, setSelectedTestPairIndex] = useState<number | null>(null)
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
   const [eventsAccordionOpen, setEventsAccordionOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const {
     data: attempts,
     isLoading: attemptsLoading,
   } = useAttempts(numericId, taskId ?? '', true)
+
+  const deleteAttemptsMutation = useDeleteAttempts(numericId, taskId ?? '')
 
   const activeAttemptId = selectedAttemptId ?? undefined
 
@@ -59,6 +64,40 @@ export function AdminUserTaskDetailPage() {
     a.download = `events_${taskId}${suffix}_${selectedAttemptId ?? 'all'}.jsonl`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  function toggleSelect(attemptId: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(attemptId)) {
+        next.delete(attemptId)
+      } else {
+        next.add(attemptId)
+      }
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (!attempts) return
+    if (selectedIds.size === attempts.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(attempts.map((a) => a.id)))
+    }
+  }
+
+  function handleDeleteAttempts() {
+    deleteAttemptsMutation.mutate([...selectedIds], {
+      onSuccess: () => {
+        setSelectedIds(new Set())
+        setSelectedAttemptId(null)
+        setShowDeleteDialog(false)
+      },
+      onError: () => {
+        setShowDeleteDialog(false)
+      },
+    })
   }
 
   if (authLoading) {
@@ -104,8 +143,8 @@ export function AdminUserTaskDetailPage() {
           {' '}{t('admin_detail.loading_events')}
         </div>
       ) : attempts && attempts.length > 0 ? (
-        <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-          <div className="flex items-center gap-2 mb-3">
+        <>
+          <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-400">{t('admin_detail.graph_select_attempt')}</span>
             <button
               onClick={() => {
@@ -121,23 +160,35 @@ export function AdminUserTaskDetailPage() {
             >
               {t('admin_detail.all_events')}
             </button>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className="ml-auto rounded bg-red-800 px-3 py-1 text-xs font-medium text-red-200 transition hover:bg-red-700"
+              >
+                {t('admin_detail.delete_attempts')} ({selectedIds.size})
+              </button>
+            )}
           </div>
+
           <div className="overflow-x-auto rounded border border-gray-700">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-gray-700 bg-gray-800/50 text-gray-500">
                 <tr>
+                  <th className="w-8 px-3 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={attempts.length > 0 && selectedIds.size === attempts.length}
+                      onChange={toggleSelectAll}
+                      className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-800 text-blue-600"
+                    />
+                  </th>
                   <th className="px-3 py-1.5 font-medium">{t('admin_detail.attempt')}</th>
                   <th className="px-3 py-1.5 font-medium">{t('admin_detail.attempt_status')}</th>
                   <th className="px-3 py-1.5 font-medium">{t('admin_detail.table.timestamp')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {[...attempts].reverse().map((attempt, idx) => {
-                  const statusColors: Record<string, string> = {
-                    completed: 'border-l-green-500 bg-green-950/30',
-                    failed: 'border-l-red-500 bg-red-950/30',
-                    abandoned: 'border-l-yellow-500 bg-yellow-950/30',
-                  }
+                {attempts.map((attempt) => {
                   const statusBadgeColors: Record<string, string> = {
                     completed: 'bg-green-900/50 text-green-300',
                     failed: 'bg-red-900/50 text-red-300',
@@ -151,22 +202,33 @@ export function AdminUserTaskDetailPage() {
                     in_progress: 'admin_detail.status_in_progress',
                   }
                   const st = attempt.status ?? 'in_progress'
-                  const rowColor = statusColors[st] ?? ''
-                  const isSelected = selectedAttemptId === attempt.id
+                  const isChecked = selectedIds.has(attempt.id)
+                  const isGraphSelected = selectedAttemptId === attempt.id
                   return (
                     <tr
                       key={attempt.id}
-                      onClick={() => {
-                        setSelectedAttemptId(attempt.id)
-                        setSelectedTestPairIndex(null)
-                        setActiveNodeId(null)
-                      }}
-                      className={`cursor-pointer border-l-2 transition hover:bg-gray-800/50 ${
-                        isSelected ? 'border-l-blue-500 bg-blue-950/30' : rowColor || 'border-l-transparent'
-                      }`}
+                      className={`transition hover:bg-gray-800/50 ${
+                        isGraphSelected ? 'border-l-blue-500 bg-blue-950/30' : ''
+                      } ${isChecked ? 'bg-blue-950/10' : ''}`}
                     >
-                      <td className="px-3 py-1.5 font-mono text-gray-200">
-                        {t('admin_detail.attempt_n', { n: idx + 1 })}
+                      <td className="w-8 px-3 py-1.5">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleSelect(attempt.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-800 text-blue-600"
+                        />
+                      </td>
+                      <td
+                        className="cursor-pointer px-3 py-1.5 font-mono text-gray-200 transition hover:text-blue-400"
+                        onClick={() => {
+                          setSelectedAttemptId(attempt.id)
+                          setSelectedTestPairIndex(null)
+                          setActiveNodeId(null)
+                        }}
+                      >
+                        {t('admin_detail.attempt_n', { n: attempts.indexOf(attempt) + 1 })}
                       </td>
                       <td className="px-3 py-1.5">
                         <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${statusBadgeColors[st] ?? 'bg-gray-800 text-gray-400'}`}>
@@ -184,7 +246,42 @@ export function AdminUserTaskDetailPage() {
               </tbody>
             </table>
           </div>
-        </div>
+
+          {showDeleteDialog && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+              <div className="w-full max-w-sm rounded-lg border border-gray-700 bg-gray-900 p-6 shadow-xl">
+                <h3 className="text-lg font-semibold text-gray-200">
+                  {t('admin_detail.delete_attempts_confirm_title')}
+                </h3>
+                <p className="mt-2 text-sm text-gray-400">
+                  {t('admin_detail.delete_attempts_confirm_message', { count: selectedIds.size })}
+                </p>
+                {deleteAttemptsMutation.isError && (
+                  <p className="mt-2 text-sm text-red-400">
+                    {t('admin_detail.delete_attempts_error')}
+                  </p>
+                )}
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowDeleteDialog(false)}
+                    className="rounded bg-gray-800 px-4 py-1.5 text-sm font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
+                  >
+                    {t('admin_detail.delete_attempts_confirm_cancel')}
+                  </button>
+                  <button
+                    onClick={handleDeleteAttempts}
+                    disabled={deleteAttemptsMutation.isPending}
+                    className="rounded bg-red-800 px-4 py-1.5 text-sm font-medium text-red-200 transition hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleteAttemptsMutation.isPending
+                      ? `${t('admin_detail.delete_attempts_confirm_confirm')}...`
+                      : t('admin_detail.delete_attempts_confirm_confirm')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
           {t('admin_detail.graph_no_attempts')}

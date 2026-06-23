@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.dependencies.auth import CurrentUserDep, require_owner_or_admin
+from app.dependencies.auth import AdminDep, CurrentUserDep, require_owner_or_admin
 from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
 from app.repositories.batch import BatchRepository
@@ -48,3 +48,12 @@ async def get_by_user_and_task(
 ) -> list[AttemptRead]:
     require_owner_or_admin(user_id, current_user)
     return await service.get_by_user_and_task(user_id, task_id)
+
+
+@router.delete("/{attempt_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete(
+    attempt_id: int,
+    service: AttemptService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
+) -> None:
+    await service.delete(attempt_id)

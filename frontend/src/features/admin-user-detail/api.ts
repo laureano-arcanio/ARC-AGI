@@ -46,3 +46,14 @@ export function getEvents(
     params,
   })
 }
+
+export function deleteUserTask(
+  userId: number,
+  taskId: string,
+): Promise<void> {
+  return http.delete<void>(`/v1/users/${userId}/tasks/${taskId}`)
+}
+
+export function deleteAttempt(attemptId: number): Promise<void> {
+  return http.delete<void>(`/v1/attempts/${attemptId}`)
+}

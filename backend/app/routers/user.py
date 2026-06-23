@@ -93,6 +93,16 @@ async def get_user_tasks(
     return await service.get_user_tasks(id)
 
 
+@router.delete("/{id}/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_task(
+    id: int,
+    task_id: str,
+    service: AttemptService = Depends(get_attempt_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
+) -> None:
+    await service.delete_user_task(id, task_id)
+
+
 @router.get("/{id}", response_model=UserRead)
 async def get_by_id(
     id: int,
