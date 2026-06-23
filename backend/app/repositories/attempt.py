@@ -1,8 +1,9 @@
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import Boolean, cast, func, select
 
 from app.models.attempt import Attempt
+from app.models.event import Event
 from app.repositories.base_repository import BaseRepository
 
 
@@ -23,17 +24,37 @@ class AttemptRepository(BaseRepository[Attempt]):
     async def get_user_tasks(
         self, user_id: int
     ) -> list[dict[str, Any]]:
-        query = (
+        attempt_query = (
             select(
                 self.model.task_id,
                 func.count(self.model.id).label("attempt_count"),
             )
             .where(self.model.user_id == user_id)
             .group_by(self.model.task_id)
-            .order_by(self.model.task_id)
         )
-        result = await self.db_session.execute(query)
+        attempt_result = await self.db_session.execute(attempt_query)
+        task_map: dict[str, dict[str, Any]] = {
+            row[0]: {"task_id": row[0], "attempt_count": row[1]}
+            for row in attempt_result.all()
+        }
+
+        solved_query = (
+            select(Event.task_id)
+            .where(
+                Event.user_id == user_id,
+                cast(
+                    func.json_extract_path_text(
+                        Event.trigger, 'details', 'correct'
+                    ),
+                    Boolean,
+                ).is_(True),
+            )
+            .distinct()
+        )
+        solved_result = await self.db_session.execute(solved_query)
+        solved_tasks = {row[0] for row in solved_result.all()}
+
         return [
-            {"task_id": row[0], "attempt_count": row[1]}
-            for row in result.all()
+            {**data, "solved": data["task_id"] in solved_tasks}
+            for data in task_map.values()
         ]

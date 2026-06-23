@@ -512,9 +512,7 @@ export function ArcLabPage() {
   const [accessChecked, setAccessChecked] = useState(false)
   const [attemptCount, setAttemptCount] = useState<number | null>(null)
 
-  const [instructionOpen, setInstructionOpen] = useState(() => {
-    return localStorage.getItem('arc_instruction_dismissed') !== 'v1'
-  })
+  const [instructionOpen, setInstructionOpen] = useState(true)
 
   useEffect(() => {
     if (routeUserId) {
@@ -856,10 +854,7 @@ export function ArcLabPage() {
 
       <InstructionModal
         open={instructionOpen}
-        onDismiss={() => {
-          localStorage.setItem('arc_instruction_dismissed', 'v1')
-          setInstructionOpen(false)
-        }}
+        onDismiss={() => setInstructionOpen(false)}
       />
       </>
       )}

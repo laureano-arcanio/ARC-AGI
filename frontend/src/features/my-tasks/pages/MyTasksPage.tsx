@@ -1,8 +1,19 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useMyBatches, useMyTaskSummaries } from '../queries'
+import type { UserTaskSummary } from '../types'
+
+function taskStatus(summary: UserTaskSummary | undefined): {
+  label: string
+  className: string
+} {
+  if (!summary || summary.attemptCount === 0)
+    return { label: 'my_tasks.status_pending', className: 'text-gray-500' }
+  if (summary.solved)
+    return { label: 'my_tasks.status_verified', className: 'text-green-400' }
+  return { label: 'my_tasks.status_retry', className: 'text-amber-400' }
+}
 
 export function MyTasksPage() {
   const { t } = useTranslation()
@@ -11,7 +22,6 @@ export function MyTasksPage() {
 
   const { data: batches, isLoading: batchesLoading } = useMyBatches(userId ?? 0)
   const { data: taskSummaries } = useMyTaskSummaries(userId ?? 0)
-  const [expandedBatch, setExpandedBatch] = useState<number | null>(null)
 
   if (authLoading || batchesLoading) {
     return (
@@ -37,7 +47,7 @@ export function MyTasksPage() {
   }
 
   const summaryMap = new Map(
-    (taskSummaries ?? []).map((s) => [s.taskId, s.attemptCount]),
+    (taskSummaries ?? []).map((s) => [s.taskId, s]),
   )
 
   const handleTaskClick = (taskId: string) => {
@@ -63,59 +73,49 @@ export function MyTasksPage() {
             key={batch.id}
             className="rounded-lg border border-gray-800 bg-gray-900"
           >
-            <button
-              className="flex w-full items-center gap-2 p-4 text-left"
-              onClick={() =>
-                setExpandedBatch(expandedBatch === batch.id ? null : batch.id)
-              }
-            >
-              <span className="text-sm text-gray-500">
-                {expandedBatch === batch.id ? '▾' : '▸'}
+            <div className="flex items-center gap-2 border-b border-gray-800 p-4">
+              <h3 className="font-semibold text-white">{batch.name}</h3>
+              <span className="text-xs text-gray-500">
+                {batch.taskIds.length} {t('my_tasks.tasks_count')}
               </span>
-              <div>
-                <h3 className="font-semibold text-white">{batch.name}</h3>
-                <p className="text-xs text-gray-500">
-                  {batch.taskIds.length} {t('my_tasks.tasks_count')}
-                </p>
-              </div>
-            </button>
+            </div>
 
-            {expandedBatch === batch.id && (
-              <div className="border-t border-gray-800">
-                {batch.taskIds.length === 0 ? (
-                  <p className="p-4 text-sm text-gray-500">
-                    {t('my_tasks.no_tasks_in_batch')}
-                  </p>
-                ) : (
-                  <div className="divide-y divide-gray-800">
-                    {batch.taskIds.map((taskId) => {
-                      const attempts = summaryMap.get(taskId) ?? 0
-                      return (
-                        <button
-                          key={taskId}
-                          onClick={() => handleTaskClick(taskId)}
-                          className="flex w-full items-center justify-between p-4 text-left transition hover:bg-gray-800/50"
+            {batch.taskIds.length === 0 ? (
+              <p className="p-4 text-sm text-gray-500">
+                {t('my_tasks.no_tasks_in_batch')}
+              </p>
+            ) : (
+              <div className="divide-y divide-gray-800">
+                {batch.taskIds.map((taskId) => {
+                  const summary = summaryMap.get(taskId)
+                  const status = taskStatus(summary)
+                  return (
+                    <button
+                      key={taskId}
+                      onClick={() => handleTaskClick(taskId)}
+                      className="flex w-full items-center justify-between p-4 text-left transition hover:bg-gray-800/50"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="font-mono text-sm text-blue-400">
+                          {taskId}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {summary
+                            ? t('my_tasks.attempts', { count: summary.attemptCount })
+                            : t('my_tasks.no_attempts')}
+                        </span>
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${status.className} border-current`}
                         >
-                          <div>
-                            <span className="font-mono text-sm text-blue-400">
-                              {taskId}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-500">
-                              {attempts === 0
-                                ? t('my_tasks.no_attempts')
-                                : t('my_tasks.attempts', { count: attempts })}
-                            </span>
-                            <span className="text-sm text-gray-600">
-                              {t('my_tasks.start')} →
-                            </span>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
+                          {t(status.label)}
+                        </span>
+                      </div>
+                      <span className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-green-700">
+                        {t('my_tasks.start')}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             )}
           </div>

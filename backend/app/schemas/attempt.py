@@ -23,3 +23,4 @@ class AttemptRead(BaseAPISchema):
 class UserTaskSummary(BaseAPISchema):
     task_id: str
     attempt_count: int
+    solved: bool

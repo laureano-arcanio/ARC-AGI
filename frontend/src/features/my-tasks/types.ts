@@ -9,4 +9,5 @@ export type BatchRead = {
 export type UserTaskSummary = {
   taskId: string
   attemptCount: number
+  solved: boolean
 }

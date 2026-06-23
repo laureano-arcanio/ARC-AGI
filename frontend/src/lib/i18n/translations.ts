@@ -201,6 +201,9 @@ const es = {
   'my_tasks.no_attempts': 'Sin intentos',
   'my_tasks.attempts': '{count} intento(s)',
   'my_tasks.start': 'Comenzar',
+  'my_tasks.status_pending': 'Pendiente',
+  'my_tasks.status_verified': 'Verificado',
+  'my_tasks.status_retry': 'Reintentar',
 
   'arc_lab.access_denied': 'No tienes acceso a esta tarea.',
   'arc_lab.back_to_tasks': 'Volver a mis tareas',
@@ -425,6 +428,9 @@ const en: Record<string, string> = {
   'my_tasks.no_attempts': 'No attempts',
   'my_tasks.attempts': '{count} attempt(s)',
   'my_tasks.start': 'Start',
+  'my_tasks.status_pending': 'Pending',
+  'my_tasks.status_verified': 'Verified',
+  'my_tasks.status_retry': 'Retry',
 
   'arc_lab.access_denied': 'You do not have access to this task.',
   'arc_lab.back_to_tasks': 'Back to my tasks',
