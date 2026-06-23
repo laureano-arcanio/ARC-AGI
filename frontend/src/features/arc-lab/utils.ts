@@ -2,7 +2,6 @@ import {
   DEFAULT_GRID_HEIGHT,
   DEFAULT_GRID_WIDTH,
   MAX_GRID_SIZE,
-  type ClipboardEntry,
   type GridData,
 } from './types'
 
@@ -127,21 +126,4 @@ export function parseCellKey(key: string): { x: number; y: number } {
   return { x, y }
 }
 
-export function pasteClipboard(
-  grid: GridData,
-  clipboard: ClipboardEntry[],
-  targetX: number,
-  targetY: number,
-): void {
-  const xs = clipboard.map((c) => c.x)
-  const ys = clipboard.map((c) => c.y)
-  const minX = Math.min(...xs)
-  const minY = Math.min(...ys)
-  for (const entry of clipboard) {
-    const newX = entry.x - minX + targetX
-    const newY = entry.y - minY + targetY
-    if (newX >= 0 && newX < grid.length && newY >= 0 && newY < grid[newX].length) {
-      grid[newX][newY] = entry.symbol
-    }
-  }
-}
+

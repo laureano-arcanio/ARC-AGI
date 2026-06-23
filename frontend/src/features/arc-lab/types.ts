@@ -35,10 +35,6 @@ export type CellCoord = {
   y: number
 }
 
-export type ClipboardEntry = CellCoord & {
-  symbol: number
-}
-
 export type ToastKind = 'error' | 'info'
 
 export type ToastMessage = {
@@ -51,8 +47,8 @@ export const SYMBOL_COUNT = 10
 
 export const MAX_GRID_SIZE = 30
 
-export const DEFAULT_GRID_HEIGHT = 3
-export const DEFAULT_GRID_WIDTH = 3
+export const DEFAULT_GRID_HEIGHT = 8
+export const DEFAULT_GRID_WIDTH = 8
 
 export type BlockReason = 'failure_analysis' | 'branch_pivot' | 'correct_analysis' | null
 

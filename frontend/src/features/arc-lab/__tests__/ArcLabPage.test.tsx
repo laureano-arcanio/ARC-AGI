@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { ArcLabPage } from '../pages/ArcLabPage'
 import type { ArcTaskRead } from '../types'
 
@@ -280,35 +280,6 @@ describe('ArcLabPage', () => {
     fireEvent.change(sizeInput, { target: { value: '99x99' } })
     fireEvent.click(screen.getByTestId('resize-btn'))
     expect(screen.getByTestId('toast').getAttribute('data-kind')).toBe('error')
-  })
-
-  it('copies and pastes a selection via keyboard (C/V)', async () => {
-    renderPage()
-    await waitForTask()
-    // Submit hypothesis first to enable editing
-    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
-      target: { value: 'one two three four five' },
-    })
-    fireEvent.click(screen.getByTestId('hypothesis-submit'))
-
-    fireEvent.click(screen.getByTestId('symbol-4'))
-    const cell00 = outputCell(0, 0)
-    fireEvent.mouseDown(cell00)
-    fireEvent.mouseUp(cell00)
-    expect(outputCell(0, 0).getAttribute('data-symbol')).toBe('4')
-    // Enter select mode by dragging
-    fireEvent.mouseDown(outputCell(0, 0))
-    fireEvent.mouseEnter(outputCell(0, 2))
-    fireEvent.mouseDown(outputCell(0, 0))
-    act(() => {
-      fireEvent.keyDown(document.body, { key: 'c' })
-    })
-    expect(screen.getByTestId('toast').textContent).toContain('toast.cells_copied')
-    fireEvent.mouseDown(outputCell(1, 1))
-    act(() => {
-      fireEvent.keyDown(document.body, { key: 'v' })
-    })
-    expect(outputCell(1, 1).getAttribute('data-symbol')).toBe('4')
   })
 
   it('fills selected cells when picking a symbol in select mode', async () => {

@@ -4,7 +4,7 @@ import { useRandomTasks, useTaskById } from '../queries'
 import { createAttempt, postEvent } from '../api'
 import { getUserAccessibleTaskIds } from '../../batches/api'
 import { useTranslation } from '../../../lib/i18n'
-import { ConfirmDialog } from '../../../components/common'
+import { ConfirmDialog, InstructionModal } from '../../../components/common'
 import {
   cloneGrid,
   createGrid,
@@ -15,7 +15,6 @@ import {
   gridWidth,
   parseCellKey,
   parseSize,
-  pasteClipboard,
   serializeGridToGridObject,
 } from '../utils'
 import {
@@ -23,7 +22,6 @@ import {
   DEFAULT_GRID_WIDTH,
   type ArcTask,
   type BlockReason,
-  type ClipboardEntry,
   type CognitiveIntent,
   type GraphNode,
   type GraphTrigger,
@@ -48,7 +46,6 @@ type ArcLabState = {
   toolMode: ToolMode
   selectedSymbol: number
   sizeInput: string
-  clipboard: ClipboardEntry[] | null
   selectedCells: Set<string>
   message: ToastMessage | null
   graphNodes: GraphNode[]
@@ -74,8 +71,6 @@ type Action =
   | { type: 'CELL_CLICK'; x: number; y: number }
   | { type: 'SELECTION_CHANGE'; cells: Set<string> }
   | { type: 'FILL_SELECTED' }
-  | { type: 'COPY_SELECTION' }
-  | { type: 'PASTE' }
   | { type: 'SET_MESSAGE'; message: ToastMessage | null }
   | { type: 'DISMISS_MESSAGE' }
   | { type: 'TRAVEL_TO_NODE'; nodeId: string }
@@ -145,7 +140,6 @@ const initialState: ArcLabState = {
   toolMode: 'edit',
   selectedSymbol: 0,
   sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
-  clipboard: null,
   selectedCells: new Set(),
   message: null,
   graphNodes: [initialRootNode],
@@ -170,7 +164,6 @@ function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
     outputGrid,
     sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
     selectedCells: new Set(),
-    clipboard: null,
     message: null,
   }
 }
@@ -375,43 +368,6 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
     }
 
-    case 'COPY_SELECTION': {
-      if (state.selectedCells.size === 0) {
-        return { ...state, message: { kind: 'error', text: 'toast.no_cells' } }
-      }
-      const clipboard: ClipboardEntry[] = []
-      for (const key of state.selectedCells) {
-        const { x, y } = parseCellKey(key)
-        clipboard.push({ x, y, symbol: state.outputGrid[x][y] })
-      }
-      return {
-        ...state,
-        clipboard,
-        message: { kind: 'info', text: 'toast.cells_copied' },
-      }
-    }
-
-    case 'PASTE': {
-      if (state.pendingPivotReflection) {
-        return { ...state, blockReason: 'branch_pivot', pendingPivotReflection: false }
-      }
-      if (!state.clipboard || state.clipboard.length === 0) {
-        return { ...state, message: { kind: 'error', text: 'toast.no_data_paste' } }
-      }
-      if (state.selectedCells.size !== 1) {
-        return { ...state, message: { kind: 'error', text: 'toast.select_target' } }
-      }
-      const targetKey = state.selectedCells.values().next().value as string
-      const { x: targetX, y: targetY } = parseCellKey(targetKey)
-      const outputGrid = cloneGrid(state.outputGrid)
-      pasteClipboard(outputGrid, state.clipboard, targetX, targetY)
-      const graph = addNode(
-        { ...state, outputGrid },
-        { kind: 'mechanical', action: 'paste' },
-      )
-      return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
-    }
-
     case 'SET_MESSAGE':
       return { ...state, message: action.message }
 
@@ -521,8 +477,6 @@ function getNodeLabel(trigger: GraphTrigger): string {
       const count = Number(trigger.details?.count ?? 0)
       return `Fill \u00d7${count}`
     }
-    case 'paste':
-      return 'Paste'
     case 'resize': {
       return String(trigger.details?.size ?? '')
     }
@@ -557,6 +511,10 @@ export function ArcLabPage() {
   const [accessibleTaskIds, setAccessibleTaskIds] = useState<Set<string> | null>(null)
   const [accessChecked, setAccessChecked] = useState(false)
   const [attemptCount, setAttemptCount] = useState<number | null>(null)
+
+  const [instructionOpen, setInstructionOpen] = useState(() => {
+    return localStorage.getItem('arc_instruction_dismissed') !== 'v1'
+  })
 
   useEffect(() => {
     if (routeUserId) {
@@ -678,21 +636,6 @@ export function ArcLabPage() {
     }
   }, [specificTask])
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
-
-      if (e.key === 'c' || e.key === 'C') {
-        dispatch({ type: 'COPY_SELECTION' })
-      } else if (e.key === 'v' || e.key === 'V') {
-        dispatch({ type: 'PASTE' })
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
-
   const interceptPivotReflection = (): boolean => {
     if (state.pendingPivotReflection) {
       dispatch({ type: 'SET_BLOCK_REASON', reason: 'branch_pivot' })
@@ -749,7 +692,7 @@ export function ArcLabPage() {
   const handleAbandonConfirm = () => {
     setAbandonOpen(false)
     dispatch({ type: 'ABANDON' })
-    navigate('/')
+    navigate('/my-tasks')
   }
 
   const handleAbandonCancel = () => {
@@ -857,11 +800,6 @@ export function ArcLabPage() {
             </div>
 
             <div className="flex flex-col gap-4">
-              <Toast
-                message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
-                onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
-              />
-
               <OutputEditor
               grid={state.outputGrid}
               toolMode={state.toolMode}
@@ -895,6 +833,11 @@ export function ArcLabPage() {
               canGoPrev={canGoPrev}
               canGoNext={canGoNext}
             />
+
+              <Toast
+                message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
+                onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
+              />
             </div>
           </div>
         </div>
@@ -909,6 +852,14 @@ export function ArcLabPage() {
         cancelLabel={t('dialog.cancel')}
         onConfirm={handleAbandonConfirm}
         onCancel={handleAbandonCancel}
+      />
+
+      <InstructionModal
+        open={instructionOpen}
+        onDismiss={() => {
+          localStorage.setItem('arc_instruction_dismissed', 'v1')
+          setInstructionOpen(false)
+        }}
       />
       </>
       )}

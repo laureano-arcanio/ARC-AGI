@@ -11,7 +11,6 @@ import {
   gridWidth,
   parseCellKey,
   parseSize,
-  pasteClipboard,
   serializeGridToGridObject,
 } from '../utils'
 
@@ -147,35 +146,4 @@ describe('computeCellSize', () => {
   })
 })
 
-describe('pasteClipboard', () => {
-  it('pastes clipboard entries relative to target', () => {
-    const grid = [
-      [0, 0, 0],
-      [0, 0, 0],
-      [0, 0, 0],
-    ]
-    const clipboard = [
-      { x: 0, y: 0, symbol: 5 },
-      { x: 0, y: 1, symbol: 5 },
-    ]
-    pasteClipboard(grid, clipboard, 1, 1)
-    expect(grid).toEqual([
-      [0, 0, 0],
-      [0, 5, 5],
-      [0, 0, 0],
-    ])
-  })
 
-  it('ignores entries that fall outside the grid', () => {
-    const grid = [
-      [0, 0],
-      [0, 0],
-    ]
-    const clipboard = [
-      { x: 0, y: 0, symbol: 1 },
-      { x: 0, y: 1, symbol: 1 },
-    ]
-    pasteClipboard(grid, clipboard, 1, 1)
-    expect(grid[1][1]).toBe(1)
-  })
-})
