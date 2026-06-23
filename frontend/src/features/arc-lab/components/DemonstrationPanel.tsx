@@ -14,13 +14,13 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
   return (
     <div
       data-testid="demonstration-panel"
-      className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900"
     >
-      <div className="border-b border-gray-800 bg-gray-800/50 px-4 py-3 text-center text-sm font-semibold text-gray-200">
+      <span className="mb-2 block text-sm font-semibold text-gray-200">
         {t('panel.demonstration')}
-      </div>
+      </span>
 
-      <div className="flex flex-col">
+      <div className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
+        <div className="flex flex-col">
         {pairs.map((pair, i) => {
           const inputH = gridHeight(pair.input)
           const inputW = gridWidth(pair.input)
@@ -61,6 +61,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
             {t('panel.empty')}
           </div>
         )}
+        </div>
       </div>
     </div>
   )

@@ -10,7 +10,9 @@ import {
   createGrid,
   floodfill,
   formatSize,
+  gridHeight,
   gridsEqual,
+  gridWidth,
   parseCellKey,
   parseSize,
   pasteClipboard,
@@ -810,34 +812,50 @@ export function ArcLabPage() {
       <div className="flex flex-col gap-5">
         <DemonstrationPanel pairs={state.train} />
 
-        <div className="flex flex-col gap-5 lg:flex-row">
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <CognitiveTimeline
+          nodes={state.graphNodes}
+          activeNodeId={state.activeNodeId}
+          onNodeClick={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
+          getLabel={(trigger) => getNodeLabel(trigger)}
+        />
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-gray-200">
+            {t('panel.test_input')}{' '}
+            <span className="text-gray-400">{gridHeight(state.inputGrid)}×{gridWidth(state.inputGrid)}</span>{' '}
+            <span className="text-gray-400">{state.currentTestIndex + 1}/{state.test.length}</span>
             {taskId && taskId !== 'random' && attemptCount !== null && (
-              <span className="text-sm text-gray-500">
-                {t('arc_lab.attempt_count', { count: attemptCount })}
-              </span>
+              <span className="text-gray-400"> · {t('arc_lab.attempt_count', { count: attemptCount })}</span>
             )}
+          </span>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
+            data-testid="next-test-input"
+            disabled={state.test.length <= 1}
+            className="rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t('button.next_test')}
+          </button>
+        </div>
 
-            <TestInputPanel
-              input={state.inputGrid}
-              currentIndex={state.currentTestIndex}
-              total={state.test.length}
-              onNext={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
-            />
+        <div className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="flex flex-col gap-4">
+              <TestInputPanel
+                input={state.inputGrid}
+                currentIndex={state.currentTestIndex}
+                total={state.test.length}
+              />
+            </div>
 
-            <CognitiveTimeline
-              nodes={state.graphNodes}
-              activeNodeId={state.activeNodeId}
-              onNodeClick={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
-              getLabel={(trigger) => getNodeLabel(trigger)}
-            />
+            <div className="flex flex-col gap-4">
+              <Toast
+                message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
+                onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
+              />
 
-            <Toast
-              message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
-              onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
-            />
-
-            <OutputEditor
+              <OutputEditor
               grid={state.outputGrid}
               toolMode={state.toolMode}
               selectedSymbol={state.selectedSymbol}
@@ -872,6 +890,7 @@ export function ArcLabPage() {
               canGoPrev={canGoPrev}
               canGoNext={canGoNext}
             />
+            </div>
           </div>
         </div>
       </div>

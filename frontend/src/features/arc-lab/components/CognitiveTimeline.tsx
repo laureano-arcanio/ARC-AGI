@@ -375,14 +375,12 @@ export function CognitiveTimeline({
   return (
     <div
       data-testid="cognitive-timeline"
-      className="w-full rounded-xl border border-gray-800 bg-gray-900 overflow-x-auto"
     >
-      <div className="border-b border-gray-800 bg-gray-800/50 px-4 py-2">
-        <span className="text-sm font-semibold text-gray-200">
-          {t('timeline.title')}
-        </span>
-      </div>
+      <span className="mb-2 block text-sm font-semibold text-gray-200">
+        {t('timeline.title')}
+      </span>
 
+      <div className="w-full overflow-x-auto rounded-xl border border-gray-800 bg-gray-900">
       <div className="overflow-visible px-4 py-3">
         <div
           className="relative"
@@ -456,6 +454,7 @@ export function CognitiveTimeline({
             </Fragment>
           ))}
         </div>
+      </div>
       </div>
     </div>
   )

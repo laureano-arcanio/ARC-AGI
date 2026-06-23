@@ -93,7 +93,7 @@ export function OutputEditor({
   }
 
   return (
-    <div data-testid="output-editor" className="mt-4 rounded-xl border border-gray-800 bg-gray-900 p-4">
+    <div data-testid="output-editor" className="p-4">
       <div className="mb-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
