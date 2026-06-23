@@ -235,12 +235,12 @@ export function AdminUserDetailPage() {
           {t('admin_detail.no_tasks')}
         </div>
       ) : (
-        <div>
-          <div className="flex items-center justify-between border-b border-gray-800 bg-gray-900/50 px-4 py-2">
+        <>
+          <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-gray-500">
               {tasks?.length ?? 0} tasks
               {selectedTaskIds.size > 0 && (
-                <span className="ml-2 text-blue-400">
+                <span className="ml-1 text-blue-400">
                   ({selectedTaskIds.size} selected)
                 </span>
               )}
@@ -251,7 +251,7 @@ export function AdminUserDetailPage() {
                 setConfirmOpen(true)
               }}
               disabled={selectedTaskIds.size === 0 || deleteMutation.isPending}
-              className={`rounded px-3 py-1 text-xs font-medium transition ${
+              className={`ml-auto rounded px-3 py-1 text-xs font-medium transition ${
                 selectedTaskIds.size > 0
                   ? 'bg-red-800 text-red-200 hover:bg-red-700'
                   : 'bg-gray-800 text-gray-600'
@@ -261,84 +261,86 @@ export function AdminUserDetailPage() {
             </button>
           </div>
           {deleteStatus === 'success' && (
-            <p className="px-4 py-2 text-xs text-green-400">{t('admin_detail.delete_success')}</p>
+            <p className="text-xs text-green-400">{t('admin_detail.delete_success')}</p>
           )}
           {deleteStatus === 'error' && (
-            <p className="px-4 py-2 text-xs text-red-400">{t('admin_detail.delete_error')}</p>
+            <p className="text-xs text-red-400">{t('admin_detail.delete_error')}</p>
           )}
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
-              <tr>
-                <th className="w-10 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0"
-                  />
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  {t('admin_detail.table.taskId')}
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  {t('admin_detail.table.attempts')}
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  {t('admin_detail.view_graph')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {tasks?.map((row) => {
-                const isSelected = selectedTaskIds.has(row.taskId)
-                return (
-                  <tr
-                    key={row.taskId}
-                    className={`transition ${
-                      isSelected ? 'bg-blue-950/20' : 'hover:bg-gray-900/50'
-                    }`}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelect(row.taskId)}
-                        className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-0"
-                      />
-                    </td>
-                    <td
-                      className="cursor-pointer px-4 py-3 font-mono text-gray-200 hover:text-white"
-                      onClick={() => navigate(`/admin/users/${numericId}/task/${row.taskId}`)}
+          <div className="overflow-x-auto rounded border border-gray-700">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-gray-700 bg-gray-800/50 text-gray-500">
+                <tr>
+                  <th className="w-8 px-3 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-800 text-blue-600"
+                    />
+                  </th>
+                  <th className="px-3 py-1.5 font-medium">
+                    {t('admin_detail.table.taskId')}
+                  </th>
+                  <th className="px-3 py-1.5 font-medium">
+                    {t('admin_detail.table.attempts')}
+                  </th>
+                  <th className="px-3 py-1.5 font-medium">
+                    {t('admin_detail.view_graph')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {tasks?.map((row) => {
+                  const isSelected = selectedTaskIds.has(row.taskId)
+                  return (
+                    <tr
+                      key={row.taskId}
+                      className={`transition ${
+                        isSelected ? 'bg-blue-950/20' : 'hover:bg-gray-900/50'
+                      }`}
                     >
-                      <span className="flex items-center gap-2">
-                        {row.taskId}
-                        {row.solved && (
-                          <span className="rounded bg-green-900/40 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
-                            solved
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400">
-                      {row.attemptCount}{' '}
-                      {row.attemptCount === 1
-                        ? t('admin_detail.attempt')
-                        : t('admin_detail.attempts')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
+                      <td className="w-8 px-3 py-1.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(row.taskId)}
+                          className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-800 text-blue-600"
+                        />
+                      </td>
+                      <td
+                        className="cursor-pointer px-3 py-1.5 font-mono text-gray-200 hover:text-white"
                         onClick={() => navigate(`/admin/users/${numericId}/task/${row.taskId}`)}
-                        className="rounded bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
                       >
-                        {t('admin_detail.view_graph')}
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                        <span className="flex items-center gap-2">
+                          {row.taskId}
+                          {row.solved && (
+                            <span className="rounded bg-green-900/40 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                              solved
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-3 py-1.5 text-gray-400">
+                        {row.attemptCount}{' '}
+                        {row.attemptCount === 1
+                          ? t('admin_detail.attempt')
+                          : t('admin_detail.attempts')}
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <button
+                          onClick={() => navigate(`/admin/users/${numericId}/task/${row.taskId}`)}
+                          className="rounded bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
+                        >
+                          {t('admin_detail.view_graph')}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <ConfirmDialog

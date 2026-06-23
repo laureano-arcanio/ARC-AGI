@@ -764,6 +764,7 @@ export function ArcLabPage() {
     if (wordCount < 5) return
     dispatch({ type: 'SUBMIT_REFLECTION', intent: 'correct_analysis', text: trimmed })
     setCorrectAnalysisText('')
+    navigate('/my-tasks')
   }
 
   const handleAbandonConfirm = () => {
