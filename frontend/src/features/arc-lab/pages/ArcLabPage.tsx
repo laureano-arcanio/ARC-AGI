@@ -43,16 +43,17 @@ type ArcLabState = {
   currentTestIndex: number
   inputGrid: GridData
   outputGrid: GridData
+  outputGrids: Record<number, GridData>
   toolMode: ToolMode
   selectedSymbol: number
   sizeInput: string
   selectedCells: Set<string>
   message: ToastMessage | null
-  graphNodes: GraphNode[]
-  activeNodeId: string | null
-  nextNodeId: number
-  navigationHistory: string[]
-  navigationIndex: number
+  graphNodesByTest: Record<number, GraphNode[]>
+  activeNodeIdByTest: Record<number, string | null>
+  nextNodeIdByTest: Record<number, number>
+  navigationHistoryByTest: Record<number, string[]>
+  navigationIndexByTest: Record<number, number>
   blockReason: BlockReason
   pendingPivotReflection: boolean
 }
@@ -60,6 +61,7 @@ type ArcLabState = {
 type Action =
   | { type: 'LOAD_TASK'; task: ArcTask }
   | { type: 'NEXT_TEST_INPUT' }
+  | { type: 'PREV_TEST_INPUT' }
   | { type: 'SET_TOOL_MODE'; mode: ToolMode }
   | { type: 'SET_SYMBOL'; symbol: number }
   | { type: 'SET_SIZE_INPUT'; value: string }
@@ -87,19 +89,24 @@ function makeNodeId(n: number): string {
 function addNode(
   state: ArcLabState,
   trigger: GraphTrigger,
-): Pick<ArcLabState, 'graphNodes' | 'activeNodeId' | 'nextNodeId'> {
-  const id = makeNodeId(state.nextNodeId)
+): Partial<ArcLabState> {
+  const idx = state.currentTestIndex
+  const nodes = state.graphNodesByTest[idx] ?? []
+  const activeId = state.activeNodeIdByTest[idx] ?? null
+  const nextId = state.nextNodeIdByTest[idx] ?? 0
+  const id = makeNodeId(nextId)
   const node: GraphNode = {
     id,
     trigger,
     stateSnapshot: cloneGrid(state.outputGrid),
-    parentId: state.activeNodeId,
+    parentId: activeId,
     timestamp: Date.now(),
+    testPairIndex: idx,
   }
   return {
-    graphNodes: [...state.graphNodes, node],
-    activeNodeId: id,
-    nextNodeId: state.nextNodeId + 1,
+    graphNodesByTest: { ...state.graphNodesByTest, [idx]: [...nodes, node] },
+    activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: id },
+    nextNodeIdByTest: { ...state.nextNodeIdByTest, [idx]: nextId + 1 },
   }
 }
 
@@ -107,28 +114,31 @@ function updateHistory(
   state: ArcLabState,
   newActiveNodeId: string,
   isNewNode: boolean,
-): Pick<ArcLabState, 'navigationHistory' | 'navigationIndex'> {
+): Partial<ArcLabState> {
+  const idx = state.currentTestIndex
+  const history = state.navigationHistoryByTest[idx] ?? []
+  const navIndex = state.navigationIndexByTest[idx] ?? 0
   if (isNewNode) {
-    const history = [
-      ...state.navigationHistory.slice(0, state.navigationIndex + 1),
+    const newHistory = [
+      ...history.slice(0, navIndex + 1),
       newActiveNodeId,
     ]
-    return { navigationHistory: history, navigationIndex: history.length - 1 }
+    return {
+      navigationHistoryByTest: { ...state.navigationHistoryByTest, [idx]: newHistory },
+      navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: newHistory.length - 1 },
+    }
   }
-  const idx = state.navigationHistory.indexOf(newActiveNodeId)
-  if (idx >= 0) {
-    return { navigationHistory: state.navigationHistory, navigationIndex: idx }
+  const pos = history.indexOf(newActiveNodeId)
+  if (pos >= 0) {
+    return {
+      navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: pos },
+    }
   }
-  const history = [...state.navigationHistory, newActiveNodeId]
-  return { navigationHistory: history, navigationIndex: history.length - 1 }
-}
-
-const initialRootNode: GraphNode = {
-  id: 'node_000',
-  trigger: { kind: 'mechanical', action: 'load_task' },
-  stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
-  parentId: null,
-  timestamp: Date.now(),
+  const newHistory = [...history, newActiveNodeId]
+  return {
+    navigationHistoryByTest: { ...state.navigationHistoryByTest, [idx]: newHistory },
+    navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: newHistory.length - 1 },
+  }
 }
 
 const initialState: ArcLabState = {
@@ -137,24 +147,36 @@ const initialState: ArcLabState = {
   currentTestIndex: 0,
   inputGrid: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
   outputGrid: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
+  outputGrids: {},
   toolMode: 'edit',
   selectedSymbol: 0,
   sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
   selectedCells: new Set(),
   message: null,
-  graphNodes: [initialRootNode],
-  activeNodeId: 'node_000',
-  nextNodeId: 1,
-  navigationHistory: ['node_000'],
-  navigationIndex: 0,
+  graphNodesByTest: {},
+  activeNodeIdByTest: {},
+  nextNodeIdByTest: {},
+  navigationHistoryByTest: {},
+  navigationIndexByTest: {},
   blockReason: null,
   pendingPivotReflection: false,
+}
+
+function makeRootNode(outputGrid: GridData): GraphNode {
+  return {
+    id: 'node_000',
+    trigger: { kind: 'mechanical', action: 'load_task' },
+    stateSnapshot: cloneGrid(outputGrid),
+    parentId: null,
+    timestamp: Date.now(),
+  }
 }
 
 function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
   const firstTest = task.test[0]
   const inputGrid = serializeGridToGridObject(firstTest.input)
   const outputGrid = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
+  const root = makeRootNode(outputGrid)
   return {
     ...state,
     train: task.train,
@@ -162,45 +184,60 @@ function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
     currentTestIndex: 0,
     inputGrid,
     outputGrid,
+    outputGrids: {},
     sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
     selectedCells: new Set(),
     message: null,
+    graphNodesByTest: { 0: [root] },
+    activeNodeIdByTest: { 0: 'node_000' },
+    nextNodeIdByTest: { 0: 1 },
+    navigationHistoryByTest: { 0: ['node_000'] },
+    navigationIndexByTest: { 0: 0 },
+    blockReason: null,
+    pendingPivotReflection: false,
   }
 }
 
 function reducer(state: ArcLabState, action: Action): ArcLabState {
   switch (action.type) {
     case 'LOAD_TASK': {
-      const base = withTask(state, action.task)
-      const root: GraphNode = {
-        id: 'node_000',
-        trigger: { kind: 'mechanical', action: 'load_task' },
-        stateSnapshot: cloneGrid(base.outputGrid),
-        parentId: null,
-        timestamp: Date.now(),
-      }
-      return {
-        ...base,
-        graphNodes: [root],
-        activeNodeId: 'node_000',
-        nextNodeId: 1,
-        navigationHistory: ['node_000'],
-        navigationIndex: 0,
-        blockReason: null,
-        pendingPivotReflection: false,
-      }
+      return withTask(state, action.task)
     }
 
     case 'NEXT_TEST_INPUT': {
       if (state.test.length <= state.currentTestIndex + 1) {
         return { ...state, message: { kind: 'error', text: 'toast.no_next_test' } }
       }
+      const savedGridsNext = { ...state.outputGrids, [state.currentTestIndex]: state.outputGrid }
       const nextIndex = state.currentTestIndex + 1
-      const inputGrid = serializeGridToGridObject(state.test[nextIndex].input)
+      const inputGridNext = serializeGridToGridObject(state.test[nextIndex].input)
+      const outputGridNext = savedGridsNext[nextIndex] ?? createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
       return {
         ...state,
         currentTestIndex: nextIndex,
-        inputGrid,
+        inputGrid: inputGridNext,
+        outputGrid: outputGridNext,
+        outputGrids: savedGridsNext,
+        sizeInput: formatSize(outputGridNext.length, outputGridNext[0].length),
+        selectedCells: new Set(),
+      }
+    }
+
+    case 'PREV_TEST_INPUT': {
+      if (state.currentTestIndex <= 0) {
+        return { ...state, message: { kind: 'error', text: 'toast.no_prev_test' } }
+      }
+      const savedGridsPrev = { ...state.outputGrids, [state.currentTestIndex]: state.outputGrid }
+      const prevIndex = state.currentTestIndex - 1
+      const inputGridPrev = serializeGridToGridObject(state.test[prevIndex].input)
+      const outputGridPrev = savedGridsPrev[prevIndex] ?? createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
+      return {
+        ...state,
+        currentTestIndex: prevIndex,
+        inputGrid: inputGridPrev,
+        outputGrid: outputGridPrev,
+        outputGrids: savedGridsPrev,
+        sizeInput: formatSize(outputGridPrev.length, outputGridPrev[0].length),
         selectedCells: new Set(),
       }
     }
@@ -228,7 +265,8 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'resize', details: { size: formatSize(parsed.height, parsed.width) } },
       )
-      return { ...state, outputGrid, selectedCells: new Set(), ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
+      const idxResize = state.currentTestIndex
+      return { ...state, outputGrid, selectedCells: new Set(), ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxResize]!, true) }
     }
 
     case 'COPY_FROM_INPUT': {
@@ -240,25 +278,26 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'copy_from_input' },
       )
+      const idxCopy = state.currentTestIndex
       return {
         ...state,
         outputGrid,
         sizeInput: formatSize(outputGrid.length, outputGrid[0].length),
         selectedCells: new Set(),
         ...graph,
-        ...updateHistory(state, graph.activeNodeId!, true),
+        ...updateHistory(state, graph.activeNodeIdByTest![idxCopy]!, true),
       }
     }
 
     case 'RESET_OUTPUT': {
       const outputGrid = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
-      const rootNode = state.graphNodes[0]
+      const idx = state.currentTestIndex
       const graph = addNode(
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'reset_output' },
       )
-      const afterReset = updateHistory(state, graph.activeNodeId!, true)
-      const rootId = rootNode?.id ?? graph.activeNodeId!
+      const afterReset = updateHistory(state, graph.activeNodeIdByTest![idx]!, true)
+      const rootId = state.graphNodesByTest[idx]?.[0]?.id ?? graph.activeNodeIdByTest![idx]!
       const afterJump = updateHistory(
         { ...state, ...afterReset },
         rootId,
@@ -270,7 +309,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
         selectedCells: new Set(),
         ...graph,
-        activeNodeId: rootId,
+        activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: rootId },
         ...afterJump,
         blockReason: null,
         pendingPivotReflection: false,
@@ -279,32 +318,39 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     }
 
     case 'SUBMIT': {
-      const reference = state.test[state.currentTestIndex]?.output
-      if (!reference) {
-        return { ...state, message: { kind: 'error', text: 'toast.no_test_pair' } }
+      const allGrids = { ...state.outputGrids, [state.currentTestIndex]: state.outputGrid }
+      let allCorrect = true
+      for (let i = 0; i < state.test.length; i++) {
+        const output = allGrids[i]
+        if (!output || !gridsEqual(output, state.test[i].output)) {
+          allCorrect = false
+          break
+        }
       }
-      const correct = gridsEqual(state.outputGrid, reference)
+      const idxSubmit = state.currentTestIndex
       const graph = addNode(
         state,
-        { kind: 'mechanical', action: 'submit', details: { correct } },
+        { kind: 'mechanical', action: 'submit', details: { correct: allCorrect } },
       )
       return {
         ...state,
+        outputGrids: allGrids,
         ...graph,
-        ...updateHistory(state, graph.activeNodeId!, true),
-        message: correct
+        ...updateHistory(state, graph.activeNodeIdByTest![idxSubmit]!, true),
+        message: allCorrect
           ? { kind: 'info', text: 'toast.correct' }
           : { kind: 'error', text: 'toast.wrong' },
-        blockReason: correct ? 'correct_analysis' : 'failure_analysis',
+        blockReason: allCorrect ? 'correct_analysis' : 'failure_analysis',
       }
     }
 
     case 'ABANDON': {
+      const idxAbandon = state.currentTestIndex
       const graph = addNode(
         state,
         { kind: 'mechanical', action: 'abandon' },
       )
-      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
+      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxAbandon]!, true) }
     }
 
     case 'CELL_CLICK': {
@@ -312,9 +358,12 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         const outputGrid = cloneGrid(state.outputGrid)
         outputGrid[action.x][action.y] = state.selectedSymbol
         const cellEntry = { x: action.x, y: action.y, symbol: state.selectedSymbol }
-        const lastNode = state.graphNodes[state.graphNodes.length - 1]
+        const idx = state.currentTestIndex
+        const nodes = state.graphNodesByTest[idx] ?? []
+        const activeId = state.activeNodeIdByTest[idx] ?? null
+        const lastNode = nodes[nodes.length - 1]
         if (
-          state.activeNodeId === lastNode?.id &&
+          activeId === lastNode?.id &&
           lastNode?.trigger.kind === 'mechanical' &&
           lastNode.trigger.action === 'cell_paint'
         ) {
@@ -328,14 +377,14 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
             stateSnapshot: cloneGrid(outputGrid),
             timestamp: Date.now(),
           }
-          const graphNodes = [...state.graphNodes.slice(0, -1), updatedNode]
-          return { ...state, outputGrid, graphNodes }
+          const graphNodes = [...nodes.slice(0, -1), updatedNode]
+          return { ...state, outputGrid, graphNodesByTest: { ...state.graphNodesByTest, [idx]: graphNodes } }
         }
         const graph = addNode(
           { ...state, outputGrid },
           { kind: 'mechanical', action: 'cell_paint', details: { cells: [cellEntry] } },
         )
-        return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
+        return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idx]!, true) }
       }
       if (state.toolMode === 'floodfill') {
         const outputGrid = cloneGrid(state.outputGrid)
@@ -344,7 +393,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           { ...state, outputGrid },
           { kind: 'mechanical', action: 'fill_selected', details: { x: action.x, y: action.y, symbol: state.selectedSymbol } },
         )
-        return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
+        return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![state.currentTestIndex]!, true) }
       }
       return state
     }
@@ -361,11 +410,12 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           outputGrid[x][y] = state.selectedSymbol
         }
       }
+      const idxFill = state.currentTestIndex
       const graph = addNode(
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'fill_selected', details: { count: state.selectedCells.size, symbol: state.selectedSymbol } },
       )
-      return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
+      return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxFill]!, true) }
     }
 
     case 'SET_MESSAGE':
@@ -375,25 +425,28 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return { ...state, message: null }
 
     case 'TRAVEL_TO_NODE': {
-      const target = state.graphNodes.find((n) => n.id === action.nodeId)
+      const idx = state.currentTestIndex
+      const nodes = state.graphNodesByTest[idx] ?? []
+      const target = nodes.find((n) => n.id === action.nodeId)
       if (!target) return state
-      const lastNode = state.graphNodes[state.graphNodes.length - 1]
+      const lastNode = nodes[nodes.length - 1]
       const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
-        activeNodeId: target.id,
+        activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: target.id },
         ...updateHistory(state, target.id, false),
         pendingPivotReflection: isBackwards,
       }
     }
 
     case 'ADD_COGNITIVE_NODE': {
+      const idxCog = state.currentTestIndex
       const graph = addNode(
         state,
         { kind: 'cognitive', intent: action.intent, text: action.text },
       )
-      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeId!, true), pendingPivotReflection: false }
+      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCog]!, true), pendingPivotReflection: false }
     }
 
     case 'SET_BLOCK_REASON': {
@@ -401,6 +454,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     }
 
     case 'SUBMIT_REFLECTION': {
+      const idxRefl = state.currentTestIndex
       const graph = addNode(
         state,
         { kind: 'cognitive', intent: action.intent, text: action.text },
@@ -408,40 +462,48 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return {
         ...state,
         ...graph,
-        ...updateHistory(state, graph.activeNodeId!, true),
+        ...updateHistory(state, graph.activeNodeIdByTest![idxRefl]!, true),
         blockReason: null,
         pendingPivotReflection: false,
       }
     }
 
     case 'NAVIGATE_PREV': {
-      if (state.navigationIndex <= 0) return state
-      const prevId = state.navigationHistory[state.navigationIndex - 1]
-      const target = state.graphNodes.find((n) => n.id === prevId)
+      const idx = state.currentTestIndex
+      const navHistory = state.navigationHistoryByTest[idx] ?? []
+      const navIdx = state.navigationIndexByTest[idx] ?? 0
+      if (navIdx <= 0) return state
+      const prevId = navHistory[navIdx - 1]
+      const nodes = state.graphNodesByTest[idx] ?? []
+      const target = nodes.find((n) => n.id === prevId)
       if (!target) return state
-      const lastNode = state.graphNodes[state.graphNodes.length - 1]
+      const lastNode = nodes[nodes.length - 1]
       const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
-        activeNodeId: prevId,
-        navigationIndex: state.navigationIndex - 1,
+        activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: prevId },
+        navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: navIdx - 1 },
         pendingPivotReflection: isBackwards,
       }
     }
 
     case 'NAVIGATE_NEXT': {
-      if (state.navigationIndex >= state.navigationHistory.length - 1) return state
-      const nextId = state.navigationHistory[state.navigationIndex + 1]
-      const target = state.graphNodes.find((n) => n.id === nextId)
+      const idx = state.currentTestIndex
+      const navHistory = state.navigationHistoryByTest[idx] ?? []
+      const navIdx = state.navigationIndexByTest[idx] ?? 0
+      if (navIdx >= navHistory.length - 1) return state
+      const nextId = navHistory[navIdx + 1]
+      const nodes = state.graphNodesByTest[idx] ?? []
+      const target = nodes.find((n) => n.id === nextId)
       if (!target) return state
-      const lastNode = state.graphNodes[state.graphNodes.length - 1]
+      const lastNode = nodes[nodes.length - 1]
       const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
-        activeNodeId: nextId,
-        navigationIndex: state.navigationIndex + 1,
+        activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: nextId },
+        navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: navIdx + 1 },
         pendingPivotReflection: isBackwards,
       }
     }
@@ -564,9 +626,13 @@ export function ArcLabPage() {
     }
   }, [userId, taskId])
 
-  const atRoot = state.activeNodeId === 'node_000'
-  const canGoPrev = state.navigationIndex > 0
-  const canGoNext = state.navigationIndex < state.navigationHistory.length - 1
+  const currentNodes = state.graphNodesByTest[state.currentTestIndex] ?? []
+  const currentActiveNodeId = state.activeNodeIdByTest[state.currentTestIndex] ?? null
+  const currentNavHistory = state.navigationHistoryByTest[state.currentTestIndex] ?? []
+  const currentNavIndex = state.navigationIndexByTest[state.currentTestIndex] ?? 0
+  const atRoot = currentNodes.some((n) => n.id === currentActiveNodeId && n.trigger.action === 'load_task')
+  const canGoPrev = currentNavIndex > 0
+  const canGoNext = currentNavIndex < currentNavHistory.length - 1
   const readOnly = atRoot || state.blockReason !== null
 
   const lastEventKeyRef = useRef<string | null>(null)
@@ -598,22 +664,25 @@ export function ArcLabPage() {
     if (!taskId || taskId === 'random') return
     if (userId === null) return
     if (attemptIdRef.current === null) return
-    for (const node of state.graphNodes) {
-      const hash = `${node.id}:${typeof node.trigger === 'string' ? node.trigger : JSON.stringify(node)}`
-      if (sentHashes.current.has(hash)) continue
-      postEvent({
-        userId,
-        taskId,
-        attemptId: attemptIdRef.current,
-        nodeId: node.id,
-        parentNodeId: node.parentId,
-        trigger: node.trigger,
-        stateSnapshot: node.stateSnapshot,
-        timestamp: node.timestamp,
-      }).catch(() => {})
-      sentHashes.current.add(hash)
+    for (const [testIdxStr, nodes] of Object.entries(state.graphNodesByTest)) {
+      for (const node of nodes) {
+        const hash = `${testIdxStr}:${node.id}:${JSON.stringify(node.trigger)}`
+        if (sentHashes.current.has(hash)) continue
+        postEvent({
+          userId,
+          taskId,
+          attemptId: attemptIdRef.current,
+          nodeId: node.id,
+          parentNodeId: node.parentId,
+          trigger: node.trigger,
+          stateSnapshot: node.stateSnapshot,
+          timestamp: node.timestamp,
+          testPairIndex: Number(testIdxStr),
+        }).catch(() => {})
+        sentHashes.current.add(hash)
+      }
     }
-  }, [state.graphNodes, taskId, userId])
+  }, [state.graphNodesByTest, taskId, userId])
 
   useEffect(() => {
     sentHashes.current = new Set()
@@ -731,7 +800,7 @@ export function ArcLabPage() {
       outputGrid: state.outputGrid,
       testIndex: state.currentTestIndex,
       reference: state.test[state.currentTestIndex]?.output,
-      graphNodes: state.graphNodes.map((n) => ({
+      graphNodes: currentNodes.map((n) => ({
         id: n.id,
         trigger: n.trigger,
         parentId: n.parentId,
@@ -775,10 +844,18 @@ export function ArcLabPage() {
       <div className="flex flex-col">
 
         <CognitiveTimeline
-          nodes={state.graphNodes}
-          activeNodeId={state.activeNodeId}
+          nodes={currentNodes}
+          activeNodeId={currentActiveNodeId}
           onNodeClick={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
           getLabel={(trigger) => getNodeLabel(trigger)}
+          testCount={state.test.length}
+          currentTestIndex={state.currentTestIndex}
+          onTestSelect={(idx) => {
+            const diff = idx - state.currentTestIndex
+            for (let i = 0; i < Math.abs(diff); i++) {
+              dispatch(diff > 0 ? { type: 'NEXT_TEST_INPUT' } : { type: 'PREV_TEST_INPUT' })
+            }
+          }}
         />
 
         <div className="flex items-center justify-between mb-2 mt-4">
@@ -816,6 +893,34 @@ export function ArcLabPage() {
               <TestInputPanel
                 input={state.inputGrid}
               />
+              {state.test.length > 1 && (
+                <div data-testid="test-nav" className="flex flex-col items-center gap-2 px-4 pb-2">
+                  <span className="text-xs text-gray-400">
+                    {t('test_nav.label', { count: state.test.length })}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: 'PREV_TEST_INPUT' })}
+                      data-testid="prev-test-input"
+                      className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                    >
+                      {t('button.prev_test')}
+                    </button>
+                    <span className="text-sm text-gray-200" data-testid="test-index">
+                      {state.currentTestIndex + 1}/{state.test.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
+                      data-testid="next-test-input"
+                      className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                    >
+                      {t('button.next_test')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-4">

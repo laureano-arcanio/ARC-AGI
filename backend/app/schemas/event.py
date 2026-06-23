@@ -10,6 +10,7 @@ class EventCreate(BaseAPISchema):
     attempt_id: int | None = None
     node_id: str
     parent_node_id: str | None = None
+    test_pair_index: int | None = None
     trigger: dict[str, Any]
     state_snapshot: list[list[int]]
     timestamp: int
@@ -26,6 +27,7 @@ class EventRead(BaseAPISchema):
     attempt_id: int | None = None
     node_id: str
     parent_node_id: str | None = None
+    test_pair_index: int | None = None
     trigger: dict[str, Any]
     state_snapshot: list[list[int]]
     timestamp: int

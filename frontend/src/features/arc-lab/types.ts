@@ -65,6 +65,7 @@ export type EventPayload = {
   trigger: GraphTrigger
   stateSnapshot: GridData
   timestamp: number
+  testPairIndex?: number
 }
 
 export type AttemptRead = {

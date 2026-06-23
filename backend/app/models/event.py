@@ -16,6 +16,7 @@ class Event(AbstractBase):
     )
     node_id: Mapped[str] = mapped_column(nullable=False)
     parent_node_id: Mapped[str | None] = mapped_column(nullable=True)
+    test_pair_index: Mapped[int | None] = mapped_column(nullable=True)
     trigger: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     state_snapshot: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     timestamp: Mapped[int] = mapped_column(BigInteger, nullable=False)

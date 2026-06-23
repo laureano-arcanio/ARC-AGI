@@ -231,6 +231,9 @@ type CognitiveTimelineProps = {
   activeNodeId: string | null
   onNodeClick: (nodeId: string) => void
   getLabel: (trigger: GraphTrigger) => string
+  testCount?: number
+  currentTestIndex?: number
+  onTestSelect?: (index: number) => void
 }
 
 function computeLayout(
@@ -304,6 +307,9 @@ export function CognitiveTimeline({
   activeNodeId,
   onNodeClick,
   getLabel,
+  testCount = 0,
+  currentTestIndex = 0,
+  onTestSelect,
 }: CognitiveTimelineProps) {
   const { t } = useTranslation()
 
@@ -377,7 +383,28 @@ export function CognitiveTimeline({
       data-testid="cognitive-timeline"
 
     >
-      <span className="mb-2 mt-4 block text-sm font-semibold text-gray-200">
+      {testCount > 1 && (
+        <div className="mb-2 mt-4 flex items-center gap-2">
+          <span className="text-xs text-gray-400">{t('timeline.test')}</span>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: testCount }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onTestSelect?.(i)}
+                className={`rounded-md px-2.5 py-0.5 text-xs font-medium transition ${
+                  i === currentTestIndex
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <span className="mb-2 block text-sm font-semibold text-gray-200">
         {t('timeline.title')}
       </span>
 

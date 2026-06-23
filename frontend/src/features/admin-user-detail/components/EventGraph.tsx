@@ -179,6 +179,7 @@ export function EventGraph({ nodes, activeNodeId, onNodeClick, getLabel }: Event
                   return 'none'
                 })()
                 const label = getLabel(node.trigger)
+                const testIdx = node.testPairIndex
 
                 return (
                   <div
@@ -213,6 +214,9 @@ export function EventGraph({ nodes, activeNodeId, onNodeClick, getLabel }: Event
                       <div className="rounded-lg bg-gray-800 border border-gray-700 px-2.5 py-1.5 shadow-lg whitespace-nowrap">
                         <span className="text-xs text-gray-200 block">{label}</span>
                         <span className="text-[10px] text-gray-400 block">{node.id}</span>
+                        {testIdx !== undefined && (
+                          <span className="text-[10px] text-gray-500 block">Test {testIdx + 1}</span>
+                        )}
                       </div>
                     </div>
                   </div>

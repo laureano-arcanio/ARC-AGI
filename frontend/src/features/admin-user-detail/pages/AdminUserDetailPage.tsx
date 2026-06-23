@@ -38,6 +38,7 @@ export function AdminUserDetailPage() {
 
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
   const [selectedAttemptId, setSelectedAttemptId] = useState<number | null>(null)
+  const [selectedTestPairIndex, setSelectedTestPairIndex] = useState<number | null>(null)
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
   const [eventsAccordionOpen, setEventsAccordionOpen] = useState(false)
 
@@ -61,12 +62,22 @@ export function AdminUserDetailPage() {
 
   function handleExportJSONL() {
     if (!events || events.length === 0) return
-    const lines = events.map((ev) => JSON.stringify(ev))
+    const distinctTestSet = new Set<number>()
+    for (const ev of events) {
+      if (ev.testPairIndex !== null && ev.testPairIndex !== undefined) distinctTestSet.add(ev.testPairIndex)
+    }
+    const sortedTests = [...distinctTestSet].sort((a, b) => a - b)
+    const activeTest = selectedTestPairIndex ?? sortedTests[0] ?? null
+    const exportEvents = activeTest !== null
+      ? events.filter((ev) => ev.testPairIndex === activeTest)
+      : events
+    const lines = exportEvents.map((ev) => JSON.stringify(ev))
     const blob = new Blob([lines.join('\n')], { type: 'application/jsonl' })
     const url = URL.createObjectURL(blob)
+    const suffix = activeTest !== null ? `_test${activeTest + 1}` : ''
     const a = document.createElement('a')
     a.href = url
-    a.download = `events_${selectedTask}_${selectedAttemptId ?? 'all'}.jsonl`
+    a.download = `events_${selectedTask}${suffix}_${selectedAttemptId ?? 'all'}.jsonl`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -110,10 +121,12 @@ export function AdminUserDetailPage() {
     if (expandedTaskId === taskId) {
       setExpandedTaskId(null)
       setSelectedAttemptId(null)
+      setSelectedTestPairIndex(null)
       setActiveNodeId(null)
     } else {
       setExpandedTaskId(taskId)
       setSelectedAttemptId(null)
+      setSelectedTestPairIndex(null)
       setActiveNodeId(null)
       setEventsAccordionOpen(false)
     }
@@ -235,11 +248,12 @@ export function AdminUserDetailPage() {
                           <div className="mb-3">
                             <div className="flex items-center gap-2 mb-2">
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSelectedAttemptId(null)
-                                  setActiveNodeId(null)
-                                }}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedAttemptId(null)
+                                          setSelectedTestPairIndex(null)
+                                          setActiveNodeId(null)
+                                        }}
                                 className={`rounded px-3 py-1 text-xs font-medium transition ${
                                   selectedAttemptId === null
                                     ? 'bg-blue-600 text-white'
@@ -286,6 +300,7 @@ export function AdminUserDetailPage() {
                                         onClick={(e) => {
                                           e.stopPropagation()
                                           setSelectedAttemptId(attempt.id)
+                                          setSelectedTestPairIndex(null)
                                           setActiveNodeId(null)
                                         }}
                                         className={`cursor-pointer border-l-2 transition hover:bg-gray-800/50 ${
@@ -322,9 +337,45 @@ export function AdminUserDetailPage() {
                         ) : events && events.length > 0 ? (
                           <>
                             {(() => {
-                              const nodes: GraphNode[] = eventsToGraphNodes(events)
+                              const distinctTests = new Set<number>()
+                              for (const ev of events) {
+                                if (ev.testPairIndex !== null && ev.testPairIndex !== undefined) distinctTests.add(ev.testPairIndex)
+                              }
+                              const testIndices = [...distinctTests].sort((a, b) => a - b)
+                              const activeTest = selectedTestPairIndex ?? testIndices[0] ?? null
+                              const filteredEvents = activeTest !== null
+                                ? events.filter((ev) => ev.testPairIndex === activeTest)
+                                : events
+                              const nodes: GraphNode[] = eventsToGraphNodes(filteredEvents)
+                              const activeNode = nodes.find((n) => n.id === activeNodeId) ?? null
                               return (
                                 <div className="flex flex-col gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-gray-400">Test:</span>
+                                    {testIndices.length === 0 ? (
+                                      <span className="text-[10px] text-gray-600 italic">no test pair data</span>
+                                    ) : (
+                                      testIndices.map((tpi) => (
+                                        <button
+                                          key={tpi}
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setSelectedTestPairIndex(tpi)
+                                          }}
+                                          className={`rounded px-2.5 py-0.5 text-xs font-medium transition ${
+                                            activeTest === tpi
+                                              ? 'bg-blue-600 text-white'
+                                              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                          }`}
+                                        >
+                                          Test {tpi + 1}
+                                        </button>
+                                      ))
+                                    )}
+                                    <span className="text-[10px] text-gray-500">
+                                      {nodes.length} nodes
+                                    </span>
+                                  </div>
                                   <EventGraph
                                     nodes={nodes}
                                     activeNodeId={activeNodeId}
@@ -332,17 +383,14 @@ export function AdminUserDetailPage() {
                                     getLabel={getNodeLabel}
                                   />
                                   <div className="flex items-start gap-4">
-                                    {activeNodeId && (() => {
-                                      const activeNode = nodes.find((n) => n.id === activeNodeId) ?? null
-                                      return activeNode ? (
-                                        <div className="w-80 shrink-0">
-                                          <EventDetailsPanel
-                                            node={activeNode}
-                                            onClose={() => setActiveNodeId(null)}
-                                          />
-                                        </div>
-                                      ) : null
-                                    })()}
+                                    {activeNode && (
+                                      <div className="w-80 shrink-0">
+                                        <EventDetailsPanel
+                                          node={activeNode}
+                                          onClose={() => setActiveNodeId(null)}
+                                        />
+                                      </div>
+                                    )}
                                     <div className="flex-1">
                                       <div className="flex justify-end">
                                         <button
@@ -363,7 +411,7 @@ export function AdminUserDetailPage() {
                                         }}
                                         className="flex flex-1 items-center justify-between rounded bg-gray-800/50 px-3 py-2 text-xs font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
                                       >
-                                        <span>Raw Events ({events.length})</span>
+                                        <span>Raw Events ({filteredEvents.length})</span>
                                         <svg
                                           className={`h-4 w-4 transition ${eventsAccordionOpen ? 'rotate-180' : ''}`}
                                           fill="none"
@@ -376,11 +424,11 @@ export function AdminUserDetailPage() {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation()
-                                          const text = events.map((ev) => JSON.stringify(ev, null, 2)).join('\n\n')
+                                          const text = filteredEvents.map((ev) => JSON.stringify(ev, null, 2)).join('\n\n')
                                           navigator.clipboard.writeText(text)
                                         }}
                                         className="rounded bg-gray-800/50 px-2.5 py-2 text-gray-400 transition hover:bg-gray-700 hover:text-white"
-                                        title="Copy all events"
+                                        title="Copy displayed events"
                                       >
                                         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -395,6 +443,9 @@ export function AdminUserDetailPage() {
                                               {t('admin_detail.table.nodeId')}
                                             </th>
                                             <th className="px-3 py-2 font-medium">
+                                              Test
+                                            </th>
+                                            <th className="px-3 py-2 font-medium">
                                               {t('admin_detail.table.timestamp')}
                                             </th>
                                             <th className="px-3 py-2 font-medium">
@@ -403,13 +454,18 @@ export function AdminUserDetailPage() {
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-800">
-                                          {events.map((ev) => (
+                                          {filteredEvents.map((ev) => (
                                             <tr
                                               key={ev.id}
                                               className="transition hover:bg-gray-900/50"
                                             >
                                               <td className="px-3 py-2 font-mono text-gray-300">
                                                 {ev.nodeId}
+                                              </td>
+                                              <td className="px-3 py-2 text-gray-400">
+                                                {ev.testPairIndex !== null && ev.testPairIndex !== undefined
+                                                  ? ev.testPairIndex + 1
+                                                  : '-'}
                                               </td>
                                               <td className="px-3 py-2 text-gray-400">
                                                 {ev.timestamp}

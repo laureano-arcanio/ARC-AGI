@@ -77,14 +77,15 @@ describe('ArcLabPage', () => {
     renderPage()
     await waitForTask()
     expect(screen.getByTestId('evaluation-input')).toBeInTheDocument()
-    expect(screen.getByTestId('test-input-panel').textContent).toContain('1/2')
+    expect(screen.getByTestId('test-nav')).toBeInTheDocument()
+    expect(screen.getByTestId('test-index').textContent).toBe('1/2')
   })
 
   it('cycles to the next test input', async () => {
     renderPage()
     await waitForTask()
     fireEvent.click(screen.getByTestId('next-test-input'))
-    expect(screen.getByTestId('test-input-panel').textContent).toContain('2/2')
+    expect(screen.getByTestId('test-index').textContent).toBe('2/2')
   })
 
   it('warns when there is no next test input', async () => {
@@ -93,6 +94,40 @@ describe('ArcLabPage', () => {
     fireEvent.click(screen.getByTestId('next-test-input'))
     fireEvent.click(screen.getByTestId('next-test-input'))
     expect(screen.getByTestId('toast').textContent).toContain('toast.no_next_test')
+  })
+
+  it('shows error when trying to go to previous test at first test', async () => {
+    renderPage()
+    await waitForTask()
+    fireEvent.click(screen.getByTestId('prev-test-input'))
+    expect(screen.getByTestId('toast').textContent).toContain('toast.no_prev_test')
+  })
+
+  it('preserves output grid edits when navigating between tests', async () => {
+    renderPage()
+    await waitForTask()
+    // Submit hypothesis to enable editing
+    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
+      target: { value: 'one two three four five' },
+    })
+    fireEvent.click(screen.getByTestId('hypothesis-submit'))
+
+    // Paint on test 0
+    fireEvent.click(screen.getByTestId('symbol-3'))
+    fireEvent.mouseDown(outputCell(0, 0))
+    fireEvent.mouseUp(outputCell(0, 0))
+    expect(outputCell(0, 0).getAttribute('data-symbol')).toBe('3')
+
+    // Navigate to test 1
+    fireEvent.click(screen.getByTestId('next-test-input'))
+    expect(screen.getByTestId('test-index').textContent).toBe('2/2')
+
+    // Navigate back to test 0
+    fireEvent.click(screen.getByTestId('prev-test-input'))
+    expect(screen.getByTestId('test-index').textContent).toBe('1/2')
+
+    // The painted cell should still be there
+    expect(outputCell(0, 0).getAttribute('data-symbol')).toBe('3')
   })
 
   it('shows the hypothesis input when at root', async () => {
@@ -149,7 +184,7 @@ describe('ArcLabPage', () => {
     expect(screen.getByTestId('toast').textContent).toContain('toast.wrong')
   })
 
-  it('reports correct solution when output matches', async () => {
+  it('reports correct solution when all test outputs match', async () => {
     renderPage()
     await waitForTask()
     // Submit hypothesis first to enable editing
@@ -158,6 +193,8 @@ describe('ArcLabPage', () => {
     })
     fireEvent.click(screen.getByTestId('hypothesis-submit'))
 
+    // Fill test 0's output to match reference (all 1s)
+    fireEvent.click(screen.getByTestId('copy-from-input'))
     fireEvent.click(screen.getByTestId('symbol-1'))
     for (const [x, y] of [
       [0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2],
@@ -166,6 +203,17 @@ describe('ArcLabPage', () => {
       fireEvent.mouseDown(cell)
       fireEvent.mouseUp(cell)
     }
+
+    // Navigate to test 1 and fill it correctly (all 3s)
+    fireEvent.click(screen.getByTestId('next-test-input'))
+    fireEvent.click(screen.getByTestId('copy-from-input'))
+    fireEvent.click(screen.getByTestId('symbol-3'))
+    for (const [x, y] of [[0, 0], [0, 1], [1, 0], [1, 1]]) {
+      const cell = outputCell(x, y)
+      fireEvent.mouseDown(cell)
+      fireEvent.mouseUp(cell)
+    }
+
     fireEvent.click(screen.getByTestId('submit-btn'))
     expect(screen.getByTestId('toast').getAttribute('data-kind')).toBe('info')
     expect(screen.getByTestId('toast').textContent).toContain('toast.correct')
@@ -204,7 +252,7 @@ describe('ArcLabPage', () => {
     // Reset directly — no confirm dialog
     fireEvent.click(screen.getByTestId('reset-btn'))
     expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
-    expect(sizeInput.value).toBe('3x3')
+    expect(sizeInput.value).toBe('8x8')
     // Hypothesis input is shown again (at root)
     expect(screen.getByTestId('hypothesis-submit')).toBeInTheDocument()
   })
@@ -330,7 +378,7 @@ describe('ArcLabPage', () => {
     const initialNodes = screen.getAllByTestId(/timeline-node-/).length
     fireEvent.click(screen.getByTestId('abandon-btn'))
     fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
-    expect(navigate).toHaveBeenCalledWith('/')
+    expect(navigate).toHaveBeenCalledWith('/my-tasks')
     const nodes = screen.getAllByTestId(/timeline-node-/)
     expect(nodes.length).toBe(initialNodes + 1)
     expect(nodes[nodes.length - 1].parentElement!.textContent).toContain('Abandon')

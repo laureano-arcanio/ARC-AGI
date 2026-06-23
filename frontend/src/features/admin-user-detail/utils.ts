@@ -4,8 +4,9 @@ import type { EventRead } from './types'
 export function eventsToGraphNodes(events: EventRead[]): GraphNode[] {
   const seen = new Set<string>()
   return events.filter((ev) => {
-    if (seen.has(ev.nodeId)) return false
-    seen.add(ev.nodeId)
+    const key = `${ev.testPairIndex ?? '__'}:${ev.nodeId}`
+    if (seen.has(key)) return false
+    seen.add(key)
     return true
   }).map((ev) => {
     const trigger = ev.trigger as unknown as GraphTrigger
@@ -15,6 +16,7 @@ export function eventsToGraphNodes(events: EventRead[]): GraphNode[] {
       stateSnapshot: ev.stateSnapshot,
       parentId: ev.parentNodeId ?? null,
       timestamp: ev.timestamp,
+      testPairIndex: ev.testPairIndex ?? undefined,
     }
   })
 }

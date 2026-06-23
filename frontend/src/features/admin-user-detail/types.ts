@@ -23,6 +23,7 @@ export type EventRead = {
   attemptId: number | null
   nodeId: string
   parentNodeId: string | null
+  testPairIndex: number | null
   trigger: Record<string, unknown>
   stateSnapshot: number[][]
   timestamp: number

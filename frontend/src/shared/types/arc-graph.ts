@@ -27,6 +27,7 @@ export type GraphNode = {
   stateSnapshot: GridData
   parentId: string | null
   timestamp: number
+  testPairIndex?: number
 }
 
 export const COLOR_MAP: Record<number, string> = {

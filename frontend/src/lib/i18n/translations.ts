@@ -26,6 +26,8 @@ const es = {
   'button.prev': 'Paso anterior',
   'button.next': 'Paso siguiente',
   'button.next_test': 'Siguiente entrada',
+  'button.prev_test': 'Prueba anterior',
+  'test_nav.label': 'Esta tarea tiene {count} muestras de prueba para predecir',
   'button.resize': 'Redimensionar',
   'button.copy_input': 'Copiar entrada',
   'button.reset': 'Reiniciar',
@@ -46,6 +48,7 @@ const es = {
   'symbol.aria': 'Símbolo {n}',
 
   'toast.no_next_test': 'No hay más entradas de prueba.',
+  'toast.no_prev_test': 'No hay entrada de prueba anterior.',
   'toast.no_test_pair': 'No hay par de prueba para comparar.',
   'toast.correct': '¡Solución correcta!',
   'toast.wrong': 'Solución incorrecta.',
@@ -57,6 +60,7 @@ const es = {
   'error.size_max': 'El tamaño máximo es {max} por lado. Elige un tamaño más pequeño.',
 
   'timeline.title': 'Línea de tiempo',
+  'timeline.test': 'Prueba',
   'timeline.resume': 'Retomar',
   'timeline.active': '(activo)',
   'timeline.collapse': 'Contraer rama',
@@ -267,6 +271,8 @@ const en: Record<string, string> = {
   'button.prev': 'Previous step',
   'button.next': 'Next step',
   'button.next_test': 'Next test input',
+  'button.prev_test': 'Previous test',
+  'test_nav.label': 'This task has {count} test samples to predict',
   'button.resize': 'Resize',
   'button.copy_input': 'Copy input',
   'button.reset': 'Reset',
@@ -287,6 +293,7 @@ const en: Record<string, string> = {
   'symbol.aria': 'Symbol {n}',
 
   'toast.no_next_test': 'No next test input.',
+  'toast.no_prev_test': 'No previous test input.',
   'toast.no_test_pair': 'No test pair to check against.',
   'toast.correct': 'Correct solution!',
   'toast.wrong': 'Wrong solution.',
@@ -298,6 +305,7 @@ const en: Record<string, string> = {
   'error.size_max': 'Grid size should be at most {max} per side. Pick a smaller size.',
 
   'timeline.title': 'Timeline',
+  'timeline.test': 'Test',
   'timeline.resume': 'Resume',
   'timeline.active': '(active)',
   'timeline.collapse': 'Collapse branch',
