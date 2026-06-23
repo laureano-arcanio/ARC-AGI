@@ -375,8 +375,9 @@ export function CognitiveTimeline({
   return (
     <div
       data-testid="cognitive-timeline"
+
     >
-      <span className="mb-2 block text-sm font-semibold text-gray-200">
+      <span className="mb-2 mt-4 block text-sm font-semibold text-gray-200">
         {t('timeline.title')}
       </span>
 

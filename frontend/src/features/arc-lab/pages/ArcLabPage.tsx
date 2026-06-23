@@ -809,8 +809,8 @@ export function ArcLabPage() {
         </div>
       ) : (
       <>
-      <div className="flex flex-col gap-5">
-        <DemonstrationPanel pairs={state.train} />
+      <DemonstrationPanel pairs={state.train} />
+      <div className="flex flex-col">
 
         <CognitiveTimeline
           nodes={state.graphNodes}
@@ -819,7 +819,7 @@ export function ArcLabPage() {
           getLabel={(trigger) => getNodeLabel(trigger)}
         />
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2 mt-4">
           <span className="text-sm font-semibold text-gray-200">
             {t('panel.test_input')}{' '}
             <span className="text-gray-400">{gridHeight(state.inputGrid)}×{gridWidth(state.inputGrid)}</span>{' '}
@@ -828,15 +828,24 @@ export function ArcLabPage() {
               <span className="text-gray-400"> · {t('arc_lab.attempt_count', { count: attemptCount })}</span>
             )}
           </span>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
-            data-testid="next-test-input"
-            disabled={state.test.length <= 1}
-            className="rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {t('button.next_test')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAbandonOpen(true)}
+              data-testid="abandon-btn"
+              className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-orange-700"
+            >
+              {t('button.abandon')}
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              data-testid="submit-btn"
+              className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
+            >
+              {t('button.submit')}
+            </button>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
@@ -844,8 +853,6 @@ export function ArcLabPage() {
             <div className="flex flex-col gap-4">
               <TestInputPanel
                 input={state.inputGrid}
-                currentIndex={state.currentTestIndex}
-                total={state.test.length}
               />
             </div>
 
@@ -879,8 +886,6 @@ export function ArcLabPage() {
               onResize={() => dispatch({ type: 'RESIZE' })}
               onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
               onReset={handleReset}
-              onSubmit={handleSubmit}
-              onAbandon={() => setAbandonOpen(true)}
               onCellClick={handleCellClick}
               onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}
               onToolModeChange={(mode) => dispatch({ type: 'SET_TOOL_MODE', mode })}

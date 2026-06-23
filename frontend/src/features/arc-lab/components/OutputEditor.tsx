@@ -29,8 +29,6 @@ type OutputEditorProps = {
   onResize: () => void
   onCopyFromInput: () => void
   onReset: () => void
-  onSubmit: () => void
-  onAbandon: () => void
   onCellClick: (x: number, y: number) => void
   onSelectionChange: (cells: Set<string>) => void
   onToolModeChange: (mode: ToolMode) => void
@@ -66,8 +64,6 @@ export function OutputEditor({
   onResize,
   onCopyFromInput,
   onReset,
-  onSubmit,
-  onAbandon,
   onCellClick,
   onSelectionChange,
   onToolModeChange,
@@ -117,24 +113,7 @@ export function OutputEditor({
             {t('button.next')} →
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onAbandon}
-            data-testid="abandon-btn"
-            className="rounded-md bg-red-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
-          >
-            {t('button.abandon')}
-          </button>
-          <button
-            type="button"
-            onClick={onSubmit}
-            data-testid="submit-btn"
-            className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
-          >
-            {t('button.submit')}
-          </button>
-        </div>
+
       </div>
 
       <div data-testid="output-grid" className="relative flex justify-center">

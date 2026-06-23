@@ -25,8 +25,6 @@ const baseProps = {
   onResize: vi.fn(),
   onCopyFromInput: vi.fn(),
   onReset: vi.fn(),
-  onSubmit: vi.fn(),
-  onAbandon: vi.fn(),
   onCellClick: vi.fn(),
   onSelectionChange: vi.fn(),
   onToolModeChange: vi.fn(),
@@ -38,13 +36,11 @@ const baseProps = {
 }
 
 describe('OutputEditor', () => {
-  it('renders resize, copy, reset, and submit buttons', () => {
+  it('renders resize, copy, and reset buttons', () => {
     render(<OutputEditor {...baseProps} />)
     expect(screen.getByTestId('resize-btn')).toBeInTheDocument()
     expect(screen.getByTestId('copy-from-input')).toBeInTheDocument()
     expect(screen.getByTestId('reset-btn')).toBeInTheDocument()
-    expect(screen.getByTestId('submit-btn')).toBeInTheDocument()
-    expect(screen.getByTestId('abandon-btn')).toBeInTheDocument()
   })
 
   it('renders the editable grid', () => {
@@ -78,28 +74,20 @@ describe('OutputEditor', () => {
     expect(onSizeInputChange).toHaveBeenCalledWith('5x5')
   })
 
-  it('calls onCopyFromInput, onReset, and onSubmit', () => {
+  it('calls onCopyFromInput and onReset', () => {
     const onCopyFromInput = vi.fn()
     const onReset = vi.fn()
-    const onSubmit = vi.fn()
-    const onAbandon = vi.fn()
     render(
       <OutputEditor
         {...baseProps}
         onCopyFromInput={onCopyFromInput}
         onReset={onReset}
-        onSubmit={onSubmit}
-        onAbandon={onAbandon}
       />,
     )
     fireEvent.click(screen.getByTestId('copy-from-input'))
     fireEvent.click(screen.getByTestId('reset-btn'))
-    fireEvent.click(screen.getByTestId('abandon-btn'))
-    fireEvent.click(screen.getByTestId('submit-btn'))
     expect(onCopyFromInput).toHaveBeenCalledTimes(1)
     expect(onReset).toHaveBeenCalledTimes(1)
-    expect(onAbandon).toHaveBeenCalledTimes(1)
-    expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
   it('forwards cell clicks to onCellClick', () => {

@@ -15,7 +15,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
     <div
       data-testid="demonstration-panel"
     >
-      <span className="mb-2 block text-sm font-semibold text-gray-200">
+      <span className="mb-2 mt-4 block text-sm font-semibold text-gray-200">
         {t('panel.demonstration')}
       </span>
 

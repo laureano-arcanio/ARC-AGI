@@ -16,13 +16,13 @@ const es = {
   'home.subtitle': 'Resuelve puzzles de razonamiento visual ARC-AGI infiriendo patrones a partir de ejemplos de entrada y salida.',
   'home.start': 'Empezar',
 
-  'panel.demonstration': 'Demostración de la tarea',
+  'panel.demonstration': 'Ejemplos',
   'panel.input': 'Entrada',
   'panel.output': 'Salida',
-  'panel.empty': 'Carga una tarea para ver ejemplos de demostración.',
+  'panel.empty': 'Carga una tarea para ver ejemplos.',
 
-  'panel.test_input': 'Entrada de prueba',
-  'panel.multi_test_warning': 'Completa esta entrada de prueba para desbloquear la siguiente.',
+  'panel.test_input': 'Test',
+
   'button.prev': 'Deshacer',
   'button.next': 'Rehacer',
   'button.next_test': 'Siguiente entrada',
@@ -30,7 +30,7 @@ const es = {
   'button.copy_input': 'Copiar entrada',
   'button.reset': 'Reiniciar',
   'button.submit': 'Verificar',
-  'button.abandon': 'Abandonar',
+  'button.abandon': 'Continuar después',
   'dialog.abandon.title': 'Abandonar tarea',
   'dialog.abandon.message': '¿Seguro que quieres abandonar esta tarea? Se perderá el progreso no enviado.',
   'dialog.confirm': 'Confirmar',
@@ -225,13 +225,13 @@ const en: Record<string, string> = {
   'home.subtitle': 'Solve ARC-AGI visual reasoning puzzles by inferring patterns from input-output examples.',
   'home.start': 'Start',
 
-  'panel.demonstration': 'Task demonstration',
+  'panel.demonstration': 'Examples',
   'panel.input': 'Input',
   'panel.output': 'Output',
-  'panel.empty': 'Load a task to see demonstration examples.',
+  'panel.empty': 'Load a task to see examples.',
 
-  'panel.test_input': 'Test input',
-  'panel.multi_test_warning': 'Complete this test input to unlock the next.',
+  'panel.test_input': 'Test',
+
   'button.prev': 'Undo',
   'button.next': 'Redo',
   'button.next_test': 'Next test input',
