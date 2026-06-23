@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation, LanguageSwitcher } from '../lib/i18n'
 import { useAuth } from '../lib/auth'
 
@@ -20,28 +20,25 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <nav className="border-b border-gray-800 px-6 py-4">
-        <div className="mx-auto flex max-w-6xl items-center gap-6">
-          <a href="/" className="text-lg font-semibold tracking-tight">
+        <div className="mx-auto flex max-w-[1440px] items-center gap-6">
+          <Link to="/" className="text-lg font-semibold tracking-tight">
             {t('nav.brand')}
-          </a>
+          </Link>
           <div className="flex items-center gap-4 text-sm">
-            <a href="/" className="text-gray-400 transition hover:text-white">
-              {t('nav.home')}
-            </a>
             {isAdmin && (
               <>
-                <a href="/admin/users" className="text-amber-400 transition hover:text-amber-300">
+                <Link to="/admin/users" className="text-amber-400 transition hover:text-amber-300">
                   {t('nav.admin_users')}
-                </a>
-                <a href="/admin/batches" className="text-amber-400 transition hover:text-amber-300">
+                </Link>
+                <Link to="/admin/batches" className="text-amber-400 transition hover:text-amber-300">
                   {t('nav.admin_batches')}
-                </a>
+                </Link>
               </>
             )}
             {!isAdmin && userId && (
-              <a href="/my-tasks" className="text-gray-400 transition hover:text-white">
+              <Link to="/my-tasks" className="text-gray-400 transition hover:text-white">
                 {t('nav.my_tasks')}
-              </a>
+              </Link>
             )}
 
           </div>

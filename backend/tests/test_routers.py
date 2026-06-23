@@ -430,7 +430,7 @@ class TestEventRouterCreate:
             "userId": 1,
             "taskId": "abc",
             "nodeId": "node_001",
-            "trigger": {"kind": "mechanical", "action": "cell_click"},
+            "trigger": {"kind": "mechanical", "action": "cell_paint"},
             "stateSnapshot": [[0, 1, 0]],
             "timestamp": 1625000000000,
         }

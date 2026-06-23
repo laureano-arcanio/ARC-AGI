@@ -14,7 +14,7 @@ const rootNode: GraphNode = {
 function makeNode(
   id: string,
   parentId: string | null,
-  action: string = 'cell_click',
+  action: string = 'cell_paint',
 ): GraphNode {
   return {
     id,

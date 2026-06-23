@@ -133,7 +133,7 @@ const MultiIcon = () => (
 
 function getColorsUsed(trigger: GraphTrigger): string[] {
   if (trigger.kind === 'mechanical') {
-    if (trigger.action === 'cell_click') {
+    if (trigger.action === 'cell_paint') {
       const cells = (trigger.details?.cells as Array<{ symbol: number }>) ?? []
       return [...new Set(cells.map((c) => COLOR_MAP[c.symbol] ?? '#555'))]
     }
@@ -169,7 +169,7 @@ function getNodeMeta(trigger: GraphTrigger): {
   switch (action) {
     case 'load_task':
       return { icon: <FlagIcon />, color: 'neutral' }
-    case 'cell_click': {
+    case 'cell_paint': {
       const cells = (trigger.details?.cells as Array<unknown>) ?? []
       return { icon: cells.length > 1 ? <MultiIcon /> : <PencilIcon />, color: 'neutral' }
     }

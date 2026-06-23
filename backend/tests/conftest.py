@@ -103,7 +103,7 @@ def sample_event() -> Event:
         attempt_id=1,
         node_id="node_001",
         parent_node_id="node_000",
-        trigger={"kind": "mechanical", "action": "cell_click"},
+        trigger={"kind": "mechanical", "action": "cell_paint"},
         state_snapshot=[[0, 1, 0], [0, 0, 0]],
         timestamp=1625000000000,
     )
@@ -119,7 +119,7 @@ def sample_events() -> list[Event]:
             attempt_id=1,
             node_id="node_001",
             parent_node_id="node_000",
-            trigger={"kind": "mechanical", "action": "cell_click"},
+            trigger={"kind": "mechanical", "action": "cell_paint"},
             state_snapshot=[[0, 1, 0]],
             timestamp=1625000000000,
         ),

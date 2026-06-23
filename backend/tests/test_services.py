@@ -324,7 +324,7 @@ class TestEventServiceCreate:
             user_id=1,
             task_id="abc",
             node_id="node_001",
-            trigger={"kind": "mechanical", "action": "cell_click"},
+            trigger={"kind": "mechanical", "action": "cell_paint"},
             state_snapshot=[[0, 1]],
             timestamp=1625000000000,
         )

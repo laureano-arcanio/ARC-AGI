@@ -7,6 +7,7 @@ export type AttemptRead = {
   id: number
   userId: number
   taskId: string
+  status?: string
   createdAt: string | null
   updatedAt: string | null
 }

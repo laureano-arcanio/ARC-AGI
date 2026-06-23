@@ -7,7 +7,7 @@ export type CognitiveIntent =
   | 'correct_analysis'
 
 export type MechanicalAction =
-  | 'cell_click'
+  | 'cell_paint'
   | 'fill_selected'
   | 'paste'
   | 'resize'

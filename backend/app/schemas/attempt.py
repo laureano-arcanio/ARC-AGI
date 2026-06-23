@@ -16,6 +16,7 @@ class AttemptRead(BaseAPISchema):
     id: int
     user_id: int
     task_id: str
+    status: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

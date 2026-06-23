@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
+import { useUsers } from '../../admin-users/queries'
 import {
   useBatches,
   useCreateBatch,
   useDeleteBatch,
+  useUpdateBatch,
   useAssignBatchToUser,
   useUnassignBatchFromUser,
 } from '../queries'
+import { Multiselect } from '../../../components/ui/Multiselect'
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog'
 
 export function AdminBatchesPage() {
@@ -18,14 +21,26 @@ export function AdminBatchesPage() {
   const deleteBatchMutation = useDeleteBatch()
   const assignMutation = useAssignBatchToUser()
   const unassignMutation = useUnassignBatchFromUser()
+  const updateBatchMutation = useUpdateBatch()
+  const { data: users } = useUsers()
+
+  const userOptions = (users ?? []).map(u => ({
+    value: u.id,
+    label: u.email,
+  }))
+
+  const isMutating = assignMutation.isPending || unassignMutation.isPending
 
   const [name, setName] = useState('')
   const [taskIdsInput, setTaskIdsInput] = useState('')
   const [createError, setCreateError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
-  const [assignBatchId, setAssignBatchId] = useState<number | null>(null)
-  const [assignUserIdInput, setAssignUserIdInput] = useState('')
   const [expandedBatch, setExpandedBatch] = useState<number | null>(null)
+  const [editingBatchId, setEditingBatchId] = useState<number | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editTaskIds, setEditTaskIds] = useState<string[]>([])
+  const [addTaskIdInput, setAddTaskIdInput] = useState('')
+  const [editError, setEditError] = useState('')
 
   if (authLoading || isLoading) {
     return (
@@ -89,17 +104,70 @@ export function AdminBatchesPage() {
     }
   }
 
-  const handleAssign = (batchId: number) => {
-    const userId = parseInt(assignUserIdInput, 10)
-    if (!userId) return
-    assignMutation.mutate(
-      { batchId, userId },
-      { onSuccess: () => setAssignUserIdInput('') },
-    )
+  const handleUserToggle = (batchId: number, userId: number) => {
+    const batch = batches?.find(b => b.id === batchId)
+    if (!batch) return
+    const isAssigned = batch.assignedUserIds.includes(userId)
+    if (isAssigned) {
+      unassignMutation.mutate({ batchId, userId })
+    } else {
+      assignMutation.mutate({ batchId, userId })
+    }
   }
 
-  const handleUnassign = (batchId: number, userId: number) => {
-    unassignMutation.mutate({ batchId, userId })
+  const handleStartEdit = (batch: { id: number; name: string; taskIds: string[] }) => {
+    setEditingBatchId(batch.id)
+    setEditName(batch.name)
+    setEditTaskIds([...batch.taskIds])
+    setAddTaskIdInput('')
+    setEditError('')
+    setExpandedBatch(batch.id)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingBatchId(null)
+    setEditName('')
+    setEditTaskIds([])
+    setAddTaskIdInput('')
+    setEditError('')
+  }
+
+  const handleAddTaskId = () => {
+    const tid = addTaskIdInput.trim()
+    if (!tid) return
+    if (editTaskIds.includes(tid)) {
+      setEditError(t('batches.tasks_duplicate'))
+      return
+    }
+    setEditTaskIds([...editTaskIds, tid])
+    setAddTaskIdInput('')
+    setEditError('')
+  }
+
+  const handleRemoveTaskId = (tid: string) => {
+    setEditTaskIds(editTaskIds.filter((t) => t !== tid))
+  }
+
+  const handleSaveEdit = async () => {
+    const trimmedName = editName.trim()
+    if (!trimmedName) {
+      setEditError(t('batches.name_required'))
+      return
+    }
+    if (editTaskIds.length === 0) {
+      setEditError(t('batches.tasks_required'))
+      return
+    }
+    setEditError('')
+    try {
+      await updateBatchMutation.mutateAsync({
+        id: editingBatchId!,
+        data: { name: trimmedName, taskIds: editTaskIds },
+      })
+      handleCancelEdit()
+    } catch {
+      setEditError(t('batches.update_error'))
+    }
   }
 
   return (
@@ -173,84 +241,136 @@ export function AdminBatchesPage() {
                   </p>
                 </div>
               </button>
-              <button
-                onClick={() => handleDelete(batch.id)}
-                className="rounded bg-red-600/10 px-3 py-1 text-xs font-medium text-red-400 transition hover:bg-red-600/20"
-              >
-                {t('batches.delete')}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleStartEdit(batch)}
+                  className="rounded bg-blue-600/10 px-3 py-1 text-xs font-medium text-blue-400 transition hover:bg-blue-600/20"
+                >
+                  {t('batches.edit')}
+                </button>
+                <button
+                  onClick={() => handleDelete(batch.id)}
+                  className="rounded bg-red-600/10 px-3 py-1 text-xs font-medium text-red-400 transition hover:bg-red-600/20"
+                >
+                  {t('batches.delete')}
+                </button>
+              </div>
             </div>
 
             {expandedBatch === batch.id && (
               <div className="border-t border-gray-800 p-4">
-                <div className="mb-4">
-                  <h4 className="mb-2 text-sm font-medium text-gray-400">
-                    {t('batches.task_ids_label')}
-                  </h4>
-                  <div className="flex flex-wrap gap-1">
-                    {batch.taskIds.map((tid) => (
-                      <span
-                        key={tid}
-                        className="rounded bg-gray-800 px-2 py-1 font-mono text-xs text-gray-300"
-                      >
-                        {tid}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <h4 className="mb-2 text-sm font-medium text-gray-400">
-                    {t('batches.assign_user')}
-                  </h4>
-                  <div className="flex gap-2">
+                {editingBatchId === batch.id ? (
+                  <div className="flex flex-col gap-4">
+                    <h4 className="text-sm font-medium text-gray-400">
+                      {t('batches.edit_title')}
+                    </h4>
                     <input
-                      type="number"
-                      value={
-                        assignBatchId === batch.id ? assignUserIdInput : ''
-                      }
-                      onChange={(e) => setAssignUserIdInput(e.target.value)}
-                      onFocus={() => setAssignBatchId(batch.id)}
-                      placeholder={t('batches.user_id_placeholder')}
-                      className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                      type="text"
+                      value={editName}
+                      onChange={(e) => {
+                        setEditName(e.target.value)
+                        setEditError('')
+                      }}
+                      placeholder={t('batches.name_edit_placeholder')}
+                      className="rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                     />
-                    <button
-                      onClick={() => handleAssign(batch.id)}
-                      disabled={!assignUserIdInput.trim() || assignMutation.isPending}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {t('batches.assign')}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="mb-2 text-sm font-medium text-gray-400">
-                    {t('batches.assigned_users')}
-                  </h4>
-                  <div className="flex flex-wrap gap-1">
-                    {batch.assignedUserIds.length === 0 ? (
-                      <span className="text-xs text-gray-600">
-                        {t('batches.no_users_assigned')}
-                      </span>
-                    ) : (
-                      batch.assignedUserIds.map((uid) => (
-                        <span
-                          key={uid}
-                          className="inline-flex items-center gap-1 rounded bg-gray-800 px-2 py-1 text-xs text-gray-300"
-                        >
-                          #{uid}
-                          <button
-                            onClick={() => handleUnassign(batch.id, uid)}
-                            className="ml-1 text-red-400 hover:text-red-300"
+                    <div>
+                      <div className="flex flex-wrap gap-1">
+                        {editTaskIds.map((tid) => (
+                          <span
+                            key={tid}
+                            className="inline-flex items-center gap-1 rounded bg-gray-800 px-2 py-1 font-mono text-xs text-gray-300"
                           >
-                            ×
-                          </button>
-                        </span>
-                      ))
+                            {tid}
+                            <button
+                              onClick={() => handleRemoveTaskId(tid)}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={addTaskIdInput}
+                        onChange={(e) => {
+                          setAddTaskIdInput(e.target.value)
+                          setEditError('')
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleAddTaskId()
+                          }
+                        }}
+                        placeholder={t('batches.add_task_placeholder')}
+                        className="flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={handleAddTaskId}
+                        disabled={!addTaskIdInput.trim()}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {t('batches.add_task_id')}
+                      </button>
+                    </div>
+                    {editError && (
+                      <p className="text-sm text-red-400">{editError}</p>
                     )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveEdit}
+                        disabled={updateBatchMutation.isPending}
+                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {updateBatchMutation.isPending
+                          ? t('batches.saving')
+                          : t('batches.save')}
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={updateBatchMutation.isPending}
+                        className="rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-gray-600 disabled:opacity-50"
+                      >
+                        {t('dialog.cancel')}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="mb-4">
+                      <h4 className="mb-2 text-sm font-medium text-gray-400">
+                        {t('batches.task_ids_label')}
+                      </h4>
+                      <div className="flex flex-wrap gap-1">
+                        {batch.taskIds.map((tid) => (
+                          <span
+                            key={tid}
+                            className="rounded bg-gray-800 px-2 py-1 font-mono text-xs text-gray-300"
+                          >
+                            {tid}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <h4 className="mb-2 text-sm font-medium text-gray-400">
+                        {t('batches.assign_user')}
+                      </h4>
+                      <Multiselect
+                        options={userOptions}
+                        selectedValues={batch.assignedUserIds}
+                        onToggle={(userId) => handleUserToggle(batch.id, userId)}
+                        placeholder={t('batches.no_users_assigned')}
+                        disabled={isMutating}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

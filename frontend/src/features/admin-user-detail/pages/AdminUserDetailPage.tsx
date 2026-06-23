@@ -9,6 +9,10 @@ import {
   useEvents,
   useUpdateUserPassword,
 } from '../queries'
+import { eventsToGraphNodes, getNodeLabel } from '../utils'
+import { EventGraph } from '../components/EventGraph'
+import { EventDetailsPanel } from '../components/EventDetailsPanel'
+import type { GraphNode } from '../../../shared/types/arc-graph'
 
 export function AdminUserDetailPage() {
   const { t } = useTranslation()
@@ -34,6 +38,8 @@ export function AdminUserDetailPage() {
 
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
   const [selectedAttemptId, setSelectedAttemptId] = useState<number | null>(null)
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
+  const [eventsAccordionOpen, setEventsAccordionOpen] = useState(false)
 
   const selectedTask = expandedTaskId
 
@@ -52,6 +58,18 @@ export function AdminUserDetailPage() {
     activeAttemptId,
     !!selectedTask,
   )
+
+  function handleExportJSONL() {
+    if (!events || events.length === 0) return
+    const lines = events.map((ev) => JSON.stringify(ev))
+    const blob = new Blob([lines.join('\n')], { type: 'application/jsonl' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `events_${selectedTask}_${selectedAttemptId ?? 'all'}.jsonl`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   if (authLoading || userLoading || tasksLoading) {
     return (
@@ -92,14 +110,13 @@ export function AdminUserDetailPage() {
     if (expandedTaskId === taskId) {
       setExpandedTaskId(null)
       setSelectedAttemptId(null)
+      setActiveNodeId(null)
     } else {
       setExpandedTaskId(taskId)
       setSelectedAttemptId(null)
+      setActiveNodeId(null)
+      setEventsAccordionOpen(false)
     }
-  }
-
-  const handleAttemptClick = (attemptId: number | null) => {
-    setSelectedAttemptId(attemptId)
   }
 
   return (
@@ -199,63 +216,101 @@ export function AdminUserDetailPage() {
                   onClick={() => handleTaskClick(row.taskId)}
                   className="cursor-pointer transition hover:bg-gray-900/50"
                 >
-                  <td className="px-4 py-3" colSpan={2}>
+                    <td className="px-4 py-3" colSpan={2}>
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-gray-200">
                           {row.taskId}
                         </span>
-                        <div className="flex items-center gap-3">
-                          <Link
-                            to={`/admin/users/${numericId}/tasks/${row.taskId}/graph`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="rounded bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white"
-                          >
-                            {t('admin_detail.view_graph')}
-                          </Link>
-                          <span className="text-gray-400">
-                            {row.attemptCount}{' '}
-                            {row.attemptCount === 1
-                              ? t('admin_detail.attempt')
-                              : t('admin_detail.attempts')}
-                          </span>
-                        </div>
+                        <span className="text-gray-400">
+                          {row.attemptCount}{' '}
+                          {row.attemptCount === 1
+                            ? t('admin_detail.attempt')
+                            : t('admin_detail.attempts')}
+                        </span>
                       </div>
 
                       {expandedTaskId === row.taskId && (
                       <div className="mt-3 border-t border-gray-700 pt-3">
-                        {attempts && attempts.length > 1 && (
-                          <div className="mb-3 flex flex-wrap gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleAttemptClick(null)
-                              }}
-                              className={`rounded px-3 py-1 text-xs font-medium transition ${
-                                selectedAttemptId === null
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                              }`}
-                            >
-                              {t('admin_detail.all_events')}
-                            </button>
-                            {attempts.map((attempt, idx) => (
+                        {attempts && attempts.length > 0 && (
+                          <div className="mb-3">
+                            <div className="flex items-center gap-2 mb-2">
                               <button
-                                key={attempt.id}
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  handleAttemptClick(attempt.id)
+                                  setSelectedAttemptId(null)
+                                  setActiveNodeId(null)
                                 }}
                                 className={`rounded px-3 py-1 text-xs font-medium transition ${
-                                  selectedAttemptId === attempt.id
+                                  selectedAttemptId === null
                                     ? 'bg-blue-600 text-white'
                                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                                 }`}
                               >
-                                {t('admin_detail.attempt_n', {
-                                  n: idx + 1,
-                                })}
+                                {t('admin_detail.all_events')}
                               </button>
-                            ))}
+                            </div>
+                            <div className="overflow-x-auto rounded border border-gray-700">
+                              <table className="w-full text-left text-xs">
+                                <thead className="border-b border-gray-700 bg-gray-800/50 text-gray-500">
+                                  <tr>
+                                    <th className="px-3 py-1.5 font-medium">{t('admin_detail.attempt')}</th>
+                                    <th className="px-3 py-1.5 font-medium">{t('admin_detail.attempt_status')}</th>
+                                    <th className="px-3 py-1.5 font-medium">{t('admin_detail.table.timestamp')}</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-800">
+                                  {[...attempts].reverse().map((attempt, idx) => {
+                                    const statusColors: Record<string, string> = {
+                                      completed: 'border-l-green-500 bg-green-950/30',
+                                      failed: 'border-l-red-500 bg-red-950/30',
+                                      abandoned: 'border-l-yellow-500 bg-yellow-950/30',
+                                    }
+                                    const statusBadgeColors: Record<string, string> = {
+                                      completed: 'bg-green-900/50 text-green-300',
+                                      failed: 'bg-red-900/50 text-red-300',
+                                      abandoned: 'bg-yellow-900/50 text-yellow-300',
+                                      in_progress: 'bg-gray-800 text-gray-400',
+                                    }
+                                    const statusLabelKey: Record<string, string> = {
+                                      completed: 'admin_detail.status_completed',
+                                      failed: 'admin_detail.status_failed',
+                                      abandoned: 'admin_detail.status_abandoned',
+                                      in_progress: 'admin_detail.status_in_progress',
+                                    }
+                                    const st = attempt.status ?? 'in_progress'
+                                    const rowColor = statusColors[st] ?? ''
+                                    const isSelected = selectedAttemptId === attempt.id
+                                    return (
+                                      <tr
+                                        key={attempt.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedAttemptId(attempt.id)
+                                          setActiveNodeId(null)
+                                        }}
+                                        className={`cursor-pointer border-l-2 transition hover:bg-gray-800/50 ${
+                                          isSelected ? 'border-l-blue-500 bg-blue-950/30' : rowColor || 'border-l-transparent'
+                                        }`}
+                                      >
+                                        <td className="px-3 py-1.5 font-mono text-gray-200">
+                                          {t('admin_detail.attempt_n', { n: idx + 1 })}
+                                        </td>
+                                        <td className="px-3 py-1.5">
+                                          <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${statusBadgeColors[st] ?? 'bg-gray-800 text-gray-400'}`}>
+                                            {t(statusLabelKey[st] ?? 'admin_detail.status_in_progress')}
+                                          </span>
+                                        </td>
+                                        <td className="px-3 py-1.5 text-gray-400">
+                                          {attempt.createdAt
+                                            ? new Date(attempt.createdAt).toLocaleString()
+                                            : '-'}
+                                        </td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
                         )}
 
@@ -265,39 +320,113 @@ export function AdminUserDetailPage() {
                             {t('admin_detail.loading_events')}
                           </div>
                         ) : events && events.length > 0 ? (
-                          <table className="w-full text-left text-xs">
-                            <thead className="border-b border-gray-700 text-gray-500">
-                              <tr>
-                                <th className="px-3 py-2 font-medium">
-                                  {t('admin_detail.table.nodeId')}
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                  {t('admin_detail.table.timestamp')}
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                  {t('admin_detail.table.trigger')}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-800">
-                              {events.map((ev) => (
-                                <tr
-                                  key={ev.id}
-                                  className="transition hover:bg-gray-900/50"
-                                >
-                                  <td className="px-3 py-2 font-mono text-gray-300">
-                                    {ev.nodeId}
-                                  </td>
-                                  <td className="px-3 py-2 text-gray-400">
-                                    {ev.timestamp}
-                                  </td>
-                                  <td className="max-w-[400px] truncate px-3 py-2 font-mono text-gray-400">
-                                    {JSON.stringify(ev.trigger)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                          <>
+                            {(() => {
+                              const nodes: GraphNode[] = eventsToGraphNodes(events)
+                              return (
+                                <div className="flex flex-col gap-4">
+                                  <EventGraph
+                                    nodes={nodes}
+                                    activeNodeId={activeNodeId}
+                                    onNodeClick={(nodeId) => setActiveNodeId(activeNodeId === nodeId ? null : nodeId)}
+                                    getLabel={getNodeLabel}
+                                  />
+                                  <div className="flex items-start gap-4">
+                                    {activeNodeId && (() => {
+                                      const activeNode = nodes.find((n) => n.id === activeNodeId) ?? null
+                                      return activeNode ? (
+                                        <div className="w-80 shrink-0">
+                                          <EventDetailsPanel
+                                            node={activeNode}
+                                            onClose={() => setActiveNodeId(null)}
+                                          />
+                                        </div>
+                                      ) : null
+                                    })()}
+                                    <div className="flex-1">
+                                      <div className="flex justify-end">
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleExportJSONL() }}
+                                          className="rounded bg-gray-800 px-3 py-1 text-xs font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
+                                        >
+                                          {t('admin_detail.graph_export_jsonl')}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="border-t border-gray-700 pt-3">
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setEventsAccordionOpen(!eventsAccordionOpen)
+                                        }}
+                                        className="flex flex-1 items-center justify-between rounded bg-gray-800/50 px-3 py-2 text-xs font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
+                                      >
+                                        <span>Raw Events ({events.length})</span>
+                                        <svg
+                                          className={`h-4 w-4 transition ${eventsAccordionOpen ? 'rotate-180' : ''}`}
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          const text = events.map((ev) => JSON.stringify(ev, null, 2)).join('\n\n')
+                                          navigator.clipboard.writeText(text)
+                                        }}
+                                        className="rounded bg-gray-800/50 px-2.5 py-2 text-gray-400 transition hover:bg-gray-700 hover:text-white"
+                                        title="Copy all events"
+                                      >
+                                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                    {eventsAccordionOpen && (
+                                      <table className="mt-3 w-full text-left text-xs">
+                                        <thead className="border-b border-gray-700 text-gray-500">
+                                          <tr>
+                                            <th className="px-3 py-2 font-medium">
+                                              {t('admin_detail.table.nodeId')}
+                                            </th>
+                                            <th className="px-3 py-2 font-medium">
+                                              {t('admin_detail.table.timestamp')}
+                                            </th>
+                                            <th className="px-3 py-2 font-medium">
+                                              {t('admin_detail.table.trigger')}
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-800">
+                                          {events.map((ev) => (
+                                            <tr
+                                              key={ev.id}
+                                              className="transition hover:bg-gray-900/50"
+                                            >
+                                              <td className="px-3 py-2 font-mono text-gray-300">
+                                                {ev.nodeId}
+                                              </td>
+                                              <td className="px-3 py-2 text-gray-400">
+                                                {ev.timestamp}
+                                              </td>
+                                              <td className="max-w-[400px] truncate px-3 py-2 font-mono text-gray-400">
+                                                {JSON.stringify(ev.trigger)}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </>
                         ) : (
                           <div className="py-4 text-center text-gray-500">
                             {t('admin_detail.no_events')}
@@ -305,7 +434,7 @@ export function AdminUserDetailPage() {
                         )}
                       </div>
                     )}
-                  </td>
+                    </td>
                 </tr>
               ))}
             </tbody>

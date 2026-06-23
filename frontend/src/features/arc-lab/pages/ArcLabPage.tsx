@@ -316,7 +316,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         if (
           state.activeNodeId === lastNode?.id &&
           lastNode?.trigger.kind === 'mechanical' &&
-          lastNode.trigger.action === 'cell_click'
+          lastNode.trigger.action === 'cell_paint'
         ) {
           const prevCells = (lastNode.trigger.details?.cells as Array<{ x: number; y: number; symbol: number }>) ?? []
           const updatedNode: GraphNode = {
@@ -333,7 +333,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         }
         const graph = addNode(
           { ...state, outputGrid },
-          { kind: 'mechanical', action: 'cell_click', details: { cells: [cellEntry] } },
+          { kind: 'mechanical', action: 'cell_paint', details: { cells: [cellEntry] } },
         )
         return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeId!, true) }
       }
@@ -466,7 +466,7 @@ function getNodeLabel(trigger: GraphTrigger): string {
   switch (trigger.action) {
     case 'load_task':
       return 'Start'
-    case 'cell_click': {
+    case 'cell_paint': {
       const cells = (trigger.details?.cells as Array<{ x: number; y: number; symbol: number }>) ?? []
       if (cells.length === 1) {
         return `Paint (${cells[0].x},${cells[0].y})`
@@ -569,6 +569,14 @@ export function ArcLabPage() {
   const canGoNext = state.navigationIndex < state.navigationHistory.length - 1
   const readOnly = atRoot || state.blockReason !== null
 
+  const lastEventKeyRef = useRef<string | null>(null)
+
+  function shouldDispatchEvent(actionKey: string): boolean {
+    if (lastEventKeyRef.current === actionKey) return false
+    lastEventKeyRef.current = actionKey
+    return true
+  }
+
   const sentHashes = useRef<Set<string>>(new Set())
   const attemptIdRef = useRef<number | null>(null)
 
@@ -631,6 +639,7 @@ export function ArcLabPage() {
     if (specificTask) {
       dispatch({ type: 'LOAD_TASK', task: specificTask })
       setHypothesisText('')
+      lastEventKeyRef.current = null
     }
   }, [specificTask])
 
@@ -653,6 +662,7 @@ export function ArcLabPage() {
 
   const handleCellClick = (x: number, y: number) => {
     if (interceptPivotReflection()) return
+    if (!shouldDispatchEvent(`cell_paint:${x}:${y}:${state.selectedSymbol}`)) return
     dispatch({ type: 'CELL_CLICK', x, y })
   }
 
@@ -698,11 +708,22 @@ export function ArcLabPage() {
   }
 
   const handleReset = () => {
+    if (!shouldDispatchEvent('reset_output')) return
     dispatch({ type: 'RESET_OUTPUT' })
     setHypothesisText('')
     setFailureAnalysisText('')
     setBranchPivotText('')
     setCorrectAnalysisText('')
+  }
+
+  const handleResize = () => {
+    if (!shouldDispatchEvent(`resize:${state.sizeInput}`)) return
+    dispatch({ type: 'RESIZE' })
+  }
+
+  const handleCopyFromInput = () => {
+    if (!shouldDispatchEvent('copy_from_input')) return
+    dispatch({ type: 'COPY_FROM_INPUT' })
   }
 
   const handleSubmit = () => {
@@ -819,8 +840,8 @@ export function ArcLabPage() {
               onCorrectAnalysisChange={setCorrectAnalysisText}
               onCorrectAnalysisSubmit={handleCorrectAnalysisSubmit}
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
-              onResize={() => dispatch({ type: 'RESIZE' })}
-              onCopyFromInput={() => dispatch({ type: 'COPY_FROM_INPUT' })}
+              onResize={handleResize}
+              onCopyFromInput={handleCopyFromInput}
               onReset={handleReset}
               onCellClick={handleCellClick}
               onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}

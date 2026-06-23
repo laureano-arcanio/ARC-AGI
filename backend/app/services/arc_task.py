@@ -7,19 +7,29 @@ from app.schemas.arc_task import ArcTaskPair, ArcTaskRead
 
 STATIC_DIR = Path(__file__).resolve().parents[2] / "static" / "ARC-AGI-2"
 
+SOURCES: list[tuple[str, str | None]] = [
+    ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json"),
+    ("arc-agi_evaluation_challenges.json", "arc-agi_evaluation_solutions.json"),
+    ("arc-agi_test_challenges.json", None),
+]
+
 
 class ArcTaskService:
     def __init__(self, static_dir: Path = STATIC_DIR) -> None:
         self._static_dir = static_dir
 
+    async def _find_task(self, task_id: str) -> ArcTaskRead | None:
+        for challenges_file, solutions_file in SOURCES:
+            challenges = self._load_json(challenges_file)
+            if task_id in challenges:
+                solutions = self._load_json(solutions_file) if solutions_file else {}
+                return self._build_task(
+                    task_id, challenges[task_id], solutions.get(task_id, []),
+                )
+        return None
+
     async def get_by_id(self, task_id: str) -> ArcTaskRead | None:
-        challenges = self._load_json("arc-agi_training_challenges.json")
-        solutions = self._load_json("arc-agi_training_solutions.json")
-        if task_id not in challenges:
-            return None
-        return self._build_task(
-            task_id, challenges[task_id], solutions.get(task_id, []),
-        )
+        return await self._find_task(task_id)
 
     async def get_random_tasks(self, count: int = 10) -> list[ArcTaskRead]:
         challenges = self._load_json("arc-agi_training_challenges.json")
@@ -37,19 +47,18 @@ class ArcTaskService:
     async def get_random_tasks_from_ids(
         self, count: int = 10, allowed_ids: list[str] | None = None
     ) -> list[ArcTaskRead]:
-        challenges = self._load_json("arc-agi_training_challenges.json")
-        solutions = self._load_json("arc-agi_training_solutions.json")
         if not allowed_ids:
             return await self.get_random_tasks(count=count)
-        available_ids = [tid for tid in allowed_ids if tid in challenges]
-        if not available_ids:
+        tasks: list[ArcTaskRead] = []
+        for task_id in allowed_ids:
+            task = await self._find_task(task_id)
+            if task:
+                tasks.append(task)
+        if not tasks:
             return []
-        sample_size = min(count, len(available_ids))
-        chosen_ids = random.sample(available_ids, sample_size)
-        return [
-            self._build_task(task_id, challenges[task_id], solutions.get(task_id, []))
-            for task_id in chosen_ids
-        ]
+        sample_size = min(count, len(tasks))
+        chosen = random.sample(tasks, sample_size)
+        return chosen
 
     def _load_json(self, name: str) -> dict[str, Any]:
         path = self._static_dir / name

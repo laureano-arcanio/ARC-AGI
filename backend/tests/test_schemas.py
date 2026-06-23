@@ -188,7 +188,7 @@ class TestEventCreate:
             attempt_id=1,
             node_id="node_001",
             parent_node_id="node_000",
-            trigger={"kind": "mechanical", "action": "cell_click"},
+            trigger={"kind": "mechanical", "action": "cell_paint"},
             state_snapshot=[[0, 1, 0]],
             timestamp=1625000000000,
         )
@@ -197,7 +197,7 @@ class TestEventCreate:
         assert data.attempt_id == 1
         assert data.node_id == "node_001"
         assert data.parent_node_id == "node_000"
-        assert data.trigger == {"kind": "mechanical", "action": "cell_click"}
+        assert data.trigger == {"kind": "mechanical", "action": "cell_paint"}
         assert data.state_snapshot == [[0, 1, 0]]
         assert data.timestamp == 1625000000000
 
@@ -267,7 +267,7 @@ class TestEventRead:
             task_id="abc",
             attempt_id=1,
             node_id="node_000",
-            trigger={"kind": "mechanical", "action": "cell_click"},
+            trigger={"kind": "mechanical", "action": "cell_paint"},
             state_snapshot=[[0, 1, 0]],
             timestamp=1625000000000,
             created_at=now,
@@ -276,7 +276,7 @@ class TestEventRead:
         assert data.id == 1
         assert data.task_id == "abc"
         assert data.attempt_id == 1
-        assert data.trigger == {"kind": "mechanical", "action": "cell_click"}
+        assert data.trigger == {"kind": "mechanical", "action": "cell_paint"}
 
     def test_read_with_nulls(self) -> None:
         data = EventRead(

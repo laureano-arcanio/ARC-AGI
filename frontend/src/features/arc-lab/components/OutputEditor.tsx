@@ -123,6 +123,7 @@ export function OutputEditor({
                     {t('hypothesis.label')}
                   </label>
                   <textarea
+                    ref={(el) => el?.focus()}
                     rows={5}
                     value={hypothesisText}
                     onChange={(e) => onHypothesisChange(e.target.value)}
@@ -161,6 +162,7 @@ export function OutputEditor({
                     {t('correct_analysis.label')}
                   </label>
                   <textarea
+                    ref={(el) => el?.focus()}
                     rows={5}
                     value={correctAnalysisText}
                     onChange={(e) => onCorrectAnalysisChange(e.target.value)}
@@ -199,6 +201,7 @@ export function OutputEditor({
                     {t('failure_analysis.label')}
                   </label>
                   <textarea
+                    ref={(el) => el?.focus()}
                     rows={5}
                     value={failureAnalysisText}
                     onChange={(e) => onFailureAnalysisChange(e.target.value)}
@@ -237,6 +240,7 @@ export function OutputEditor({
                     {t('branch_pivot.label')}
                   </label>
                   <textarea
+                    ref={(el) => el?.focus()}
                     rows={5}
                     value={branchPivotText}
                     onChange={(e) => onBranchPivotChange(e.target.value)}
