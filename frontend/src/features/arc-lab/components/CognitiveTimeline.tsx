@@ -433,7 +433,8 @@ export function CognitiveTimeline({
         {t('timeline.title')}
       </span>
 
-      <div className="w-full overflow-x-auto rounded-xl border border-gray-800 bg-gray-900">
+      <div className="w-full rounded-xl border border-gray-800 bg-gray-900 overflow-visible">
+        <div className="overflow-x-auto w-full">
       <div className="overflow-visible px-4 py-3">
         <div
           className="relative"
@@ -524,6 +525,7 @@ export function CognitiveTimeline({
           ))}
         </div>
       </div>
+        </div>
       </div>
     </div>
   )

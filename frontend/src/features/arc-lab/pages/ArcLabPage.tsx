@@ -693,6 +693,11 @@ export function ArcLabPage() {
     if (loadedAttemptId.current === urlAttemptId) return
     loadedAttemptId.current = urlAttemptId
     fetchEventsByAttempt(userId, taskId, Number(urlAttemptId)).then((events) => {
+      for (const ev of events) {
+        const testIdx = ev.testPairIndex ?? 0
+        const hash = `${testIdx}:${ev.nodeId}:${JSON.stringify(ev.trigger)}`
+        sentHashes.current.add(hash)
+      }
       const preSolverNodes: GraphNode[] = events
         .filter((ev) => ev.nodeId.startsWith('pre_node_'))
         .map((ev) => ({

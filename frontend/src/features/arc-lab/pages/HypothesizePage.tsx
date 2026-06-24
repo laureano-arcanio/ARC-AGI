@@ -68,6 +68,7 @@ export function HypothesizePage() {
       },
       stateSnapshot: snapshot,
       timestamp: Date.now(),
+      testPairIndex: 0,
     }).catch(() => {})
   }, [attemptId, userId, taskId])
 

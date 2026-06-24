@@ -49,6 +49,9 @@ class MockAsyncSession:
     async def flush(self) -> None:
         self.flushed = True
 
+    async def rollback(self) -> None:
+        pass
+
     async def refresh(self, instance: object) -> None:
         self.refreshed.append(instance)
 
