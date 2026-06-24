@@ -1,4 +1,5 @@
 import { useMemo, Fragment } from 'react'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import type { GraphNode, GraphTrigger } from '../../../shared/types/arc-graph'
 
 const NODE_SIZE = 36
@@ -152,80 +153,92 @@ export function EventGraph({ nodes, activeNodeId, onNodeClick, getLabel }: Event
   const totalHeight = numRows * ROW_H
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-gray-800 bg-gray-900/50">
-      <div className="overflow-visible px-6 py-4">
-        <div
-          className="relative"
-          style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, minWidth: '100%' }}
-        >
-          <svg
-            className="pointer-events-none absolute inset-0 overflow-visible"
-            width={totalWidth}
-            height={totalHeight}
+    <Tooltip.Provider delayDuration={100}>
+      <div className="w-full overflow-x-auto rounded-lg border border-gray-800 bg-gray-900/50">
+        <div className="overflow-visible px-6 py-4">
+          <div
+            className="relative"
+            style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, minWidth: '100%' }}
           >
-            {connectors}
-          </svg>
+            <svg
+              className="pointer-events-none absolute inset-0 overflow-visible"
+              width={totalWidth}
+              height={totalHeight}
+            >
+              {connectors}
+            </svg>
 
-          {rows.map((rowNodes, rowIdx) => (
-            <Fragment key={rowIdx}>
-              {rowNodes.map((pos) => {
-                const node = nodeMap.get(pos.nodeId)
-                if (!node) return null
-                const isActive = node.id === activeNodeId
-                const kind = node.trigger.kind
-                const result = (() => {
-                  if (kind === 'mechanical' && node.trigger.details?.correct === true) return 'correct'
-                  if (kind === 'mechanical' && node.trigger.details?.correct === false) return 'wrong'
-                  return 'none'
-                })()
-                const label = getLabel(node.trigger)
-                const testIdx = node.testPairIndex
+            {rows.map((rowNodes, rowIdx) => (
+              <Fragment key={rowIdx}>
+                {rowNodes.map((pos) => {
+                  const node = nodeMap.get(pos.nodeId)
+                  if (!node) return null
+                  const isActive = node.id === activeNodeId
+                  const kind = node.trigger.kind
+                  const result = (() => {
+                    if (kind === 'mechanical' && node.trigger.details?.correct === true) return 'correct'
+                    if (kind === 'mechanical' && node.trigger.details?.correct === false) return 'wrong'
+                    return 'none'
+                  })()
+                  const label = getLabel(node.trigger)
+                  const testIdx = node.testPairIndex
 
-                return (
-                  <div
-                    key={node.id}
-                    className="absolute group"
-                    style={{
-                      left: `${nodeCX(pos.col) - NODE_SIZE / 2}px`,
-                      top: `${nodeCY(pos.row) - NODE_SIZE / 2}px`,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onNodeClick(node.id)}
-                      className="flex items-center justify-center rounded-full border-2 transition-all hover:scale-110"
+                  return (
+                    <div
+                      key={node.id}
+                      className="absolute"
                       style={{
-                        width: `${NODE_SIZE}px`,
-                        height: `${NODE_SIZE}px`,
-                        backgroundColor: isActive ? '#3b82f6' : nodeColor(kind, result),
-                        borderColor: isActive ? '#93c5fd' : nodeBorder(kind, result),
-                        transform: isActive ? 'scale(1.15)' : undefined,
-                        boxShadow: isActive ? '0 0 12px rgba(59,130,246,0.5)' : undefined,
+                        left: `${nodeCX(pos.col) - NODE_SIZE / 2}px`,
+                        top: `${nodeCY(pos.row) - NODE_SIZE / 2}px`,
                       }}
                     >
-                      <span className="text-[10px] font-bold text-white leading-none pointer-events-none">
-                        {result === 'correct' && '✓'}
-                        {result === 'wrong' && '✗'}
-                        {result === 'none' && kind === 'cognitive' && '💡'}
-                        {result === 'none' && kind === 'mechanical' && '⚙'}
-                      </span>
-                    </button>
-                    <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col items-center gap-1 z-[100]">
-                      <div className="rounded-lg bg-gray-800 border border-gray-700 px-2.5 py-1.5 shadow-lg whitespace-nowrap">
-                        <span className="text-xs text-gray-200 block">{label}</span>
-                        <span className="text-[10px] text-gray-400 block">{node.id}</span>
-                        {testIdx !== undefined && (
-                          <span className="text-[10px] text-gray-500 block">Test {testIdx + 1}</span>
-                        )}
-                      </div>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => onNodeClick(node.id)}
+                            className="flex items-center justify-center rounded-full border-2 transition-all hover:scale-110"
+                            style={{
+                              width: `${NODE_SIZE}px`,
+                              height: `${NODE_SIZE}px`,
+                              backgroundColor: isActive ? '#3b82f6' : nodeColor(kind, result),
+                              borderColor: isActive ? '#93c5fd' : nodeBorder(kind, result),
+                              transform: isActive ? 'scale(1.15)' : undefined,
+                              boxShadow: isActive ? '0 0 12px rgba(59,130,246,0.5)' : undefined,
+                            }}
+                          >
+                            <span className="text-[10px] font-bold text-white leading-none pointer-events-none">
+                              {result === 'correct' && '✓'}
+                              {result === 'wrong' && '✗'}
+                              {result === 'none' && kind === 'cognitive' && '💡'}
+                              {result === 'none' && kind === 'mechanical' && '⚙'}
+                            </span>
+                          </button>
+                        </Tooltip.Trigger>
+                        <Tooltip.Portal>
+                          <Tooltip.Content
+                            side="top"
+                            align="center"
+                            sideOffset={6}
+                            collisionPadding={8}
+                            className="relative z-[100] max-w-64 rounded-lg border border-gray-700 bg-gray-800 px-2.5 py-1.5 shadow-lg break-words"
+                          >
+                            <span className="text-xs text-gray-200 block">{label}</span>
+                            <span className="text-[10px] text-gray-400 block">{node.id}</span>
+                            {testIdx !== undefined && (
+                              <span className="text-[10px] text-gray-500 block">Test {testIdx + 1}</span>
+                            )}
+                          </Tooltip.Content>
+                        </Tooltip.Portal>
+                      </Tooltip.Root>
                     </div>
-                  </div>
-                )
-              })}
-            </Fragment>
-          ))}
+                  )
+                })}
+              </Fragment>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </Tooltip.Provider>
   )
 }

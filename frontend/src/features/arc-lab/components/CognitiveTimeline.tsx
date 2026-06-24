@@ -1,4 +1,5 @@
 import { useMemo, Fragment, type ReactNode, type SVGProps } from 'react'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import { useTranslation } from '../../../lib/i18n'
 import type { CognitiveIntent, GraphNode, GraphTrigger, MechanicalAction } from '../types'
 import { COLOR_MAP } from '../types'
@@ -433,100 +434,111 @@ export function CognitiveTimeline({
         {t('timeline.title')}
       </span>
 
-      <div className="w-full rounded-xl border border-gray-800 bg-gray-900 overflow-visible">
-        <div className="overflow-x-auto w-full">
-      <div className="overflow-visible px-4 py-3">
-        <div
-          className="relative"
-          style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, minWidth: '100%' }}
-        >
-          <svg
-            className="absolute inset-0 pointer-events-none overflow-visible"
-            width={totalWidth}
-            height={totalHeight}
-          >
-            {connectors}
-          </svg>
+      <Tooltip.Provider delayDuration={100}>
+        <div className="w-full rounded-xl border border-gray-800 bg-gray-900 overflow-visible">
+          <div className="overflow-x-auto w-full">
+            <div className="overflow-visible px-4 py-3">
+              <div
+                className="relative"
+                style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, minWidth: '100%' }}
+              >
+                <svg
+                  className="absolute inset-0 pointer-events-none overflow-visible"
+                  width={totalWidth}
+                  height={totalHeight}
+                >
+                  {connectors}
+                </svg>
 
-          {rows.map((rowNodes, rowIdx) => (
-            <Fragment key={rowIdx}>
-              {rowNodes.map((pos) => {
-                const node = nodeMap.get(pos.nodeId)
-                if (!node) return null
-                const isActive = node.id === activeNodeId
-                const onActivePath = activePath.has(node.id)
-                const { icon, color } = getNodeMeta(node.trigger)
-                const tooltipLabel = getLabel(node.trigger)
-                const swatches = getColorsUsed(node.trigger)
+                {rows.map((rowNodes, rowIdx) => (
+                  <Fragment key={rowIdx}>
+                    {rowNodes.map((pos) => {
+                      const node = nodeMap.get(pos.nodeId)
+                      if (!node) return null
+                      const isActive = node.id === activeNodeId
+                      const onActivePath = activePath.has(node.id)
+                      const { icon, color } = getNodeMeta(node.trigger)
+                      const tooltipLabel = getLabel(node.trigger)
+                      const swatches = getColorsUsed(node.trigger)
 
-                const isPreSolver = isPreSolverTrigger(node.trigger)
-                const ringClass = isActive ? 'border-blue-400 shadow-md shadow-blue-600/30 scale-110' : COLOR_RING[color]
-                const bgClass = isActive ? 'bg-blue-600' : COLOR_BG[color]
-                const textClass = isActive ? 'text-white' : onActivePath ? 'text-gray-200 opacity-90' : COLOR_TEXT[color]
-                const opacityClass = !isActive && !onActivePath ? 'opacity-55' : ''
-                const borderClass = isPreSolver ? 'border-dashed' : ''
-                return (
-                  <div
-                    key={node.id}
-                    className="absolute group"
-                    style={{
-                      left: `${nodeCX(pos.col) - NODE_SIZE / 2}px`,
-                      top: `${nodeCY(pos.row) - NODE_SIZE / 2}px`,
-                    }}
-                  >
-                    {isPreSolver ? (
-                      <div
-                        data-testid={`timeline-node-${node.id}`}
-                        className={`flex items-center justify-center rounded-full
-                          border transition-colors cursor-default ${borderClass} ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
-                        style={{
-                          width: `${NODE_SIZE}px`,
-                          height: `${NODE_SIZE}px`,
-                        }}
-                      >
-                        {icon}
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        data-testid={`timeline-node-${node.id}`}
-                        onClick={() => onNodeClick(node.id)}
-                        className={`flex items-center justify-center rounded-full
-                          border transition-colors cursor-pointer ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
-                        style={{
-                          width: `${NODE_SIZE}px`,
-                          height: `${NODE_SIZE}px`,
-                        }}
-                      >
-                        {icon}
-                      </button>
-                    )}
-                    <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5
-                      hidden group-hover:flex flex-col items-center gap-1 z-[100]">
-                      <div className="rounded-lg bg-gray-800 border border-gray-700 px-2.5 py-1.5 shadow-lg whitespace-nowrap">
-                        <span className="text-[11px] text-gray-300 block">{tooltipLabel}</span>
-                        {swatches.length > 0 && (
-                          <div className="flex gap-1 mt-1">
-                            {swatches.map((c, i) => (
-                              <span
-                                key={i}
-                                className="w-3 h-3 rounded-sm border border-gray-500 shrink-0"
-                                style={{ backgroundColor: c }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </Fragment>
-          ))}
+                      const isPreSolver = isPreSolverTrigger(node.trigger)
+                      const ringClass = isActive ? 'border-blue-400 shadow-md shadow-blue-600/30 scale-110' : COLOR_RING[color]
+                      const bgClass = isActive ? 'bg-blue-600' : COLOR_BG[color]
+                      const textClass = isActive ? 'text-white' : onActivePath ? 'text-gray-200 opacity-90' : COLOR_TEXT[color]
+                      const opacityClass = !isActive && !onActivePath ? 'opacity-55' : ''
+                      const borderClass = isPreSolver ? 'border-dashed' : ''
+                      return (
+                        <div
+                          key={node.id}
+                          className="absolute"
+                          style={{
+                            left: `${nodeCX(pos.col) - NODE_SIZE / 2}px`,
+                            top: `${nodeCY(pos.row) - NODE_SIZE / 2}px`,
+                          }}
+                        >
+                          <Tooltip.Root>
+                            <Tooltip.Trigger asChild>
+                              {isPreSolver ? (
+                                <div
+                                  data-testid={`timeline-node-${node.id}`}
+                                  className={`flex items-center justify-center rounded-full
+                                    border transition-colors cursor-default ${borderClass} ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
+                                  style={{
+                                    width: `${NODE_SIZE}px`,
+                                    height: `${NODE_SIZE}px`,
+                                  }}
+                                >
+                                  {icon}
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  data-testid={`timeline-node-${node.id}`}
+                                  onClick={() => onNodeClick(node.id)}
+                                  className={`flex items-center justify-center rounded-full
+                                    border transition-colors cursor-pointer ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
+                                  style={{
+                                    width: `${NODE_SIZE}px`,
+                                    height: `${NODE_SIZE}px`,
+                                  }}
+                                >
+                                  {icon}
+                                </button>
+                              )}
+                            </Tooltip.Trigger>
+                            <Tooltip.Portal>
+                              <Tooltip.Content
+                                side="top"
+                                align="center"
+                                sideOffset={6}
+                                collisionPadding={8}
+                                className="relative z-[100] max-w-64 rounded-lg border border-gray-700 bg-gray-800 px-2.5 py-1.5 shadow-lg break-words"
+                              >
+                                <span className="text-[11px] text-gray-300 block">{tooltipLabel}</span>
+                                {swatches.length > 0 && (
+                                  <div className="flex gap-1 mt-1">
+                                    {swatches.map((c, i) => (
+                                      <span
+                                        key={i}
+                                        className="w-3 h-3 rounded-sm border border-gray-500 shrink-0"
+                                        style={{ backgroundColor: c }}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </Tooltip.Content>
+                            </Tooltip.Portal>
+                          </Tooltip.Root>
+                        </div>
+                      )
+                    })}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-        </div>
-      </div>
+      </Tooltip.Provider>
     </div>
   )
 }

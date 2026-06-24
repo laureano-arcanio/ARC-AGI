@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { CognitiveTimeline } from '../components/CognitiveTimeline'
 import type { GraphNode } from '../types'
 
@@ -176,12 +177,11 @@ describe('CognitiveTimeline', () => {
     expect(screen.queryByTestId('go-back-node_001')).not.toBeInTheDocument()
   })
 
-  it('shows tooltip with label on hover', () => {
+  it('shows tooltip with label on hover', async () => {
     renderTimeline()
     const node = screen.getByTestId('timeline-node-node_000')
-    const wrapper = node.parentElement!
-    expect(wrapper.className).toContain('group')
-    expect(wrapper.textContent).toContain('tooltip label')
+    await userEvent.hover(node)
+    expect(await screen.findAllByText('tooltip label')).not.toHaveLength(0)
   })
 
   it('uses success color for correct submit node', () => {
