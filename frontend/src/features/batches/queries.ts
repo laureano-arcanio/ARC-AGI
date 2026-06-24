@@ -10,6 +10,7 @@ import {
   getUserBatches,
   getUserAccessibleTaskIds,
 } from './api'
+import { adminUsersQueryKeys } from '../admin-users/queries'
 
 export const batchQueryKeys = {
   all: ['batches'] as const,
@@ -73,6 +74,7 @@ export function useAssignBatchToUser() {
       assignBatchToUser(batchId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: batchQueryKeys.all })
+      queryClient.invalidateQueries({ queryKey: adminUsersQueryKeys.all })
     },
   })
 }
@@ -84,6 +86,7 @@ export function useUnassignBatchFromUser() {
       unassignBatchFromUser(batchId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: batchQueryKeys.all })
+      queryClient.invalidateQueries({ queryKey: adminUsersQueryKeys.all })
     },
   })
 }
