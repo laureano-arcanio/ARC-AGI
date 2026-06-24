@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
+import { useReviewBySolverTask } from '../../reviews/queries'
 import {
   useAttempts,
   useEvents,
@@ -29,6 +30,8 @@ export function AdminUserTaskDetailPage() {
   const {
     data: user,
   } = useUserDetail(numericId)
+
+  const { data: reviews } = useReviewBySolverTask(numericId, taskId ?? '')
 
   const {
     data: attempts,
@@ -499,6 +502,38 @@ export function AdminUserTaskDetailPage() {
       ) : (
         <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
           {t('admin_detail.graph_no_events')}
+        </div>
+      )}
+
+      {reviews && reviews.length > 0 && (
+        <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+          <h2 className="mb-3 text-sm font-semibold text-gray-300">
+            {t('admin_detail.reviews_title')}
+          </h2>
+          {reviews.map((review) => (
+            <div key={review.id} className="mb-3 rounded border border-gray-700 bg-gray-800/30 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-400">
+                  {t('admin_detail.review_by')} ID {review.reviewerId}
+                </span>
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                  review.status === 'completed'
+                    ? 'bg-green-900/40 text-green-400'
+                    : 'bg-amber-900/40 text-amber-400'
+                }`}>
+                  {review.status}
+                </span>
+                <span className="text-[10px] text-gray-500">
+                  {review.tagCount} {t('admin_detail.review_tags')}
+                </span>
+              </div>
+              {review.overallNotes && (
+                <p className="text-xs text-gray-400 italic">
+                  &ldquo;{review.overallNotes}&rdquo;
+                </p>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

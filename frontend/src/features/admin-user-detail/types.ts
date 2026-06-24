@@ -9,6 +9,8 @@ export type TaskWithStatus = {
   attemptCount: number
   solved: boolean
   status: 'not_started' | 'started' | 'completed'
+  reviewed?: boolean
+  reviewerEmails?: string[]
 }
 
 export type BatchWithTasks = {

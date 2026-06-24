@@ -32,6 +32,8 @@ class TaskWithStatus(BaseAPISchema):
     attempt_count: int
     solved: bool
     status: str  # "not_started" | "started" | "completed"
+    reviewed: bool = False
+    reviewer_emails: list[str] = []
 
 
 class BatchWithTasks(BaseAPISchema):

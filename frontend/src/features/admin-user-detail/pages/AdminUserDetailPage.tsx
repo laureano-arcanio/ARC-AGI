@@ -134,6 +134,9 @@ function BatchTable({
               {t('admin_detail.table.attempts')}
             </th>
             <th className="px-3 py-1.5 font-medium">
+              {t('admin_detail.review')}
+            </th>
+            <th className="px-3 py-1.5 font-medium">
               {t('admin_detail.view_graph')}
             </th>
           </tr>
@@ -173,6 +176,17 @@ function BatchTable({
                           : t('admin_detail.attempts')
                       }`
                     : '-'}
+                </td>
+                <td className="px-3 py-1.5">
+                  {task.reviewed ? (
+                    <span className="rounded bg-green-900/40 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                      {t('admin_detail.reviewed')}
+                    </span>
+                  ) : (
+                    <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                      {t('admin_detail.not_reviewed')}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-1.5">
                   <button

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useMyBatches, useMyTaskSummaries } from '../queries'
+import { usePendingReviews } from '../../reviews/queries'
 import type { UserTaskSummary } from '../types'
 
 function taskStatus(summary: UserTaskSummary | undefined): {
@@ -22,6 +23,7 @@ export function MyTasksPage() {
 
   const { data: batches, isLoading: batchesLoading } = useMyBatches(userId ?? 0)
   const { data: taskSummaries } = useMyTaskSummaries(userId ?? 0)
+  const { data: pendingReviews } = usePendingReviews(userId ?? 0)
 
   if (authLoading || batchesLoading) {
     return (
@@ -121,6 +123,39 @@ export function MyTasksPage() {
           </div>
         ))}
       </div>
+
+      {/* Pending Reviews Section */}
+      {(pendingReviews?.length ?? 0) > 0 && (
+        <div className="rounded-lg border border-amber-800 bg-amber-950/10">
+          <div className="flex items-center gap-2 border-b border-amber-800/50 p-4">
+            <h3 className="font-semibold text-amber-300">{t('my_tasks.pending_reviews')}</h3>
+            <span className="text-xs text-amber-500">
+              {pendingReviews?.length} {t('my_tasks.tasks_count')}
+            </span>
+          </div>
+          <div className="divide-y divide-amber-800/20">
+            {pendingReviews?.map((review) => (
+              <button
+                key={`${review.solverId}-${review.taskId}`}
+                onClick={() =>
+                  navigate(`/review/${review.solverId}/${review.taskId}`)
+                }
+                className="flex w-full items-center justify-between p-4 text-left transition hover:bg-amber-900/10"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="font-mono text-sm text-amber-400">
+                    {review.taskId}
+                  </span>
+
+                </div>
+                <span className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-700">
+                  {t('my_tasks.review')}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

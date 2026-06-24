@@ -8,6 +8,8 @@ import { AdminUserDetailPage } from '../features/admin-user-detail/pages/AdminUs
 import { AdminUserTaskDetailPage } from '../features/admin-user-detail/pages/AdminUserTaskDetailPage'
 import { AdminBatchesPage } from '../features/batches/pages/AdminBatchesPage'
 import { MyTasksPage } from '../features/my-tasks/pages/MyTasksPage'
+import { ReviewTaskPage } from '../features/reviews/pages/ReviewTaskPage'
+import { AdminReviewPairsPage } from '../features/reviews/pages/AdminReviewPairsPage'
 
 export function AppRouter() {
   return (
@@ -20,6 +22,8 @@ export function AppRouter() {
         <Route path="/admin/users/:userId/task/:taskId" element={<AdminUserTaskDetailPage />} />
         <Route path="/admin/batches" element={<AdminBatchesPage />} />
         <Route path="/my-tasks" element={<MyTasksPage />} />
+        <Route path="/review/:solverId/:taskId" element={<ReviewTaskPage />} />
+        <Route path="/admin/review-pairs" element={<AdminReviewPairsPage />} />
         <Route path="/solve/:userId/:taskId" element={<ArcLabPage />} />
         <Route path="/solve/:taskId" element={<ArcLabPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
