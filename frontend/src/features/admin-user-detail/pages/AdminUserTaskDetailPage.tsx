@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
@@ -6,6 +6,7 @@ import {
   useAttempts,
   useEvents,
   useDeleteAttempts,
+  useUserDetail,
 } from '../queries'
 import { eventsToGraphNodes, getNodeLabel, formatDelta } from '../utils'
 import { EventGraph } from '../components/EventGraph'
@@ -26,9 +27,19 @@ export function AdminUserTaskDetailPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const {
+    data: user,
+  } = useUserDetail(numericId)
+
+  const {
     data: attempts,
     isLoading: attemptsLoading,
   } = useAttempts(numericId, taskId ?? '', true)
+
+  useEffect(() => {
+    if (attempts && attempts.length > 0 && selectedAttemptId === null) {
+      setSelectedAttemptId(attempts[0].id)
+    }
+  }, [attempts, selectedAttemptId])
 
   const deleteAttemptsMutation = useDeleteAttempts(numericId, taskId ?? '')
 
@@ -132,6 +143,11 @@ export function AdminUserTaskDetailPage() {
         <h1 className="text-3xl font-bold">
           {t('admin_detail.graph_title')}
         </h1>
+        {user && (
+          <p className="mt-1 text-sm text-gray-400">
+            {user.email} <span className="text-gray-600">(ID: {user.id})</span>
+          </p>
+        )}
         <p className="mt-1 font-mono text-sm text-gray-400">
           {t('admin_detail.table.taskId')}: {taskId}
         </p>

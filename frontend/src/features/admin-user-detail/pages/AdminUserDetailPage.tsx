@@ -305,9 +305,13 @@ export function AdminUserDetailPage() {
             {t('admin_detail.title')}
           </h1>
           {user && (
-            <p className="mt-1 text-sm text-gray-400">
-              {user.email}
-            </p>
+            <div className="mt-1 flex items-center gap-2 text-sm text-gray-400">
+              <span>{user.email}</span>
+              <span className="text-gray-600">(ID: {user.id})</span>
+              <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium uppercase text-gray-500">
+                {user.role}
+              </span>
+            </div>
           )}
         </div>
       </div>
