@@ -49,7 +49,7 @@ export function EventDetailsPanel({ node, onClose }: EventDetailsPanelProps) {
         {node.parentId && (
           <p className="text-xs text-gray-400">Parent: <span className="font-mono text-gray-200">{node.parentId}</span></p>
         )}
-        <p className="text-xs text-gray-400">Timestamp: <span className="font-mono text-gray-200">{node.timestamp}</span></p>
+        <p className="text-xs text-gray-400">Timestamp: <span className="font-mono text-gray-200">{new Date(node.timestamp).toLocaleString()}</span></p>
       </div>
 
       <div className="mb-3">

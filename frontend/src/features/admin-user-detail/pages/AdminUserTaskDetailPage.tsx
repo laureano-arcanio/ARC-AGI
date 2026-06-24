@@ -7,7 +7,7 @@ import {
   useEvents,
   useDeleteAttempts,
 } from '../queries'
-import { eventsToGraphNodes, getNodeLabel } from '../utils'
+import { eventsToGraphNodes, getNodeLabel, formatDelta } from '../utils'
 import { EventGraph } from '../components/EventGraph'
 import { EventDetailsPanel } from '../components/EventDetailsPanel'
 import type { GraphNode } from '../../../shared/types/arc-graph'
@@ -401,12 +401,15 @@ export function AdminUserTaskDetailPage() {
                             {t('admin_detail.table.timestamp')}
                           </th>
                           <th className="px-3 py-2 font-medium">
+                            {t('admin_detail.table.delta_t')}
+                          </th>
+                          <th className="px-3 py-2 font-medium">
                             {t('admin_detail.table.trigger')}
                           </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-800">
-                        {filteredEvents.map((ev) => (
+                        {filteredEvents.map((ev, idx) => (
                           <tr
                             key={ev.id}
                             className="transition hover:bg-gray-900/50"
@@ -420,7 +423,12 @@ export function AdminUserTaskDetailPage() {
                                 : '-'}
                             </td>
                             <td className="px-3 py-2 text-gray-400">
-                              {ev.timestamp}
+                              {new Date(ev.timestamp).toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2 text-gray-400 font-mono">
+                              {idx === 0
+                                ? '0ms'
+                                : formatDelta(ev.timestamp - filteredEvents[idx - 1].timestamp)}
                             </td>
                             <td className="max-w-[400px] truncate px-3 py-2 font-mono text-gray-400">
                               {JSON.stringify(ev.trigger)}
