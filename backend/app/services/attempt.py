@@ -2,11 +2,14 @@ from typing import Any
 
 from app.models.attempt import Attempt
 from app.repositories.attempt import AttemptRepository
+from app.repositories.batch import BatchRepository
 from app.repositories.event import EventRepository
 from app.schemas.attempt import (
     AttemptCreate,
     AttemptRead,
     AttemptUpdate,
+    BatchWithTasks,
+    TaskWithStatus,
     UserTaskSummary,
 )
 from app.services.base_service import BaseService
@@ -74,6 +77,42 @@ class AttemptService(
     ) -> list[UserTaskSummary]:
         rows = await self.repository.get_user_tasks(user_id)
         return [UserTaskSummary.model_validate(row) for row in rows]
+
+    async def get_user_batch_tasks(
+        self, user_id: int
+    ) -> list[BatchWithTasks]:
+        batch_repo = BatchRepository(db_session=self.repository.db_session)
+        batches = await batch_repo.get_batches_for_user(user_id)
+
+        existing = await self.get_user_tasks(user_id)
+        existing_map = {t.task_id: t for t in existing}
+
+        result = []
+        for batch in batches:
+            tasks = []
+            for task_id in batch.task_ids:
+                tid = str(task_id)
+                summary = existing_map.get(tid)
+                if summary:
+                    tasks.append(TaskWithStatus(
+                        task_id=tid,
+                        attempt_count=summary.attempt_count,
+                        solved=summary.solved,
+                        status="completed" if summary.solved else "started",
+                    ))
+                else:
+                    tasks.append(TaskWithStatus(
+                        task_id=tid,
+                        attempt_count=0,
+                        solved=False,
+                        status="not_started",
+                    ))
+            result.append(BatchWithTasks(
+                batch_id=batch.id,
+                batch_name=batch.name,
+                tasks=tasks,
+            ))
+        return result
 
     async def delete_user_task(self, user_id: int, task_id: str) -> None:
         await self.repository.delete_by_user_and_task(user_id, task_id)

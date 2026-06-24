@@ -25,3 +25,16 @@ class UserTaskSummary(BaseAPISchema):
     task_id: str
     attempt_count: int
     solved: bool
+
+
+class TaskWithStatus(BaseAPISchema):
+    task_id: str
+    attempt_count: int
+    solved: bool
+    status: str  # "not_started" | "started" | "completed"
+
+
+class BatchWithTasks(BaseAPISchema):
+    batch_id: int
+    batch_name: str
+    tasks: list[TaskWithStatus]

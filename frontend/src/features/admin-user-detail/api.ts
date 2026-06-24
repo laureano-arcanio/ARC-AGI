@@ -1,5 +1,5 @@
 import { http } from '../../lib/http'
-import type { UserPasswordUpdate, UserTaskSummary, AttemptRead, EventRead } from './types'
+import type { BatchWithTasks, UserPasswordUpdate, UserTaskSummary, AttemptRead, EventRead } from './types'
 
 export type UserRead = {
   id: number
@@ -22,6 +22,10 @@ export function getUser(userId: number): Promise<UserRead> {
 
 export function getUserTasks(userId: number): Promise<UserTaskSummary[]> {
   return http.get<UserTaskSummary[]>(`/v1/users/${userId}/tasks`)
+}
+
+export function getUserBatchTasks(userId: number): Promise<BatchWithTasks[]> {
+  return http.get<BatchWithTasks[]>(`/v1/users/${userId}/batch-tasks`)
 }
 
 export function getAttempts(

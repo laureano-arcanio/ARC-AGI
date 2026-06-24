@@ -4,6 +4,19 @@ export type UserTaskSummary = {
   solved: boolean
 }
 
+export type TaskWithStatus = {
+  taskId: string
+  attemptCount: number
+  solved: boolean
+  status: 'not_started' | 'started' | 'completed'
+}
+
+export type BatchWithTasks = {
+  batchId: number
+  batchName: string
+  tasks: TaskWithStatus[]
+}
+
 export type AttemptRead = {
   id: number
   userId: number

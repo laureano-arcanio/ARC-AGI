@@ -4,7 +4,7 @@ from app.dependencies.auth import AdminDep, CurrentUserDep, require_owner_or_adm
 from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
 from app.repositories.user import UserRepository
-from app.schemas.attempt import UserTaskSummary
+from app.schemas.attempt import BatchWithTasks, UserTaskSummary
 from app.schemas.user import (
     LoginResponse,
     UserCreate,
@@ -91,6 +91,16 @@ async def get_user_tasks(
 ) -> list[UserTaskSummary]:
     require_owner_or_admin(id, current_user)
     return await service.get_user_tasks(id)
+
+
+@router.get("/{id}/batch-tasks", response_model=list[BatchWithTasks])
+async def get_user_batch_tasks(
+    id: int,
+    service: AttemptService = Depends(get_attempt_service),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
+) -> list[BatchWithTasks]:
+    require_owner_or_admin(id, current_user)
+    return await service.get_user_batch_tasks(id)
 
 
 @router.delete("/{id}/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

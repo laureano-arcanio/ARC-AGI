@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../queries'
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUsersBatchCompletion } from '../queries'
 import { useBatches, useAssignBatchToUser, useUnassignBatchFromUser } from '../../batches/queries'
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog'
-import { Multiselect } from '../../../components/ui/Multiselect'
 import { HttpClientError } from '../../../lib/http'
+import type { BatchRead } from '../../batches/types'
 
 export function AdminUsersPage() {
   const { t } = useTranslation()
@@ -27,26 +28,11 @@ export function AdminUsersPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
-  const batchOptions = (batches ?? []).map(b => ({
-    value: b.id,
-    label: b.name,
-  }))
+  const userIds = (users ?? []).map((u) => u.id)
+  const { completedByUser, inProgressByUser } = useUsersBatchCompletion(userIds)
 
-  const getUserBatchIds = (userId: number): number[] =>
-    (batches ?? [])
-      .filter(b => b.assignedUserIds.includes(userId))
-      .map(b => b.id)
-
-  const handleBatchToggle = (userId: number, batchId: number) => {
-    const isAssigned = (batches ?? []).some(
-      b => b.id === batchId && b.assignedUserIds.includes(userId)
-    )
-    if (isAssigned) {
-      unassignMutation.mutate({ batchId, userId })
-    } else {
-      assignMutation.mutate({ batchId, userId })
-    }
-  }
+  const getUserBatches = (userId: number): BatchRead[] =>
+    (batches ?? []).filter(b => b.assignedUserIds.includes(userId))
 
   const isMutating = assignMutation.isPending || unassignMutation.isPending
 
@@ -226,12 +212,17 @@ export function AdminUsersPage() {
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  <Multiselect
-                    options={batchOptions}
-                    selectedValues={getUserBatchIds(user.id)}
-                    onToggle={(batchId) => handleBatchToggle(user.id, batchId)}
-                    placeholder={batchesLoading ? '...' : t('admin.batches_placeholder')}
+                  <BatchPills
+                    userBatches={getUserBatches(user.id)}
+                    allBatches={batches ?? []}
+                    userId={user.id}
+                    onAssign={(batchId) => assignMutation.mutate({ batchId, userId: user.id })}
+                    onUnassign={(batchId) => unassignMutation.mutate({ batchId, userId: user.id })}
+                    completedBatchIds={completedByUser.get(user.id) ?? new Set()}
+                    inProgressBatchIds={inProgressByUser.get(user.id) ?? new Set()}
                     disabled={isMutating}
+                    batchesLoading={batchesLoading}
+                    placeholder={t('admin.batches_placeholder')}
                   />
                 </td>
                 <td className="px-4 py-3 text-gray-500">
@@ -270,6 +261,138 @@ export function AdminUsersPage() {
         onCancel={() => setDeleteTarget(null)}
         variant="danger"
       />
+    </div>
+  )
+}
+
+type BatchPillsProps = {
+  userBatches: BatchRead[]
+  allBatches: BatchRead[]
+  userId: number
+  onAssign: (batchId: number) => void
+  onUnassign: (batchId: number) => void
+  completedBatchIds: Set<number>
+  inProgressBatchIds: Set<number>
+  disabled: boolean
+  batchesLoading: boolean
+  placeholder: string
+}
+
+function getBatchPillColor(batchId: number, completed: Set<number>, inProgress: Set<number>) {
+  if (completed.has(batchId)) {
+    return 'bg-green-600/20 text-green-400 border-green-600/30'
+  }
+  if (inProgress.has(batchId)) {
+    return 'bg-amber-600/20 text-amber-400 border-amber-600/30'
+  }
+  return 'bg-gray-600/20 text-gray-400 border-gray-600/30'
+}
+
+function BatchPills({
+  userBatches,
+  allBatches,
+  userId,
+  onAssign,
+  onUnassign,
+  completedBatchIds,
+  inProgressBatchIds,
+  disabled,
+  batchesLoading,
+  placeholder,
+}: BatchPillsProps) {
+  const [open, setOpen] = useState(false)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null)
+
+  const close = useCallback(() => setOpen(false), [])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
+        close()
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open, close])
+
+  const unassigned = allBatches.filter(
+    b => !b.assignedUserIds.includes(userId)
+  )
+
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 200),
+      })
+    }
+    setOpen(!open)
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {batchesLoading && userBatches.length === 0 && (
+        <span className="text-xs text-gray-500">...</span>
+      )}
+      {userBatches.map((batch) => (
+        <button
+          key={batch.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onUnassign(batch.id)}
+          title={batch.name}
+          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50 ${getBatchPillColor(batch.id, completedBatchIds, inProgressBatchIds)}`}
+        >
+          {batch.name}
+        </button>
+      ))}
+      {!batchesLoading && userBatches.length === 0 && (
+        <span className="text-xs text-gray-500">{placeholder}</span>
+      )}
+      <div className="relative inline-flex">
+        <button
+          ref={buttonRef}
+          type="button"
+          disabled={disabled || unassigned.length === 0}
+          onClick={handleToggle}
+          className="flex h-5 w-5 items-center justify-center rounded border border-dashed border-gray-600 text-xs text-gray-500 transition hover:border-gray-400 hover:text-gray-300 disabled:opacity-40"
+        >
+          +
+        </button>
+        {open && position && createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ position: 'fixed', top: position.top, left: position.left, width: position.width }}
+            className="z-50 max-h-48 overflow-auto rounded border border-gray-700 bg-gray-900 shadow-lg"
+          >
+            {unassigned.map((batch) => (
+              <button
+                key={batch.id}
+                type="button"
+                onClick={() => {
+                  onAssign(batch.id)
+                  close()
+                }}
+                className="w-full cursor-pointer px-3 py-1.5 text-left text-xs text-gray-300 transition hover:bg-gray-800"
+              >
+                {batch.name}
+              </button>
+            ))}
+            {unassigned.length === 0 && (
+              <p className="px-3 py-2 text-xs text-gray-500">No batches available</p>
+            )}
+          </div>,
+          document.body,
+        )}
+      </div>
     </div>
   )
 }

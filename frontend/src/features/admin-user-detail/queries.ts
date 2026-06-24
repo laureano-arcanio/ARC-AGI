@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getUser, getUserTasks, getAttempts, getEvents, updateUserPassword, deleteUserTask, deleteAttempt } from './api'
+import { getUser, getUserBatchTasks, getAttempts, getEvents, updateUserPassword, deleteUserTask, deleteAttempt } from './api'
 
 export const adminUserDetailQueryKeys = {
   all: ['admin-user-detail'] as const,
@@ -30,10 +30,10 @@ export function useUserDetail(userId: number) {
   })
 }
 
-export function useUserTasks(userId: number) {
+export function useUserBatchTasks(userId: number) {
   return useQuery({
     queryKey: adminUserDetailQueryKeys.tasks(userId),
-    queryFn: () => getUserTasks(userId),
+    queryFn: () => getUserBatchTasks(userId),
   })
 }
 
