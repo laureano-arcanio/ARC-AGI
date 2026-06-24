@@ -307,6 +307,17 @@ export function AdminUserTaskDetailPage() {
               : events
             const nodes: GraphNode[] = eventsToGraphNodes(filteredEvents)
             const activeNode = nodes.find((n) => n.id === activeNodeId) ?? null
+
+            const firstEvent = filteredEvents[0]
+            const lastEvent = filteredEvents[filteredEvents.length - 1]
+            const totalTime = firstEvent && lastEvent ? lastEvent.timestamp - firstEvent.timestamp : 0
+            const firstCognitive = filteredEvents.find(
+              (ev) => (ev.trigger as { kind?: string }).kind === 'cognitive',
+            )
+            const timeToFirstAction = firstCognitive && firstEvent
+              ? firstCognitive.timestamp - firstEvent.timestamp
+              : null
+
             return (
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-2">
@@ -331,6 +342,32 @@ export function AdminUserTaskDetailPage() {
                   <span className="text-[10px] text-gray-500">
                     {nodes.length} nodes
                   </span>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="rounded border border-gray-700 bg-gray-900/50 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                      {t('admin_detail.stats_time_to_first_action')}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-gray-200">
+                      {timeToFirstAction !== null ? formatDelta(timeToFirstAction) : '-'}
+                    </p>
+                  </div>
+                  <div className="rounded border border-gray-700 bg-gray-900/50 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                      {t('admin_detail.stats_total_time')}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-gray-200">
+                      {formatDelta(totalTime)}
+                    </p>
+                  </div>
+                  <div className="rounded border border-gray-700 bg-gray-900/50 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                      {t('admin_detail.stats_total_actions')}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-gray-200">
+                      {filteredEvents.length}
+                    </p>
+                  </div>
                 </div>
                 <EventGraph
                   nodes={nodes}
