@@ -3,6 +3,7 @@ import { Layout } from './Layout'
 import { DashboardPage } from '../features/dashboard/pages/DashboardPage'
 import { HealthPage } from '../features/health/pages/HealthPage'
 import { ArcLabPage } from '../features/arc-lab/pages/ArcLabPage'
+import { HypothesizePage } from '../features/arc-lab/pages/HypothesizePage'
 import { AdminUsersPage } from '../features/admin-users/pages/AdminUsersPage'
 import { AdminUserDetailPage } from '../features/admin-user-detail/pages/AdminUserDetailPage'
 import { AdminUserTaskDetailPage } from '../features/admin-user-detail/pages/AdminUserTaskDetailPage'
@@ -24,6 +25,8 @@ export function AppRouter() {
         <Route path="/my-tasks" element={<MyTasksPage />} />
         <Route path="/review/:solverId/:taskId" element={<ReviewTaskPage />} />
         <Route path="/admin/review-pairs" element={<AdminReviewPairsPage />} />
+        <Route path="/hypothesize/:userId/:taskId" element={<HypothesizePage />} />
+        <Route path="/hypothesize/:taskId" element={<HypothesizePage />} />
         <Route path="/solve/:userId/:taskId" element={<ArcLabPage />} />
         <Route path="/solve/:taskId" element={<ArcLabPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

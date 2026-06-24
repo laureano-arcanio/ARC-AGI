@@ -53,7 +53,7 @@ export function MyTasksPage() {
   )
 
   const handleTaskClick = (taskId: string) => {
-    navigate(`/solve/${userId}/${taskId}`)
+    navigate(`/hypothesize/${userId}/${taskId}`)
   }
 
   return (

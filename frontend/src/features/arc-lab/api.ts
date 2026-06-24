@@ -23,3 +23,24 @@ export function createAttempt(
 export function postEvent(event: EventPayload): Promise<unknown> {
   return http.post('/v1/events/', event)
 }
+
+export type PreSolverEventRead = {
+  id: number
+  nodeId: string
+  parentNodeId: string | null
+  testPairIndex: number | null
+  trigger: Record<string, unknown>
+  stateSnapshot: number[][]
+  timestamp: number
+}
+
+export function fetchEventsByAttempt(
+  userId: number,
+  taskId: string,
+  attemptId: number,
+): Promise<PreSolverEventRead[]> {
+  return http.get<PreSolverEventRead[]>(
+    `/v1/events/users/${userId}/tasks/${taskId}`,
+    { params: { attemptId: String(attemptId) } },
+  )
+}

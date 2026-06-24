@@ -5,6 +5,9 @@ export type CognitiveIntent =
   | 'failure_analysis'
   | 'branch_pivot'
   | 'correct_analysis'
+  | 'initial_hypothesis'
+  | 'hypothesis_revision'
+  | 'final_algorithm_before_solving'
 
 export type MechanicalAction =
   | 'cell_paint'
@@ -19,7 +22,7 @@ export type MechanicalAction =
 
 export type GraphTrigger =
   | { kind: 'mechanical'; action: MechanicalAction; details?: Record<string, unknown> }
-  | { kind: 'cognitive'; intent: CognitiveIntent; text: string }
+  | { kind: 'cognitive'; intent: CognitiveIntent; text: string; details?: Record<string, unknown> }
 
 export type GraphNode = {
   id: string

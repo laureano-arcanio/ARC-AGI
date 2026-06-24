@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRandomTasks, useTaskById } from '../queries'
-import { createAttempt, postEvent } from '../api'
+import { createAttempt, fetchEventsByAttempt, postEvent } from '../api'
 import { getUserAccessibleTaskIds } from '../../batches/api'
 import { useTranslation } from '../../../lib/i18n'
 import { ConfirmDialog, InstructionModal } from '../../../components/common'
@@ -76,11 +76,12 @@ type Action =
   | { type: 'SET_MESSAGE'; message: ToastMessage | null }
   | { type: 'DISMISS_MESSAGE' }
   | { type: 'TRAVEL_TO_NODE'; nodeId: string }
-  | { type: 'ADD_COGNITIVE_NODE'; intent: CognitiveIntent; text: string }
+  | { type: 'ADD_COGNITIVE_NODE'; intent: CognitiveIntent; text: string; details?: Record<string, unknown> }
   | { type: 'SUBMIT_REFLECTION'; intent: CognitiveIntent; text: string }
   | { type: 'SET_BLOCK_REASON'; reason: BlockReason }
   | { type: 'NAVIGATE_PREV' }
   | { type: 'NAVIGATE_NEXT' }
+  | { type: 'LOAD_PRE_SOLVER_EVENTS'; nodes: GraphNode[] }
 
 function makeNodeId(n: number): string {
   return `node_${String(n).padStart(3, '0')}`
@@ -444,7 +445,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const idxCog = state.currentTestIndex
       const graph = addNode(
         state,
-        { kind: 'cognitive', intent: action.intent, text: action.text },
+        { kind: 'cognitive', intent: action.intent, text: action.text, ...(action.details ? { details: action.details } : {}) },
       )
       return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCog]!, true), pendingPivotReflection: false }
     }
@@ -508,6 +509,20 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       }
     }
 
+    case 'LOAD_PRE_SOLVER_EVENTS': {
+      const idx = state.currentTestIndex
+      const existingIds = new Set(state.graphNodesByTest[idx]?.map((n) => n.id) ?? [])
+      const newNodes = action.nodes.filter((n) => !existingIds.has(n.id))
+      if (newNodes.length === 0) return state
+      return {
+        ...state,
+        graphNodesByTest: {
+          ...state.graphNodesByTest,
+          [idx]: [...(state.graphNodesByTest[idx] ?? []), ...newNodes],
+        },
+      }
+    }
+
     default:
       return state
   }
@@ -518,6 +533,9 @@ const COGNITIVE_COMPACT: Record<CognitiveIntent, string> = {
   failure_analysis: 'Failure analysis',
   branch_pivot: 'Branch pivot',
   correct_analysis: 'Correct',
+  initial_hypothesis: 'Initial hypothesis',
+  hypothesis_revision: 'Hypothesis revision',
+  final_algorithm_before_solving: 'Final algorithm',
 }
 
 function getNodeLabel(trigger: GraphTrigger): string {
@@ -559,6 +577,8 @@ function getNodeLabel(trigger: GraphTrigger): string {
 
 export function ArcLabPage() {
   const { taskId, userId: routeUserId } = useParams<{ taskId: string; userId: string }>()
+  const [searchParams] = useSearchParams()
+  const urlAttemptId = searchParams.get('attemptId')
   const navigate = useNavigate()
   const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
@@ -645,8 +665,13 @@ export function ArcLabPage() {
 
   const sentHashes = useRef<Set<string>>(new Set())
   const attemptIdRef = useRef<number | null>(null)
+  const prevTaskIdRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
+    if (urlAttemptId) {
+      attemptIdRef.current = Number(urlAttemptId)
+      return
+    }
     if (!taskId || taskId === 'random') return
     if (userId === null) return
     let cancelled = false
@@ -658,7 +683,30 @@ export function ArcLabPage() {
     return () => {
       cancelled = true
     }
-  }, [userId, taskId])
+  }, [userId, taskId, urlAttemptId])
+
+  const loadedAttemptId = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!taskId || taskId === 'random' || !userId || !urlAttemptId) return
+    if (state.train.length === 0) return
+    if (loadedAttemptId.current === urlAttemptId) return
+    loadedAttemptId.current = urlAttemptId
+    fetchEventsByAttempt(userId, taskId, Number(urlAttemptId)).then((events) => {
+      const preSolverNodes: GraphNode[] = events
+        .filter((ev) => ev.nodeId.startsWith('pre_node_'))
+        .map((ev) => ({
+          id: ev.nodeId,
+          trigger: ev.trigger as unknown as GraphTrigger,
+          stateSnapshot: ev.stateSnapshot,
+          parentId: ev.parentNodeId,
+          timestamp: ev.timestamp,
+        }))
+      if (preSolverNodes.length > 0) {
+        dispatch({ type: 'LOAD_PRE_SOLVER_EVENTS', nodes: preSolverNodes })
+      }
+    }).catch(() => {})
+  }, [userId, taskId, urlAttemptId, state.train.length])
 
   useEffect(() => {
     if (!taskId || taskId === 'random') return
@@ -666,6 +714,7 @@ export function ArcLabPage() {
     if (attemptIdRef.current === null) return
     for (const [testIdxStr, nodes] of Object.entries(state.graphNodesByTest)) {
       for (const node of nodes) {
+        if (node.id.startsWith('pre_node_')) continue
         const hash = `${testIdxStr}:${node.id}:${JSON.stringify(node.trigger)}`
         if (sentHashes.current.has(hash)) continue
         postEvent({
@@ -685,7 +734,10 @@ export function ArcLabPage() {
   }, [state.graphNodesByTest, taskId, userId])
 
   useEffect(() => {
-    sentHashes.current = new Set()
+    if (prevTaskIdRef.current !== taskId) {
+      sentHashes.current = new Set()
+      prevTaskIdRef.current = taskId
+    }
   }, [taskId])
 
   const { data: randomTasks, isFetched: randomFetched } = useRandomTasks(
@@ -698,8 +750,8 @@ export function ArcLabPage() {
   useEffect(() => {
     if (taskId === 'random' && randomFetched && randomTasks && randomTasks.length > 0) {
       const target = routeUserId
-        ? `/solve/${routeUserId}/${randomTasks[0].id}`
-        : `/solve/${randomTasks[0].id}`
+        ? `/hypothesize/${routeUserId}/${randomTasks[0].id}`
+        : `/hypothesize/${randomTasks[0].id}`
       navigate(target, { replace: true })
     }
   }, [taskId, randomFetched, randomTasks, navigate, routeUserId])

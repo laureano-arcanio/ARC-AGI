@@ -6,10 +6,13 @@ import type { TaskPair } from '../types'
 type DemonstrationPanelProps = {
   pairs: TaskPair[]
   showNumbers?: boolean
+  visibleCount?: number
 }
 
-export function DemonstrationPanel({ pairs, showNumbers = false }: DemonstrationPanelProps) {
+export function DemonstrationPanel({ pairs, showNumbers = false, visibleCount }: DemonstrationPanelProps) {
   const { t } = useTranslation()
+  const visiblePairs = visibleCount !== undefined ? pairs.slice(0, visibleCount) : pairs
+  const lastVisibleIndex = visiblePairs.length - 1
 
   return (
     <div
@@ -21,7 +24,8 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
 
       <div className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
         <div className="flex flex-col">
-        {pairs.map((pair, i) => {
+        {visiblePairs.map((pair, i) => {
+          const isNew = i === lastVisibleIndex && visibleCount !== undefined
           const inputH = gridHeight(pair.input)
           const inputW = gridWidth(pair.input)
           const outputH = gridHeight(pair.output)
@@ -30,7 +34,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false }: Demonstration
             <div
               key={i}
               data-testid={`pair-${i}`}
-              className="flex items-center gap-4 border-b border-gray-800/50 p-4 last:border-b-0"
+              className={`flex items-center gap-4 border-b border-gray-800/50 p-4 last:border-b-0 ${isNew ? 'border-l-2 border-l-green-500 bg-green-950/20' : ''}`}
             >
               <div className="flex flex-1 flex-col items-end gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">

@@ -1,6 +1,6 @@
 import { useMemo, Fragment, type ReactNode, type SVGProps } from 'react'
 import { useTranslation } from '../../../lib/i18n'
-import type { GraphNode, GraphTrigger, MechanicalAction } from '../types'
+import type { CognitiveIntent, GraphNode, GraphTrigger, MechanicalAction } from '../types'
 import { COLOR_MAP } from '../types'
 
 // ---- inline SVG icons (16x16, stroke currentColor) ----
@@ -129,6 +129,25 @@ const MultiIcon = () => (
   </IconSvg>
 )
 
+const RefreshIcon = () => (
+  <IconSvg size={16}>
+    <path d="M21 2v6h-6" />
+    <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+    <path d="M3 22v-6h6" />
+    <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+  </IconSvg>
+)
+
+const PRE_SOLVER_INTENTS: CognitiveIntent[] = [
+  'initial_hypothesis',
+  'hypothesis_revision',
+  'final_algorithm_before_solving',
+]
+
+function isPreSolverTrigger(trigger: GraphTrigger): boolean {
+  return trigger.kind === 'cognitive' && PRE_SOLVER_INTENTS.includes(trigger.intent)
+}
+
 // ---- color swatches helper ----
 
 function getColorsUsed(trigger: GraphTrigger): string[] {
@@ -163,6 +182,12 @@ function getNodeMeta(trigger: GraphTrigger): {
         return { icon: <NotesIcon />, color: 'error' }
       case 'branch_pivot':
         return { icon: <NotesIcon />, color: 'warning' }
+      case 'initial_hypothesis':
+        return { icon: <BulbIcon />, color: 'active' }
+      case 'hypothesis_revision':
+        return { icon: <RefreshIcon />, color: 'active' }
+      case 'final_algorithm_before_solving':
+        return { icon: <CheckIcon />, color: 'success' }
     }
   }
   const action = trigger.action as MechanicalAction
@@ -433,10 +458,12 @@ export function CognitiveTimeline({
                 const tooltipLabel = getLabel(node.trigger)
                 const swatches = getColorsUsed(node.trigger)
 
+                const isPreSolver = isPreSolverTrigger(node.trigger)
                 const ringClass = isActive ? 'border-blue-400 shadow-md shadow-blue-600/30 scale-110' : COLOR_RING[color]
                 const bgClass = isActive ? 'bg-blue-600' : COLOR_BG[color]
                 const textClass = isActive ? 'text-white' : onActivePath ? 'text-gray-200 opacity-90' : COLOR_TEXT[color]
                 const opacityClass = !isActive && !onActivePath ? 'opacity-55' : ''
+                const borderClass = isPreSolver ? 'border-dashed' : ''
                 return (
                   <div
                     key={node.id}
@@ -446,19 +473,33 @@ export function CognitiveTimeline({
                       top: `${nodeCY(pos.row) - NODE_SIZE / 2}px`,
                     }}
                   >
-                    <button
-                      type="button"
-                      data-testid={`timeline-node-${node.id}`}
-                      onClick={() => onNodeClick(node.id)}
-                      className={`flex items-center justify-center rounded-full
-                        border transition-colors cursor-pointer ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
-                      style={{
-                        width: `${NODE_SIZE}px`,
-                        height: `${NODE_SIZE}px`,
-                      }}
-                    >
-                      {icon}
-                    </button>
+                    {isPreSolver ? (
+                      <div
+                        data-testid={`timeline-node-${node.id}`}
+                        className={`flex items-center justify-center rounded-full
+                          border transition-colors cursor-default ${borderClass} ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
+                        style={{
+                          width: `${NODE_SIZE}px`,
+                          height: `${NODE_SIZE}px`,
+                        }}
+                      >
+                        {icon}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        data-testid={`timeline-node-${node.id}`}
+                        onClick={() => onNodeClick(node.id)}
+                        className={`flex items-center justify-center rounded-full
+                          border transition-colors cursor-pointer ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
+                        style={{
+                          width: `${NODE_SIZE}px`,
+                          height: `${NODE_SIZE}px`,
+                        }}
+                      >
+                        {icon}
+                      </button>
+                    )}
                     <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5
                       hidden group-hover:flex flex-col items-center gap-1 z-[100]">
                       <div className="rounded-lg bg-gray-800 border border-gray-700 px-2.5 py-1.5 shadow-lg whitespace-nowrap">
