@@ -65,21 +65,9 @@ export function InstructionModal({ open, onDismiss }: InstructionModalProps) {
             {' — '}
             {t('instruction.step3_desc')}
           </li>
-          <li className="text-sm leading-relaxed text-gray-300">
-            <span className="font-semibold text-gray-100">{t('instruction.step4_label')}</span>
-            {' — '}
-            {t('instruction.step4_desc')}
-          </li>
         </ol>
 
         <div className="mt-5 space-y-3">
-          <div className="rounded-lg border border-gray-700/50 bg-gray-800/50 p-3">
-            <p className="text-sm font-semibold text-gray-100">{t('instruction.annotations_title')}</p>
-            <p className="mt-1 text-sm leading-relaxed text-gray-400">
-              {t('instruction.annotations_desc')}
-            </p>
-          </div>
-
           <div className="rounded-lg border border-gray-700/50 bg-gray-800/50 p-3">
             <p className="text-sm font-semibold text-gray-100">{t('instruction.undo_title')}</p>
             <p className="mt-1 text-sm leading-relaxed text-gray-400">

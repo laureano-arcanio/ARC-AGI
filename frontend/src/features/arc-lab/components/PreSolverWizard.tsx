@@ -1,8 +1,63 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { DemonstrationPanel } from './DemonstrationPanel'
 import { GridDisplay } from './GridDisplay'
 import { useTranslation } from '../../../lib/i18n'
 import type { CognitiveIntent, TaskPair } from '../types'
+
+function PreSolverModal({ onDismiss }: { onDismiss: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="absolute inset-0" onClick={onDismiss} />
+      <div className="relative max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-xl">
+        <h2 className="text-lg font-bold text-gray-100">{t('pre_solver.modal_title')}</h2>
+
+        <p className="mt-3 text-sm leading-relaxed text-gray-400">
+          {t('pre_solver.modal_intro')}
+        </p>
+
+        <ol className="mt-4 space-y-3">
+          <li className="text-sm leading-relaxed text-gray-300">
+            <span className="font-semibold text-gray-100">{t('pre_solver.modal_step1_label')}</span>
+            {' — '}
+            {t('pre_solver.modal_step1_desc')}
+          </li>
+          <li className="text-sm leading-relaxed text-gray-300">
+            <span className="font-semibold text-gray-100">{t('pre_solver.modal_step2_label')}</span>
+            {' — '}
+            {t('pre_solver.modal_step2_desc')}
+          </li>
+          <li className="text-sm leading-relaxed text-gray-300">
+            <span className="font-semibold text-gray-100">{t('pre_solver.modal_step3_label')}</span>
+            {' — '}
+            {t('pre_solver.modal_step3_desc')}
+          </li>
+        </ol>
+
+        <div className="mt-5 rounded-lg border border-gray-700/50 bg-gray-800/50 p-3">
+          <p className="text-sm font-semibold text-gray-100">{t('pre_solver.modal_annotation_title')}</p>
+          <p className="mt-1 text-sm leading-relaxed text-gray-400">
+            {t('pre_solver.modal_annotation_desc')}
+          </p>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded-md bg-green-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
+          >
+            {t('pre_solver.modal_dismiss')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 type RevisionType = 'confirmed' | 'refined' | 'invalidated' | 'uncertain'
 
@@ -36,6 +91,7 @@ export function PreSolverWizard({
 }: PreSolverWizardProps) {
   const { t } = useTranslation()
   const totalSteps = train.length + 1
+  const [modalOpen, setModalOpen] = useState(true)
   const [wizardStep, setWizardStep] = useState(0)
   const [hypothesisText, setHypothesisText] = useState('')
   const [revisionType, setRevisionType] = useState<RevisionType | null>(null)
@@ -46,6 +102,15 @@ export function PreSolverWizard({
   const [testAdjustmentText, setTestAdjustmentText] = useState('')
   const [error, setError] = useState('')
   const lastHypothesisRef = useRef('')
+
+  useEffect(() => {
+    if (!modalOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setModalOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [modalOpen])
 
   const isValid = wordCount(hypothesisText) >= 5
   const isTestStep = wizardStep === train.length
@@ -167,7 +232,9 @@ export function PreSolverWizard({
   const needsInput = revisionType === 'refined' || revisionType === 'invalidated'
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
+    <>
+      {modalOpen && <PreSolverModal onDismiss={() => setModalOpen(false)} />}
+      <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-300">
           {t('pre_solver.step_title', { current: wizardStep + 1, total: totalSteps })}
@@ -397,5 +464,6 @@ export function PreSolverWizard({
         <p className="mt-2 text-xs text-red-400">{error}</p>
       )}
     </div>
+    </>
   )
 }

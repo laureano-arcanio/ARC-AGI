@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRandomTasks, useTaskById } from '../queries'
 import { createAttempt, fetchEventsByAttempt, postEvent } from '../api'
@@ -31,6 +31,8 @@ import {
   type ToolMode,
 } from '../types'
 import { DemonstrationPanel } from '../components/DemonstrationPanel'
+import { HypothesisPanel } from '../components/HypothesisPanel'
+import { AhaMomentModal } from '../components/AhaMomentModal'
 import { TestInputPanel } from '../components/TestInputPanel'
 import { OutputEditor } from '../components/OutputEditor'
 import { Toast } from '../components/Toast'
@@ -55,7 +57,6 @@ type ArcLabState = {
   navigationHistoryByTest: Record<number, string[]>
   navigationIndexByTest: Record<number, number>
   blockReason: BlockReason
-  pendingPivotReflection: boolean
 }
 
 type Action =
@@ -160,7 +161,6 @@ const initialState: ArcLabState = {
   navigationHistoryByTest: {},
   navigationIndexByTest: {},
   blockReason: null,
-  pendingPivotReflection: false,
 }
 
 function makeRootNode(outputGrid: GridData): GraphNode {
@@ -195,7 +195,6 @@ function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
     navigationHistoryByTest: { 0: ['node_000'] },
     navigationIndexByTest: { 0: 0 },
     blockReason: null,
-    pendingPivotReflection: false,
   }
 }
 
@@ -253,9 +252,6 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return { ...state, sizeInput: action.value }
 
     case 'RESIZE': {
-      if (state.pendingPivotReflection) {
-        return { ...state, blockReason: 'branch_pivot', pendingPivotReflection: false }
-      }
       const parsed = parseSize(state.sizeInput)
       if (!parsed.ok) {
         return { ...state, message: { kind: 'error', text: parsed.error, params: parsed.params } }
@@ -271,9 +267,6 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     }
 
     case 'COPY_FROM_INPUT': {
-      if (state.pendingPivotReflection) {
-        return { ...state, blockReason: 'branch_pivot', pendingPivotReflection: false }
-      }
       const outputGrid = serializeGridToGridObject(state.inputGrid)
       const graph = addNode(
         { ...state, outputGrid },
@@ -313,7 +306,6 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: rootId },
         ...afterJump,
         blockReason: null,
-        pendingPivotReflection: false,
         message: { kind: 'info', text: 'timeline.branch_discarded' },
       }
     }
@@ -341,7 +333,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         message: allCorrect
           ? { kind: 'info', text: 'toast.correct' }
           : { kind: 'error', text: 'toast.wrong' },
-        blockReason: allCorrect ? 'correct_analysis' : 'failure_analysis',
+        blockReason: allCorrect ? 'correct_analysis' : null,
       }
     }
 
@@ -430,14 +422,11 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const nodes = state.graphNodesByTest[idx] ?? []
       const target = nodes.find((n) => n.id === action.nodeId)
       if (!target) return state
-      const lastNode = nodes[nodes.length - 1]
-      const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: target.id },
         ...updateHistory(state, target.id, false),
-        pendingPivotReflection: isBackwards,
       }
     }
 
@@ -447,11 +436,11 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         state,
         { kind: 'cognitive', intent: action.intent, text: action.text, ...(action.details ? { details: action.details } : {}) },
       )
-      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCog]!, true), pendingPivotReflection: false }
+      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCog]!, true) }
     }
 
     case 'SET_BLOCK_REASON': {
-      return { ...state, blockReason: action.reason, pendingPivotReflection: false }
+      return { ...state, blockReason: action.reason }
     }
 
     case 'SUBMIT_REFLECTION': {
@@ -465,7 +454,6 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         ...graph,
         ...updateHistory(state, graph.activeNodeIdByTest![idxRefl]!, true),
         blockReason: null,
-        pendingPivotReflection: false,
       }
     }
 
@@ -478,14 +466,11 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const nodes = state.graphNodesByTest[idx] ?? []
       const target = nodes.find((n) => n.id === prevId)
       if (!target) return state
-      const lastNode = nodes[nodes.length - 1]
-      const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: prevId },
         navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: navIdx - 1 },
-        pendingPivotReflection: isBackwards,
       }
     }
 
@@ -498,14 +483,11 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const nodes = state.graphNodesByTest[idx] ?? []
       const target = nodes.find((n) => n.id === nextId)
       if (!target) return state
-      const lastNode = nodes[nodes.length - 1]
-      const isBackwards = target.id !== lastNode?.id && target.id !== 'node_000'
       return {
         ...state,
         outputGrid: cloneGrid(target.stateSnapshot),
         activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: nextId },
         navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: navIdx + 1 },
-        pendingPivotReflection: isBackwards,
       }
     }
 
@@ -514,11 +496,41 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const existingIds = new Set(state.graphNodesByTest[idx]?.map((n) => n.id) ?? [])
       const newNodes = action.nodes.filter((n) => !existingIds.has(n.id))
       if (newNodes.length === 0) return state
+      const combined = [...(state.graphNodesByTest[idx] ?? []), ...newNodes]
+      const { text, isUncertain } = getFinalHypothesis(combined)
+      const rootNode = combined.find((n) => n.id === 'node_000')
+      const hypothesisFinal: GraphNode = {
+        id: 'hypothesis_final',
+        parentId: rootNode?.id ?? null,
+        trigger: {
+          kind: 'cognitive',
+          intent: 'hypothesis',
+          text: text ?? '',
+          details: {
+            isPreSolverFinal: true,
+            ...(isUncertain ? { revisionType: 'uncertain' } : {}),
+          },
+        },
+        stateSnapshot: [[0]],
+        timestamp: Date.now(),
+      }
       return {
         ...state,
         graphNodesByTest: {
           ...state.graphNodesByTest,
-          [idx]: [...(state.graphNodesByTest[idx] ?? []), ...newNodes],
+          [idx]: [...combined, hypothesisFinal],
+        },
+        activeNodeIdByTest: {
+          ...state.activeNodeIdByTest,
+          [idx]: hypothesisFinal.id,
+        },
+        navigationHistoryByTest: {
+          ...state.navigationHistoryByTest,
+          [idx]: ['node_000', hypothesisFinal.id],
+        },
+        navigationIndexByTest: {
+          ...state.navigationIndexByTest,
+          [idx]: 1,
         },
       }
     }
@@ -575,6 +587,33 @@ function getNodeLabel(trigger: GraphTrigger): string {
   }
 }
 
+function getFinalHypothesis(nodes: GraphNode[]): { text: string | null; isUncertain: boolean } {
+  const sorted = nodes
+    .filter((n) => n.trigger.kind === 'cognitive')
+    .sort((a, b) => a.timestamp - b.timestamp)
+
+  if (sorted.length === 0) return { text: null, isUncertain: false }
+
+  let lastText: string | null = null
+  let isUncertain = false
+
+  for (const node of sorted) {
+    const trig = node.trigger as { kind: 'cognitive'; intent: CognitiveIntent; text: string; details?: Record<string, unknown> }
+    const intent = trig.intent
+    if (intent === 'initial_hypothesis' || intent === 'hypothesis_revision' || intent === 'final_algorithm_before_solving') {
+      if (trig.details?.isPreSolverFinal && !trig.text) continue
+      if (trig.text) lastText = trig.text
+      if (intent === 'hypothesis_revision') {
+        const rt = trig.details?.revisionType
+        if (rt === 'uncertain') isUncertain = true
+        else if (rt === 'confirmed' || rt === 'refined') isUncertain = false
+      }
+    }
+  }
+
+  return { text: lastText, isUncertain }
+}
+
 export function ArcLabPage() {
   const { taskId, userId: routeUserId } = useParams<{ taskId: string; userId: string }>()
   const [searchParams] = useSearchParams()
@@ -583,10 +622,7 @@ export function ArcLabPage() {
   const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
   const [abandonOpen, setAbandonOpen] = useState(false)
-  const [hypothesisText, setHypothesisText] = useState('')
-  const [failureAnalysisText, setFailureAnalysisText] = useState('')
-  const [branchPivotText, setBranchPivotText] = useState('')
-  const [correctAnalysisText, setCorrectAnalysisText] = useState('')
+  const [ahaOpen, setAhaOpen] = useState(false)
 
   const [userId, setUserId] = useState<number | null>(null)
   const [userError, setUserError] = useState(false)
@@ -646,14 +682,26 @@ export function ArcLabPage() {
     }
   }, [userId, taskId])
 
-  const currentNodes = state.graphNodesByTest[state.currentTestIndex] ?? []
+  const currentNodes = useMemo(
+    () => state.graphNodesByTest[state.currentTestIndex] ?? [],
+    [state.graphNodesByTest, state.currentTestIndex],
+  )
   const currentActiveNodeId = state.activeNodeIdByTest[state.currentTestIndex] ?? null
   const currentNavHistory = state.navigationHistoryByTest[state.currentTestIndex] ?? []
   const currentNavIndex = state.navigationIndexByTest[state.currentTestIndex] ?? 0
-  const atRoot = currentNodes.some((n) => n.id === currentActiveNodeId && n.trigger.kind === 'mechanical' && n.trigger.action === 'load_task')
   const canGoPrev = currentNavIndex > 0
   const canGoNext = currentNavIndex < currentNavHistory.length - 1
-  const readOnly = atRoot || state.blockReason !== null
+  const readOnly = state.blockReason === 'correct_analysis'
+
+  const { text: hypothesisText, isUncertain } = useMemo(
+    () => getFinalHypothesis(currentNodes),
+    [currentNodes],
+  )
+
+  const timelineNodes = useMemo(
+    () => currentNodes.filter((n) => !n.id.startsWith('pre_node_')),
+    [currentNodes],
+  )
 
   const lastEventKeyRef = useRef<string | null>(null)
 
@@ -720,6 +768,7 @@ export function ArcLabPage() {
     for (const [testIdxStr, nodes] of Object.entries(state.graphNodesByTest)) {
       for (const node of nodes) {
         if (node.id.startsWith('pre_node_')) continue
+        if (node.id === 'hypothesis_final') continue
         const hash = `${testIdxStr}:${node.id}:${JSON.stringify(node.trigger)}`
         if (sentHashes.current.has(hash)) continue
         postEvent({
@@ -764,21 +813,22 @@ export function ArcLabPage() {
   useEffect(() => {
     if (specificTask) {
       dispatch({ type: 'LOAD_TASK', task: specificTask })
-      setHypothesisText('')
       lastEventKeyRef.current = null
     }
   }, [specificTask])
 
-  const interceptPivotReflection = (): boolean => {
-    if (state.pendingPivotReflection) {
-      dispatch({ type: 'SET_BLOCK_REASON', reason: 'branch_pivot' })
-      return true
+  useEffect(() => {
+    if (state.blockReason === 'correct_analysis') {
+      if (isUncertain && hypothesisText === null) {
+        setAhaOpen(true)
+      } else {
+        const id = setTimeout(() => navigate('/my-tasks'), 1500)
+        return () => clearTimeout(id)
+      }
     }
-    return false
-  }
+  }, [state.blockReason, isUncertain, hypothesisText, navigate])
 
   const handleSymbolSelect = (symbol: number) => {
-    if (interceptPivotReflection()) return
     dispatch({ type: 'SET_SYMBOL', symbol })
     if (state.toolMode === 'select') {
       dispatch({ type: 'FILL_SELECTED' })
@@ -787,40 +837,17 @@ export function ArcLabPage() {
   }
 
   const handleCellClick = (x: number, y: number) => {
-    if (interceptPivotReflection()) return
     if (!shouldDispatchEvent(`cell_paint:${x}:${y}:${state.selectedSymbol}`)) return
     dispatch({ type: 'CELL_CLICK', x, y })
   }
 
-  const handleHypothesisSubmit = () => {
-    const trimmed = hypothesisText.trim()
-    if (!trimmed) return
-    dispatch({ type: 'ADD_COGNITIVE_NODE', intent: 'hypothesis', text: trimmed })
-    setHypothesisText('')
+  const handleSubmit = () => {
+    dispatch({ type: 'SUBMIT' })
   }
 
-  const handleFailureAnalysisSubmit = () => {
-    const trimmed = failureAnalysisText.trim()
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length
-    if (wordCount < 5) return
-    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'failure_analysis', text: trimmed })
-    setFailureAnalysisText('')
-  }
-
-  const handleBranchPivotSubmit = () => {
-    const trimmed = branchPivotText.trim()
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length
-    if (wordCount < 5) return
-    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'branch_pivot', text: trimmed })
-    setBranchPivotText('')
-  }
-
-  const handleCorrectAnalysisSubmit = () => {
-    const trimmed = correctAnalysisText.trim()
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length
-    if (wordCount < 5) return
-    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'correct_analysis', text: trimmed })
-    setCorrectAnalysisText('')
+  const handleAhaSubmit = (text: string) => {
+    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'correct_analysis', text })
+    setAhaOpen(false)
     navigate('/my-tasks')
   }
 
@@ -837,10 +864,6 @@ export function ArcLabPage() {
   const handleReset = () => {
     if (!shouldDispatchEvent('reset_output')) return
     dispatch({ type: 'RESET_OUTPUT' })
-    setHypothesisText('')
-    setFailureAnalysisText('')
-    setBranchPivotText('')
-    setCorrectAnalysisText('')
   }
 
   const handleResize = () => {
@@ -851,20 +874,6 @@ export function ArcLabPage() {
   const handleCopyFromInput = () => {
     if (!shouldDispatchEvent('copy_from_input')) return
     dispatch({ type: 'COPY_FROM_INPUT' })
-  }
-
-  const handleSubmit = () => {
-    console.log('[SUBMIT]', JSON.stringify({
-      outputGrid: state.outputGrid,
-      testIndex: state.currentTestIndex,
-      reference: state.test[state.currentTestIndex]?.output,
-      graphNodes: currentNodes.map((n) => ({
-        id: n.id,
-        trigger: n.trigger,
-        parentId: n.parentId,
-      })),
-    }, null, 2))
-    dispatch({ type: 'SUBMIT' })
   }
 
   const accessDenied =
@@ -902,7 +911,7 @@ export function ArcLabPage() {
       <div className="flex flex-col">
 
         <CognitiveTimeline
-          nodes={currentNodes}
+          nodes={timelineNodes}
           activeNodeId={currentActiveNodeId}
           onNodeClick={(nodeId) => dispatch({ type: 'TRAVEL_TO_NODE', nodeId })}
           getLabel={(trigger) => getNodeLabel(trigger)}
@@ -913,6 +922,14 @@ export function ArcLabPage() {
             for (let i = 0; i < Math.abs(diff); i++) {
               dispatch(diff > 0 ? { type: 'NEXT_TEST_INPUT' } : { type: 'PREV_TEST_INPUT' })
             }
+          }}
+        />
+
+        <HypothesisPanel
+          hypothesisText={hypothesisText}
+          isUncertain={isUncertain}
+          onRuleFound={(text) => {
+            dispatch({ type: 'ADD_COGNITIVE_NODE', intent: 'hypothesis_revision', text })
           }}
         />
 
@@ -989,19 +1006,6 @@ export function ArcLabPage() {
               selectedCells={state.selectedCells}
               sizeInput={state.sizeInput}
               readOnly={readOnly}
-              blockReason={state.blockReason}
-              hypothesisText={hypothesisText}
-              onHypothesisChange={setHypothesisText}
-              onHypothesisSubmit={handleHypothesisSubmit}
-              failureAnalysisText={failureAnalysisText}
-              onFailureAnalysisChange={setFailureAnalysisText}
-              onFailureAnalysisSubmit={handleFailureAnalysisSubmit}
-              branchPivotText={branchPivotText}
-              onBranchPivotChange={setBranchPivotText}
-              onBranchPivotSubmit={handleBranchPivotSubmit}
-              correctAnalysisText={correctAnalysisText}
-              onCorrectAnalysisChange={setCorrectAnalysisText}
-              onCorrectAnalysisSubmit={handleCorrectAnalysisSubmit}
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
               onResize={handleResize}
               onCopyFromInput={handleCopyFromInput}
@@ -1039,6 +1043,11 @@ export function ArcLabPage() {
       <InstructionModal
         open={instructionOpen}
         onDismiss={() => setInstructionOpen(false)}
+      />
+
+      <AhaMomentModal
+        open={ahaOpen}
+        onSubmit={handleAhaSubmit}
       />
       </>
       )}
