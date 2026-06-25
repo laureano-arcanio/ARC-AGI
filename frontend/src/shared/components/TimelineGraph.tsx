@@ -146,7 +146,7 @@ export function TimelineGraph({
 
       const context = {
         isActive: node.id === activeNodeId,
-        onActivePath: activePath.has(node.id),
+        onActivePath: activeNodeId === null || activePath.has(node.id),
         activePath,
         nodeSize,
       }
@@ -224,7 +224,7 @@ export function TimelineGraph({
 
                     const context = {
                       isActive: node.id === activeNodeId,
-                      onActivePath: activePath.has(node.id),
+                      onActivePath: activeNodeId === null || activePath.has(node.id),
                       activePath,
                       nodeSize,
                     }
