@@ -90,6 +90,7 @@ export function HypothesizePage() {
   return (
     <PreSolverWizard
       train={specificTask.train}
+      test={specificTask.test}
       visibleTrainPairCount={visibleTrainPairCount}
       onSetVisibleCount={setVisibleTrainPairCount}
       onAddCognitiveNode={handleAddCognitiveNode}
