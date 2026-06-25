@@ -16,6 +16,7 @@ import {
   TimelineNotesIcon,
   TimelinePasteIcon,
   TimelinePencilIcon,
+  TimelineQuestionIcon,
   TimelineRefreshIcon,
   TimelineResetIcon,
   TimelineResizeIcon,
@@ -80,6 +81,9 @@ export function getTimelineNodeMeta(trigger: GraphTrigger): {
   if (trigger.kind === 'cognitive') {
     switch (trigger.intent) {
       case 'hypothesis':
+        if (trigger.details?.revisionType === 'uncertain') {
+          return { icon: <TimelineQuestionIcon />, color: 'neutral' }
+        }
         return { icon: <TimelineBulbIcon />, color: 'warning' }
       case 'correct_analysis':
         return { icon: <TimelineCheckIcon />, color: 'success' }

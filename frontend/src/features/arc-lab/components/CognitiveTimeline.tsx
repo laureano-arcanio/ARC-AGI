@@ -74,16 +74,21 @@ export function CognitiveTimeline({
         renderNode={(node, { isActive, onActivePath, nodeSize }) => {
           const { icon, color } = getTimelineNodeMeta(node.trigger)
           const isPreSolver = isPreSolverTrigger(node.trigger)
+          const isUncertainHypothesis =
+            node.trigger.kind === 'cognitive' &&
+            node.trigger.intent === 'hypothesis' &&
+            node.trigger.details?.revisionType === 'uncertain'
+          const isNonClickable = isPreSolver || isUncertainHypothesis
           const className = getTimelineNodeClassName({
             color,
             isActive,
             onActivePath,
             isDashed: isPreSolver,
-            isClickable: !isPreSolver,
+            isClickable: !isNonClickable,
           })
           const style = { width: `${nodeSize}px`, height: `${nodeSize}px` }
 
-          if (isPreSolver) {
+          if (isNonClickable) {
             return (
               <div
                 data-testid={`timeline-node-${node.id}`}

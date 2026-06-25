@@ -29,7 +29,17 @@ class EventRepository(BaseRepository[Event]):
                 conditions.append(self.model.test_pair_index.is_(None))
             query = select(self.model).where(*conditions)
             result = await self.db_session.execute(query)
-            return result.scalar_one()
+            existing = result.scalar_one()
+            existing.trigger = data.get("trigger", existing.trigger)
+            existing.state_snapshot = data.get(
+                "state_snapshot", existing.state_snapshot
+            )
+            existing.timestamp = data.get("timestamp", existing.timestamp)
+            if "parent_node_id" in data:
+                existing.parent_node_id = data["parent_node_id"]
+            await self.db_session.flush()
+            await self.db_session.refresh(existing)
+            return existing
 
     async def get_by_user_and_task(
         self,

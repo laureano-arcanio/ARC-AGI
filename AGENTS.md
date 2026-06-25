@@ -25,6 +25,7 @@
 │       ├── shared/         # Cross-feature hooks, types, utils, constants
 │       └── assets/         # Static files
 ├── docker-compose.yml  # local dev: backend + frontend + postgres
+├── docs/               # project-wide documentation
 └── AGENTS.md           # ← this file
 ```
 
@@ -36,6 +37,7 @@
 | **Implementation Guide (Backend)** | `backend/docs/IMPLEMENTATION_GUIDE.md` | When adding a new endpoint or writing tests |
 | **Architecture (Frontend)** | `frontend/docs/ARCHITECTURE.md` | First time, or whenever unclear about frontend layers |
 | **Implementation Guide (Frontend)** | `frontend/docs/IMPLEMENTATION_GUIDE.md` | When adding a new feature or writing tests |
+| **Event System** | `docs/EVENTS.md` | Before changing solver events, timelines, attempts, or reviews |
 
 ## Development Rules
 

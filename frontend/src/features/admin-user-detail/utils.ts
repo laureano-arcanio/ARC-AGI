@@ -2,23 +2,20 @@ import type { GraphNode, GraphTrigger } from '../../shared/types/arc-graph'
 import type { EventRead } from './types'
 
 export function eventsToGraphNodes(events: EventRead[]): GraphNode[] {
-  const seen = new Set<string>()
-  return events.filter((ev) => {
+  const latest = new Map<string, GraphNode>()
+  for (const ev of events) {
     const key = `${ev.testPairIndex ?? '__'}:${ev.nodeId}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  }).map((ev) => {
     const trigger = ev.trigger as unknown as GraphTrigger
-    return {
+    latest.set(key, {
       id: ev.nodeId,
       trigger,
       stateSnapshot: ev.stateSnapshot,
       parentId: ev.parentNodeId ?? null,
       timestamp: ev.timestamp,
       testPairIndex: ev.testPairIndex ?? undefined,
-    }
-  })
+    })
+  }
+  return [...latest.values()]
 }
 
 function getLastHypothesisText(nodes: GraphNode[]): string {
