@@ -492,46 +492,63 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     }
 
     case 'LOAD_PRE_SOLVER_EVENTS': {
-      const idx = state.currentTestIndex
-      const existingIds = new Set(state.graphNodesByTest[idx]?.map((n) => n.id) ?? [])
-      const newNodes = action.nodes.filter((n) => !existingIds.has(n.id))
-      if (newNodes.length === 0) return state
-      const combined = [...(state.graphNodesByTest[idx] ?? []), ...newNodes]
-      const { text, isUncertain } = getFinalHypothesis(combined)
-      const rootNode = combined.find((n) => n.id === 'node_000')
-      const hypothesisFinal: GraphNode = {
-        id: 'hypothesis_final',
-        parentId: rootNode?.id ?? null,
-        trigger: {
-          kind: 'cognitive',
-          intent: 'hypothesis',
-          text: text ?? '',
-          details: {
-            isPreSolverFinal: true,
-            ...(isUncertain ? { revisionType: 'uncertain' } : {}),
+      const testCount = state.test.length
+      const graphNodesByTest = { ...state.graphNodesByTest }
+      const activeNodeIdByTest = { ...state.activeNodeIdByTest }
+      const navigationHistoryByTest = { ...state.navigationHistoryByTest }
+      const navigationIndexByTest = { ...state.navigationIndexByTest }
+
+      let hasNewNodes = false
+      const { nodes: preNodes } = action
+      const { text, isUncertain } = getFinalHypothesis(preNodes)
+
+      for (let idx = 0; idx < testCount; idx++) {
+        const existingIds = new Set(graphNodesByTest[idx]?.map((n) => n.id) ?? [])
+        const newNodes = preNodes.filter((n) => !existingIds.has(n.id))
+        if (newNodes.length === 0) {
+          if (existingIds.has('hypothesis_final')) continue
+        }
+        hasNewNodes = true
+        let nodes = graphNodesByTest[idx] ?? []
+        if (!nodes.find((n) => n.id === 'node_000')) {
+          const root: GraphNode = {
+            id: 'node_000',
+            trigger: { kind: 'mechanical', action: 'load_task' },
+            stateSnapshot: createGrid(3, 3),
+            parentId: null,
+            timestamp: Date.now(),
+          }
+          nodes = [root, ...nodes]
+        }
+        const combined = [...nodes, ...newNodes]
+        const hypothesisFinal: GraphNode = {
+          id: 'hypothesis_final',
+          parentId: 'node_000',
+          trigger: {
+            kind: 'cognitive',
+            intent: 'hypothesis',
+            text: text ?? '',
+            details: {
+              isPreSolverFinal: true,
+              ...(isUncertain ? { revisionType: 'uncertain' } : {}),
+            },
           },
-        },
-        stateSnapshot: [[0]],
-        timestamp: Date.now(),
+          stateSnapshot: [[0]],
+          timestamp: Date.now(),
+        }
+        graphNodesByTest[idx] = [...combined, hypothesisFinal]
+        activeNodeIdByTest[idx] = hypothesisFinal.id
+        navigationHistoryByTest[idx] = ['node_000', hypothesisFinal.id]
+        navigationIndexByTest[idx] = 1
       }
+
+      if (!hasNewNodes) return state
       return {
         ...state,
-        graphNodesByTest: {
-          ...state.graphNodesByTest,
-          [idx]: [...combined, hypothesisFinal],
-        },
-        activeNodeIdByTest: {
-          ...state.activeNodeIdByTest,
-          [idx]: hypothesisFinal.id,
-        },
-        navigationHistoryByTest: {
-          ...state.navigationHistoryByTest,
-          [idx]: ['node_000', hypothesisFinal.id],
-        },
-        navigationIndexByTest: {
-          ...state.navigationIndexByTest,
-          [idx]: 1,
-        },
+        graphNodesByTest,
+        activeNodeIdByTest,
+        navigationHistoryByTest,
+        navigationIndexByTest,
       }
     }
 

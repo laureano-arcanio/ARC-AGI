@@ -45,6 +45,12 @@ function PreSolverModal({ onDismiss }: { onDismiss: () => void }) {
           </p>
         </div>
 
+        <div className="mt-3 rounded-lg border border-amber-700/40 bg-amber-900/20 p-3">
+          <p className="text-sm leading-relaxed text-amber-200">
+            {t('pre_solver.modal_multi_test_warning')}
+          </p>
+        </div>
+
         <div className="mt-6 flex justify-end">
           <button
             type="button"
@@ -90,7 +96,7 @@ export function PreSolverWizard({
   onComplete,
 }: PreSolverWizardProps) {
   const { t } = useTranslation()
-  const totalSteps = train.length + 1
+  const totalSteps = train.length + test.length
   const [modalOpen, setModalOpen] = useState(true)
   const [wizardStep, setWizardStep] = useState(0)
   const [hypothesisText, setHypothesisText] = useState('')
@@ -98,8 +104,6 @@ export function PreSolverWizard({
   const [revisionText, setRevisionText] = useState('')
   const [invalidatedContradictionText, setInvalidatedContradictionText] = useState('')
   const [invalidatedNewHypothesisText, setInvalidatedNewHypothesisText] = useState('')
-  const [testChoice, setTestChoice] = useState<'confirmed' | 'adjustment' | null>(null)
-  const [testAdjustmentText, setTestAdjustmentText] = useState('')
   const [error, setError] = useState('')
   const lastHypothesisRef = useRef('')
 
@@ -113,7 +117,9 @@ export function PreSolverWizard({
   }, [modalOpen])
 
   const isValid = wordCount(hypothesisText) >= 5
-  const isTestStep = wizardStep === train.length
+  const isTestStep = wizardStep >= train.length
+  const testIndex = wizardStep - train.length
+  const isLastTestStep = testIndex >= test.length - 1
 
   const advanceToNext = useCallback(() => {
     const nextCount = Math.min(visibleTrainPairCount + 1, train.length)
@@ -201,22 +207,77 @@ export function PreSolverWizard({
     advanceToNext()
   }, [revisionType, revisionText, invalidatedContradictionText, invalidatedNewHypothesisText, onAddCognitiveNode, visibleTrainPairCount, advanceToNext, t])
 
-  const handleTestSubmit = useCallback(() => {
-    if (!testChoice) {
-      setError(t('pre_solver.no_text'))
-      return
+  const advanceToNextTest = useCallback(() => {
+    if (isLastTestStep) {
+      onComplete()
+    } else {
+      setRevisionType(null)
+      setRevisionText('')
+      setInvalidatedContradictionText('')
+      setInvalidatedNewHypothesisText('')
+      setWizardStep((s) => s + 1)
     }
-    const needsText = testChoice === 'adjustment'
-    if (needsText && wordCount(testAdjustmentText) < 5) {
-      setError(t('pre_solver.no_text'))
-      return
-    }
+  }, [isLastTestStep, onComplete])
+
+  const handleTestRevisionSelect = useCallback((key: RevisionType) => {
     setError('')
-    onAddCognitiveNode('final_algorithm_before_solving', needsText ? testAdjustmentText.trim() : '', {
-      testChoice,
-    })
-    onComplete()
-  }, [testChoice, testAdjustmentText, onAddCognitiveNode, onComplete, t])
+
+    if (key === 'confirmed' || key === 'uncertain') {
+      onAddCognitiveNode('hypothesis_revision', '', {
+        revisionType: key,
+        visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
+        testIndex,
+      })
+      advanceToNextTest()
+    } else if (key === 'refined') {
+      setRevisionType(key)
+      setRevisionText(lastHypothesisRef.current)
+      setInvalidatedContradictionText('')
+      setInvalidatedNewHypothesisText('')
+    } else if (key === 'invalidated') {
+      setRevisionType(key)
+      setRevisionText('')
+      setInvalidatedContradictionText('')
+      setInvalidatedNewHypothesisText('')
+    }
+  }, [onAddCognitiveNode, visibleTrainPairCount, testIndex, advanceToNextTest])
+
+  const handleTestRevisionContinue = useCallback(() => {
+    if (!revisionType) {
+      setError(t('pre_solver.no_text'))
+      return
+    }
+
+    let text = ''
+    const details: Record<string, unknown> = {
+      revisionType,
+      visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
+      testIndex,
+    }
+
+    if (revisionType === 'refined') {
+      if (wordCount(revisionText) < 5) {
+        setError(t('pre_solver.no_text'))
+        return
+      }
+      text = revisionText.trim()
+    } else if (revisionType === 'invalidated') {
+      if (wordCount(invalidatedContradictionText) < 5 || wordCount(invalidatedNewHypothesisText) < 5) {
+        setError(t('pre_solver.no_text_invalidated'))
+        return
+      }
+      text = invalidatedNewHypothesisText.trim()
+      details.contradiction = invalidatedContradictionText.trim()
+    } else {
+      return
+    }
+
+    setError('')
+    onAddCognitiveNode('hypothesis_revision', text, details)
+    lastHypothesisRef.current = text
+
+    advanceToNextTest()
+  }, [revisionType, revisionText, invalidatedContradictionText, invalidatedNewHypothesisText, onAddCognitiveNode, visibleTrainPairCount, testIndex, advanceToNextTest, t])
 
   if (train.length === 0) {
     return (
@@ -253,15 +314,17 @@ export function PreSolverWizard({
 
       <DemonstrationPanel pairs={train} visibleCount={isTestStep ? train.length : visibleTrainPairCount} />
 
-      {isTestStep && test.length > 0 && (
+      {isTestStep && test.length > 0 && testIndex < test.length && (
         <div className="mt-4 overflow-hidden rounded-xl border border-amber-700/50 bg-gray-900">
           <div className="border-b border-amber-700/30 bg-amber-950/20 px-4 py-2">
             <span className="text-sm font-semibold text-amber-400">
-              {t('panel.test_input')}
+              {test.length > 1
+                ? t('pre_solver.test_input_n', { current: testIndex + 1, total: test.length })
+                : t('panel.test_input')}
             </span>
           </div>
           <div className="flex justify-center px-4 py-4">
-            <GridDisplay grid={test[0].input} containerSize={500} maxCellSize={120} />
+            <GridDisplay grid={test[testIndex].input} containerSize={500} maxCellSize={120} />
           </div>
         </div>
       )}
@@ -399,21 +462,18 @@ export function PreSolverWizard({
         {isTestStep && (
           <div>
             <p className="mb-3 text-sm font-medium text-gray-200">
-              {t('pre_solver.test_prompt')}
+              {t('pre_solver.revision_question')}
             </p>
             <div className="mb-4 flex flex-wrap gap-2">
-              {[
-                { key: 'confirmed' as const, labelKey: 'pre_solver.test_confirmed' },
-                { key: 'adjustment' as const, labelKey: 'pre_solver.test_adjustment' },
-              ].map(({ key, labelKey }) => (
+              {REVISION_TYPES.map(({ key, labelKey }) => (
                 <button
                   key={key}
                   type="button"
-                  onClick={() => { setTestChoice(key); setError('') }}
-                  data-testid={`test-${key}`}
+                  onClick={() => handleTestRevisionSelect(key)}
+                  data-testid={`revision-${key}`}
                   className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                    testChoice === key
-                      ? 'border-amber-500 bg-amber-900/30 text-amber-300'
+                    revisionType === key
+                      ? 'border-green-500 bg-green-900/30 text-green-300'
                       : 'border-gray-600 bg-gray-800 text-gray-300 hover:border-gray-500'
                   }`}
                 >
@@ -422,40 +482,79 @@ export function PreSolverWizard({
               ))}
             </div>
 
-            {testChoice === 'adjustment' && (
+            {revisionType === 'refined' && (
               <div className="mb-3">
                 <label className="mb-1 block text-xs font-medium text-gray-300">
-                  {t('pre_solver.test_adjustment_prompt')}
+                  {t('pre_solver.revision_prompt')}
                 </label>
                 <textarea
                   ref={(el) => el?.focus()}
                   rows={3}
-                  value={testAdjustmentText}
-                  onChange={(e) => { setTestAdjustmentText(e.target.value); setError('') }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTestSubmit() } }}
-                  data-testid="pre-solver-test-adjustment"
+                  value={revisionText}
+                  onChange={(e) => { setRevisionText(e.target.value); setError('') }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTestRevisionContinue() } }}
+                  data-testid="pre-solver-revision-text"
                   className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
                 />
-                <span className={`mt-1 block text-xs ${wordCount(testAdjustmentText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
-                  {t('pre_solver.words', { count: wordCount(testAdjustmentText) })}
+                <span className={`mt-1 block text-xs ${wordCount(revisionText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
+                  {t('pre_solver.words', { count: wordCount(revisionText) })}
                 </span>
               </div>
             )}
 
-            <div className="flex items-center justify-between">
-              {error && <span className="text-xs text-red-400">{error}</span>}
-              <div className="ml-auto">
-                <button
-                  type="button"
-                  onClick={handleTestSubmit}
-                  disabled={!testChoice}
-                  data-testid="pre-solver-start-solving"
-                  className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
-                >
-                  {t('pre_solver.start_solving')}
-                </button>
+            {revisionType === 'invalidated' && (
+              <div className="mb-3 space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-300">
+                    {t('pre_solver.invalidated_contradiction_prompt')}
+                  </label>
+                  <textarea
+                    ref={(el) => el?.focus()}
+                    rows={2}
+                    value={invalidatedContradictionText}
+                    onChange={(e) => { setInvalidatedContradictionText(e.target.value); setError('') }}
+                    data-testid="pre-solver-invalidated-contradiction"
+                    className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+                  />
+                  <span className={`mt-1 block text-xs ${wordCount(invalidatedContradictionText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
+                    {t('pre_solver.words', { count: wordCount(invalidatedContradictionText) })}
+                  </span>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-300">
+                    {t('pre_solver.invalidated_new_hypothesis_prompt')}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={invalidatedNewHypothesisText}
+                    onChange={(e) => { setInvalidatedNewHypothesisText(e.target.value); setError('') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTestRevisionContinue() } }}
+                    data-testid="pre-solver-invalidated-new-hypothesis"
+                    className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+                  />
+                  <span className={`mt-1 block text-xs ${wordCount(invalidatedNewHypothesisText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
+                    {t('pre_solver.words', { count: wordCount(invalidatedNewHypothesisText) })}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
+
+            {revisionType !== null && (
+              <div className="flex items-center justify-between">
+                {error && <span className="text-xs text-red-400">{error}</span>}
+                <div className="ml-auto">
+                  <button
+                    type="button"
+                    onClick={handleTestRevisionContinue}
+                    disabled={revisionType === null}
+                    data-testid="pre-solver-start-solving"
+                    className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+                  >
+                    {isLastTestStep ? t('pre_solver.start_solving') : t('pre_solver.next_test')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
