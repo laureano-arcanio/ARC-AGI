@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from fastapi import HTTPException, status
 
 from app.errors import ObjectNotFoundError
 from app.models.review import PeerReviewPair, Review, ReviewTag
@@ -103,7 +104,9 @@ class TestReviewService:
     ) -> None:
         svc = ReviewService(repository=mock_review_repo)
         svc.read_schema = ReviewRead
-        result = await svc.get_or_create(1, 2, "abc")
+        # is_admin bypasses pairing validation; this test covers creation
+        # mechanics. Pairing enforcement is covered at the router level.
+        result = await svc.get_or_create(1, 2, "abc", is_admin=True)
         assert isinstance(result, ReviewRead)
         assert result.reviewer_id == 1
         assert result.solver_id == 2
@@ -174,3 +177,30 @@ class TestReviewTagService:
         result = await svc.get_by_review(1)
         assert len(result) == 1
         assert isinstance(result[0], ReviewTagRead)
+
+    async def test_delete_tag_rejects_tag_from_other_review(
+        self, mock_tag_repo: AsyncMock
+    ) -> None:
+        mock_tag_repo.get_by_id.return_value = ReviewTag(
+            id=9, review_id=2, solver_node_id="node_001", quality="good"
+        )
+        svc = ReviewTagService(repository=mock_tag_repo)
+        svc.read_schema = ReviewTagRead
+        # Tag 9 belongs to review 2; deleting it via review 1 must be refused.
+        with pytest.raises(HTTPException) as exc:
+            await svc.delete_tag(1, 9)
+        assert exc.value.status_code == status.HTTP_404_NOT_FOUND
+        mock_tag_repo.delete.assert_not_called()
+
+    async def test_delete_tag_deletes_when_owned_by_review(
+        self, mock_tag_repo: AsyncMock
+    ) -> None:
+        mock_tag_repo.get_by_id.return_value = ReviewTag(
+            id=9, review_id=1, solver_node_id="node_001", quality="good"
+        )
+        mock_tag_repo.delete.side_effect = None
+        mock_tag_repo.delete.return_value = None
+        svc = ReviewTagService(repository=mock_tag_repo)
+        svc.read_schema = ReviewTagRead
+        await svc.delete_tag(1, 9)
+        mock_tag_repo.delete.assert_awaited_with(9)

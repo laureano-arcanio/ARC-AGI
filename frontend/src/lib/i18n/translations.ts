@@ -53,6 +53,8 @@ const es = {
   'toast.no_test_pair': 'No hay par de prueba para comparar.',
   'toast.correct': '¡Solución correcta!',
   'toast.wrong': 'Solución incorrecta.',
+  'toast.submit_failed': 'No se pudo enviar la solución. Revisá tu conexión e intentá de nuevo.',
+  'toast.event_save_failed': 'No se pudo guardar parte de tu razonamiento. Revisá tu conexión.',
 
   'callout.intercept': 'Antes de resolver, escribí tu hipótesis de trabajo.',
 
@@ -429,6 +431,8 @@ const en: Record<string, string> = {
   'toast.no_test_pair': 'No test pair to check against.',
   'toast.correct': 'Correct solution!',
   'toast.wrong': 'Wrong solution.',
+  'toast.submit_failed': 'Could not submit your solution. Check your connection and try again.',
+  'toast.event_save_failed': 'Some of your reasoning could not be saved. Check your connection.',
 
   'callout.intercept': 'Before solving, write your working hypothesis.',
 

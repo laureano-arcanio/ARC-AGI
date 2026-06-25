@@ -89,3 +89,52 @@ class TestArcTaskServiceGetRandomTasks:
         assert len(task_two.train) == 1
         assert task_two.train[0].input == [[5]]
         assert task_two.train[0].output == [[6]]
+
+
+class TestArcTaskServiceGetById:
+    async def test_includes_test_outputs_by_default(
+        self, service: ArcTaskService
+    ) -> None:
+        task = await service.get_by_id("task-1")
+        assert task is not None
+        assert task.test[0].output == [[10, 10]]
+
+    async def test_strips_test_outputs_when_excluded(
+        self, service: ArcTaskService
+    ) -> None:
+        task = await service.get_by_id("task-1", include_test_outputs=False)
+        assert task is not None
+        # Test solutions are hidden, but inputs and train demos remain.
+        assert all(pair.output == [] for pair in task.test)
+        assert task.test[0].input == [[3, 3]]
+        assert task.train[0].output == [[2, 2]]
+
+
+class TestArcTaskServiceCheckSubmission:
+    async def test_returns_true_when_all_tests_match(
+        self, service: ArcTaskService
+    ) -> None:
+        ok = await service.check_submission(
+            "task-1", {0: [[10, 10]], 1: [[11, 11]]}
+        )
+        assert ok is True
+
+    async def test_returns_false_when_a_grid_is_wrong(
+        self, service: ArcTaskService
+    ) -> None:
+        ok = await service.check_submission(
+            "task-1", {0: [[10, 10]], 1: [[99, 99]]}
+        )
+        assert ok is False
+
+    async def test_returns_false_when_a_test_is_missing(
+        self, service: ArcTaskService
+    ) -> None:
+        ok = await service.check_submission("task-1", {0: [[10, 10]]})
+        assert ok is False
+
+    async def test_returns_false_when_no_solutions(
+        self, service: ArcTaskService
+    ) -> None:
+        ok = await service.check_submission("task-3", {0: [[0]]})
+        assert ok is False

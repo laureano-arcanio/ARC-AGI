@@ -527,11 +527,6 @@ export function AdminUserTaskDetailPage() {
                   {review.tagCount} {t('admin_detail.review_tags')}
                 </span>
               </div>
-              {review.overallNotes && (
-                <p className="text-xs text-gray-400 italic">
-                  &ldquo;{review.overallNotes}&rdquo;
-                </p>
-              )}
             </div>
           ))}
         </div>

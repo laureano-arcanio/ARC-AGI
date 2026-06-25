@@ -1,5 +1,7 @@
 import time
 
+from fastapi import HTTPException, status
+
 from app.models.review import PeerReviewPair, Review, ReviewTag
 from app.repositories.batch import BatchRepository
 from app.repositories.event import EventRepository
@@ -47,18 +49,45 @@ class ReviewService(
     read_schema = ReviewRead
 
     async def get_or_create(
-        self, reviewer_id: int, solver_id: int, task_id: str
+        self,
+        reviewer_id: int,
+        solver_id: int,
+        task_id: str,
+        is_admin: bool = False,
     ) -> ReviewRead:
         existing = await self.repository.get_by_reviewer_solver_task(
             reviewer_id, solver_id, task_id
         )
         if existing:
             return self.read_schema.model_validate(existing)
+        if not is_admin:
+            await self._validate_review_target(reviewer_id, solver_id, task_id)
         data = ReviewCreate(
             reviewer_id=reviewer_id, solver_id=solver_id, task_id=task_id
         )
         instance = await self.repository.create(data.model_dump())
         return self.read_schema.model_validate(instance)
+
+    async def _validate_review_target(
+        self, reviewer_id: int, solver_id: int, task_id: str
+    ) -> None:
+        """A review may only target a paired solver on a task that solver was
+        actually assigned."""
+        pair_repo = PeerReviewPairRepository(
+            db_session=self.repository.db_session
+        )
+        paired_ids = await pair_repo.get_paired_solver_ids(reviewer_id)
+        if solver_id not in paired_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Reviewer is not paired with this solver",
+            )
+        batch_repo = BatchRepository(db_session=self.repository.db_session)
+        if not await batch_repo.user_has_access(solver_id, task_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Solver is not assigned to this task",
+            )
 
     async def get_by_id(self, id: int) -> ReviewRead:
         instance = await self.repository.get_by_id(id)
@@ -147,13 +176,40 @@ class ReviewTagService(
         return [self.read_schema.model_validate(inst) for inst in instances]
 
     async def create_tag(
-        self, review_id: int, data: ReviewTagCreate, reviewer_id: int, task_id: str
+        self,
+        review_id: int,
+        data: ReviewTagCreate,
+        reviewer_id: int,
+        solver_id: int,
+        task_id: str,
     ) -> ReviewTagRead:
-        tag_data = data.model_dump()
-        tag_data["review_id"] = review_id
-        instance = await self.repository.create(tag_data)
-
         event_repo = EventRepository(db_session=self.repository.db_session)
+
+        # The tagged node must be a real cognitive node from the reviewed
+        # solver's stored events for this task.
+        solver_events = await event_repo.get_by_user_and_task(
+            solver_id, task_id
+        )
+        if data.solver_node_id not in {ev.node_id for ev in solver_events}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="solver_node_id is not a node of the reviewed solver",
+            )
+
+        # One quality label per solver node per review: changing quality
+        # updates the existing tag rather than creating a duplicate.
+        existing = await self.repository.get_by_review_and_solver_node(
+            review_id, data.solver_node_id
+        )
+        if existing is not None:
+            instance = await self.repository.update(
+                existing.id, {"quality": data.quality}
+            )
+        else:
+            tag_data = data.model_dump()
+            tag_data["review_id"] = review_id
+            instance = await self.repository.create(tag_data)
+
         await event_repo.create(
             {
                 "user_id": reviewer_id,
@@ -172,7 +228,11 @@ class ReviewTagService(
         )
         return self.read_schema.model_validate(instance)
 
-    async def delete_tag(
-        self, tag_id: int
-    ) -> None:
+    async def delete_tag(self, review_id: int, tag_id: int) -> None:
+        tag = await self.repository.get_by_id(tag_id)
+        if tag.review_id != review_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tag does not belong to this review",
+            )
         await self.repository.delete(tag_id)

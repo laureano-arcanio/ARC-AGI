@@ -12,7 +12,6 @@ export type Review = {
   solverId: number
   taskId: string
   status: string
-  overallNotes: string | null
   tagCount: number
   createdAt: string | null
   updatedAt: string | null
@@ -40,7 +39,6 @@ export type ReviewSolverRead = {
   reviewerId: number
   taskId: string
   status: string
-  overallNotes: string | null
   tagCount: number
   createdAt: string | null
   updatedAt: string | null

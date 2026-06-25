@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTaskById } from '../queries'
-import { createAttempt, postEvent } from '../api'
+import { createAttempt, postEventWithRetry } from '../api'
 import { createGrid } from '../utils'
 import { PreSolverWizard } from '../components/PreSolverWizard'
+import { useTranslation } from '../../../lib/i18n'
 import type { CognitiveIntent, GridData } from '../types'
 
 function makePreNodeId(n: number): string {
@@ -13,7 +14,9 @@ function makePreNodeId(n: number): string {
 export function HypothesizePage() {
   const { taskId, userId: routeUserId } = useParams<{ taskId: string; userId: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [userId, setUserId] = useState<number | null>(null)
+  const [saveError, setSaveError] = useState(false)
   const [visibleTrainPairCount, setVisibleTrainPairCount] = useState(1)
   const [attemptId, setAttemptId] = useState<number | null>(null)
   const nodeIdCounter = useRef(0)
@@ -54,7 +57,7 @@ export function HypothesizePage() {
       : null
     nodeIdCounter.current += 1
     const snapshot: GridData = createGrid(1, 1)
-    postEvent({
+    postEventWithRetry({
       userId,
       taskId,
       attemptId,
@@ -69,7 +72,9 @@ export function HypothesizePage() {
       stateSnapshot: snapshot,
       timestamp: Date.now(),
       testPairIndex: 0,
-    }).catch(() => {})
+    })
+      .then(() => setSaveError(false))
+      .catch(() => setSaveError(true))
   }, [attemptId, userId, taskId])
 
   const handleComplete = useCallback(() => {
@@ -88,13 +93,23 @@ export function HypothesizePage() {
   }
 
   return (
-    <PreSolverWizard
-      train={specificTask.train}
-      test={specificTask.test}
-      visibleTrainPairCount={visibleTrainPairCount}
-      onSetVisibleCount={setVisibleTrainPairCount}
-      onAddCognitiveNode={handleAddCognitiveNode}
-      onComplete={handleComplete}
-    />
+    <>
+      {saveError && (
+        <div
+          role="alert"
+          className="fixed inset-x-0 top-0 z-50 bg-red-600 px-4 py-2 text-center text-sm font-medium text-white"
+        >
+          {t('toast.event_save_failed')}
+        </div>
+      )}
+      <PreSolverWizard
+        train={specificTask.train}
+        test={specificTask.test}
+        visibleTrainPairCount={visibleTrainPairCount}
+        onSetVisibleCount={setVisibleTrainPairCount}
+        onAddCognitiveNode={handleAddCognitiveNode}
+        onComplete={handleComplete}
+      />
+    </>
   )
 }

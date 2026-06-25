@@ -351,4 +351,4 @@ class TestReviewTagRouterDelete:
         mock_tag_service.delete_tag.return_value = None
         response = await tag_client.delete("/api/v1/reviews/1/tags/1")
         assert response.status_code == status.HTTP_204_NO_CONTENT
-        mock_tag_service.delete_tag.assert_awaited_with(1)
+        mock_tag_service.delete_tag.assert_awaited_with(1, 1)

@@ -91,6 +91,16 @@ class ReviewTagRepository(BaseRepository[ReviewTag]):
         result = await self.db_session.execute(query)
         return list(result.scalars().all())
 
+    async def get_by_review_and_solver_node(
+        self, review_id: int, solver_node_id: str
+    ) -> ReviewTag | None:
+        query = select(ReviewTag).where(
+            ReviewTag.review_id == review_id,
+            ReviewTag.solver_node_id == solver_node_id,
+        )
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none()
+
     async def delete_by_review_and_solver_node(
         self, review_id: int, solver_node_id: str
     ) -> None:

@@ -103,7 +103,10 @@ async def create_review(
 ) -> ReviewRead:
     require_owner_or_admin(data.reviewer_id, current_user)
     return await service.get_or_create(
-        data.reviewer_id, data.solver_id, data.task_id
+        data.reviewer_id,
+        data.solver_id,
+        data.task_id,
+        is_admin=current_user.role == "admin",
     )
 
 
@@ -201,7 +204,11 @@ async def create_tag(
     review = await review_service.get_by_id(review_id)
     require_owner_or_admin(review.reviewer_id, current_user)
     return await service.create_tag(
-        review_id, data, review.reviewer_id, review.task_id
+        review_id,
+        data,
+        review.reviewer_id,
+        review.solver_id,
+        review.task_id,
     )
 
 
@@ -218,4 +225,4 @@ async def delete_tag(
 ) -> None:
     review = await review_service.get_by_id(review_id)
     require_owner_or_admin(review.reviewer_id, current_user)
-    await service.delete_tag(tag_id)
+    await service.delete_tag(review_id, tag_id)

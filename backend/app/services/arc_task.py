@@ -3,7 +3,7 @@ import random
 from pathlib import Path
 from typing import Any
 
-from app.schemas.arc_task import ArcTaskPair, ArcTaskRead
+from app.schemas.arc_task import ArcTaskPair, ArcTaskRead, GridData
 
 STATIC_DIR = Path(__file__).resolve().parents[2] / "static" / "ARC-AGI-2"
 
@@ -28,8 +28,45 @@ class ArcTaskService:
                 )
         return None
 
-    async def get_by_id(self, task_id: str) -> ArcTaskRead | None:
-        return await self._find_task(task_id)
+    async def get_by_id(
+        self, task_id: str, include_test_outputs: bool = True
+    ) -> ArcTaskRead | None:
+        task = await self._find_task(task_id)
+        if task is None or include_test_outputs:
+            return task
+        # Solvers and reviewers must never receive the test solutions; only the
+        # inputs they need to work the task. Train outputs are demonstrations
+        # and stay intact.
+        stripped_test = [
+            ArcTaskPair(input=pair.input, output=[]) for pair in task.test
+        ]
+        return ArcTaskRead(id=task.id, train=task.train, test=stripped_test)
+
+    async def get_solutions(self, task_id: str) -> list[GridData] | None:
+        for challenges_file, solutions_file in SOURCES:
+            challenges = self._load_json(challenges_file)
+            if task_id in challenges:
+                if solutions_file is None:
+                    return None
+                solutions = self._load_json(solutions_file)
+                return solutions.get(task_id)
+        return None
+
+    async def check_submission(
+        self, task_id: str, grids: dict[int, GridData]
+    ) -> bool:
+        """Validate submitted grids against the stored solutions.
+
+        Correct only when every test pair of the task has a submitted grid that
+        matches its solution. The client never supplies correctness.
+        """
+        solutions = await self.get_solutions(task_id)
+        if not solutions:
+            return False
+        for index, solution in enumerate(solutions):
+            if grids.get(index) != solution:
+                return False
+        return True
 
     async def get_random_tasks(self, count: int = 10) -> list[ArcTaskRead]:
         challenges = self._load_json("arc-agi_training_challenges.json")

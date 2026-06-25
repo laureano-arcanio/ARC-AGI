@@ -39,7 +39,7 @@ export function getReview(id: number): Promise<Review> {
 
 export function updateReview(
   id: number,
-  data: { status?: string; overallNotes?: string },
+  data: { status?: string },
 ): Promise<Review> {
   return http.put<Review>(`/v1/reviews/${id}`, data)
 }

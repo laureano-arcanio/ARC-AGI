@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRandomTasks, useTaskById } from '../queries'
-import { createAttempt, fetchEventsByAttempt, postEvent } from '../api'
+import {
+  createAttempt,
+  fetchEventsByAttempt,
+  postEventWithRetry,
+  submitAttempt,
+} from '../api'
 import { getUserAccessibleTaskIds } from '../../batches/api'
 import { useTranslation } from '../../../lib/i18n'
 import { ConfirmDialog, InstructionModal } from '../../../components/common'
@@ -11,7 +16,6 @@ import {
   floodfill,
   formatSize,
   gridHeight,
-  gridsEqual,
   gridWidth,
   parseCellKey,
   parseSize,
@@ -70,7 +74,7 @@ type Action =
   | { type: 'RESIZE' }
   | { type: 'COPY_FROM_INPUT' }
   | { type: 'RESET_OUTPUT' }
-  | { type: 'SUBMIT' }
+  | { type: 'SUBMIT'; correct: boolean }
   | { type: 'ABANDON' }
   | { type: 'CELL_CLICK'; x: number; y: number }
   | { type: 'SELECTION_CHANGE'; cells: Set<string> }
@@ -314,14 +318,9 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
 
     case 'SUBMIT': {
       const allGrids = { ...state.outputGrids, [state.currentTestIndex]: state.outputGrid }
-      let allCorrect = true
-      for (let i = 0; i < state.test.length; i++) {
-        const output = allGrids[i]
-        if (!output || !gridsEqual(output, state.test[i].output)) {
-          allCorrect = false
-          break
-        }
-      }
+      // Correctness is decided by the server (it holds the solutions); the
+      // reducer just records the authoritative result.
+      const allCorrect = action.correct
       const idxSubmit = state.currentTestIndex
       const graph = addNode(
         state,
@@ -772,6 +771,7 @@ export function ArcLabPage() {
   }
 
   const sentHashes = useRef<Set<string>>(new Set())
+  const inFlightHashes = useRef<Set<string>>(new Set())
   const attemptIdRef = useRef<number | null>(null)
   const prevTaskIdRef = useRef<string | undefined>(undefined)
 
@@ -824,25 +824,47 @@ export function ArcLabPage() {
   useEffect(() => {
     if (!taskId || taskId === 'random') return
     if (userId === null) return
-    if (attemptIdRef.current === null) return
+    const attemptId = attemptIdRef.current
+    if (attemptId === null) return
     for (const [testIdxStr, nodes] of Object.entries(state.graphNodesByTest)) {
       for (const node of nodes) {
         if (node.id.startsWith('pre_node_')) continue
         if (node.id === 'hypothesis_final') continue
+        // Submit events are recorded server-side by submitAttempt (the server
+        // owns correctness), so never post them through the generic endpoint.
+        if (node.trigger.kind === 'mechanical' && node.trigger.action === 'submit') {
+          continue
+        }
         const hash = `${testIdxStr}:${node.id}:${JSON.stringify(node.trigger)}`
-        if (sentHashes.current.has(hash)) continue
-        postEvent({
+        if (sentHashes.current.has(hash) || inFlightHashes.current.has(hash)) {
+          continue
+        }
+        inFlightHashes.current.add(hash)
+        // Only mark an event as saved once the post actually succeeds; on
+        // permanent failure surface a visible error instead of losing it.
+        postEventWithRetry({
           userId,
           taskId,
-          attemptId: attemptIdRef.current,
+          attemptId,
           nodeId: node.id,
           parentNodeId: node.parentId,
           trigger: node.trigger,
           stateSnapshot: node.stateSnapshot,
           timestamp: node.timestamp,
           testPairIndex: Number(testIdxStr),
-        }).catch(() => {})
-        sentHashes.current.add(hash)
+        })
+          .then(() => {
+            sentHashes.current.add(hash)
+          })
+          .catch(() => {
+            dispatch({
+              type: 'SET_MESSAGE',
+              message: { kind: 'error', text: 'toast.event_save_failed' },
+            })
+          })
+          .finally(() => {
+            inFlightHashes.current.delete(hash)
+          })
       }
     }
   }, [state.graphNodesByTest, taskId, userId])
@@ -850,6 +872,7 @@ export function ArcLabPage() {
   useEffect(() => {
     if (prevTaskIdRef.current !== taskId) {
       sentHashes.current = new Set()
+      inFlightHashes.current = new Set()
       prevTaskIdRef.current = taskId
     }
   }, [taskId])
@@ -925,8 +948,38 @@ export function ArcLabPage() {
     return false
   }
 
-  const handleSubmit = () => {
-    dispatch({ type: 'SUBMIT' })
+  const handleSubmit = async () => {
+    const idx = state.currentTestIndex
+    const attemptId = attemptIdRef.current
+    if (userId === null || !taskId || taskId === 'random' || attemptId === null) {
+      return
+    }
+    const allGrids: Record<number, GridData> = {
+      ...state.outputGrids,
+      [idx]: state.outputGrid,
+    }
+    const nextId = state.nextNodeIdByTest[idx] ?? 0
+    const nodeId = makeNodeId(nextId)
+    const parentNodeId = state.activeNodeIdByTest[idx] ?? null
+    try {
+      const { correct } = await submitAttempt({
+        userId,
+        taskId,
+        attemptId,
+        nodeId,
+        parentNodeId,
+        testPairIndex: idx,
+        grids: allGrids,
+        stateSnapshot: state.outputGrid,
+        timestamp: Date.now(),
+      })
+      dispatch({ type: 'SUBMIT', correct })
+    } catch {
+      dispatch({
+        type: 'SET_MESSAGE',
+        message: { kind: 'error', text: 'toast.submit_failed' },
+      })
+    }
   }
 
   const handleAhaSubmit = (text: string) => {
