@@ -1,6 +1,6 @@
-import { useMemo, Fragment, type ReactNode, type SVGProps } from 'react'
-import * as Tooltip from '@radix-ui/react-tooltip'
+import { type ReactNode, type SVGProps } from 'react'
 import { useTranslation } from '../../../lib/i18n'
+import { TimelineGraph } from '../../../shared/components/TimelineGraph'
 import type { CognitiveIntent, GraphNode, GraphTrigger, MechanicalAction } from '../types'
 import { COLOR_MAP } from '../types'
 
@@ -250,8 +250,6 @@ const COLOR_TEXT: Record<IconColor, string> = {
   active: 'text-white',
 }
 
-type LayoutPos = { nodeId: string; col: number; row: number }
-
 type CognitiveTimelineProps = {
   nodes: GraphNode[]
   activeNodeId: string | null
@@ -260,72 +258,6 @@ type CognitiveTimelineProps = {
   testCount?: number
   currentTestIndex?: number
   onTestSelect?: (index: number) => void
-}
-
-function computeLayout(
-  nodes: GraphNode[],
-  activeNodeId: string | null,
-): { positions: Map<string, LayoutPos>; numRows: number; numCols: number; activePath: Set<string> } {
-  const nodeMap = new Map<string, GraphNode>()
-  for (const n of nodes) nodeMap.set(n.id, n)
-
-  const childrenMap = new Map<string | '__root__', GraphNode[]>()
-  for (const n of nodes) {
-    const key = n.parentId ?? '__root__'
-    if (!childrenMap.has(key)) childrenMap.set(key, [])
-    childrenMap.get(key)!.push(n)
-  }
-
-  const activePath = new Set<string>()
-  let current = activeNodeId
-  while (current) {
-    activePath.add(current)
-    current = nodeMap.get(current)?.parentId ?? null
-  }
-
-  const positions = new Map<string, LayoutPos>()
-  let nextRow = 1
-  let numCols = 0
-
-  function lay(nodeId: string, col: number, row: number): void {
-    const node = nodeMap.get(nodeId)
-    if (!node) return
-
-    positions.set(nodeId, { nodeId, col, row })
-    numCols = Math.max(numCols, col + 1)
-
-    const children = childrenMap.get(nodeId) ?? []
-    if (children.length === 0) return
-
-    for (let i = 0; i < children.length; i++) {
-      if (i === 0) {
-        lay(children[i].id, col + 1, row)
-      } else {
-        lay(children[i].id, col + 1, nextRow++)
-      }
-    }
-  }
-
-  const roots = childrenMap.get('__root__') ?? []
-  if (roots.length > 0) {
-    const activeRoot = roots.find((r) => activePath.has(r.id)) ?? roots[0]
-    lay(activeRoot.id, 0, 0)
-    for (const r of roots) {
-      if (!positions.has(r.id)) {
-        lay(r.id, 0, nextRow++)
-      }
-    }
-  }
-
-  return { positions, numRows: nextRow, numCols, activePath }
-}
-
-function nodeCX(col: number) {
-  return col * (NODE_SIZE + COL_GAP) + NODE_SIZE / 2
-}
-
-function nodeCY(row: number) {
-  return row * ROW_H + ROW_H / 2
 }
 
 export function CognitiveTimeline({
@@ -339,76 +271,8 @@ export function CognitiveTimeline({
 }: CognitiveTimelineProps) {
   const { t } = useTranslation()
 
-  const { positions, numRows, numCols, activePath } = useMemo(
-    () => computeLayout(nodes, activeNodeId),
-    [nodes, activeNodeId],
-  )
-
-  const nodeMap = useMemo(() => {
-    const map = new Map<string, GraphNode>()
-    for (const n of nodes) map.set(n.id, n)
-    return map
-  }, [nodes])
-
-  const rows = useMemo(() => {
-    const r: LayoutPos[][] = Array.from({ length: numRows }, () => [])
-    for (const pos of positions.values()) {
-      r[pos.row].push(pos)
-    }
-    for (const row of r) {
-      row.sort((a, b) => a.col - b.col)
-    }
-    return r
-  }, [positions, numRows])
-
-  const connectors = useMemo((): ReactNode[] => {
-    const result: ReactNode[] = []
-    for (const [nodeId, pos] of positions) {
-      const node = nodeMap.get(nodeId)
-      if (!node?.parentId) continue
-      const parentPos = positions.get(node.parentId)
-      if (!parentPos) continue
-
-      const onActive = activePath.has(nodeId) && activePath.has(node.parentId)
-      const parentCX = nodeCX(parentPos.col)
-      const parentCY = nodeCY(parentPos.row)
-      const childCX = nodeCX(pos.col)
-      const childCY = nodeCY(pos.row)
-
-      let d: string
-      if (parentPos.row === pos.row) {
-        const parentRight = parentCX + NODE_SIZE / 2
-        const childLeft = childCX - NODE_SIZE / 2
-        d = `M ${parentRight} ${childCY} L ${childLeft} ${childCY}`
-      } else {
-        const parentBottom = parentCY + NODE_SIZE / 2
-        const childLeft = childCX - NODE_SIZE / 2
-        const midY = (parentBottom + childCY) / 2
-        d = `M ${parentCX} ${parentBottom} C ${parentCX} ${midY}, ${childLeft} ${midY}, ${childLeft} ${childCY}`
-      }
-
-      result.push(
-        <path
-          key={`${node.parentId}->${nodeId}`}
-          d={d}
-          fill="none"
-          stroke={onActive ? 'rgb(59,130,246)' : 'rgb(75,85,99)'}
-          strokeWidth={onActive ? 2 : 1}
-          opacity={onActive ? 1 : 0.4}
-        />,
-      )
-    }
-    return result
-  }, [positions, nodeMap, activePath])
-
-  const totalWidth = numCols * (NODE_SIZE + COL_GAP) - COL_GAP
-  const totalHeight = numRows * ROW_H
-
   return (
-    <div
-      data-testid="cognitive-timeline"
-
-    >
+    <div data-testid="cognitive-timeline">
       {testCount > 1 && (
         <div className="mb-2 mt-4 flex items-center gap-2">
           <span className="text-xs text-gray-400">{t('timeline.test')}</span>
@@ -434,111 +298,77 @@ export function CognitiveTimeline({
         {t('timeline.title')}
       </span>
 
-      <Tooltip.Provider delayDuration={100}>
-        <div className="w-full rounded-xl border border-gray-800 bg-gray-900 overflow-visible">
-          <div className="overflow-x-auto w-full">
-            <div className="overflow-visible px-4 py-3">
+      <TimelineGraph
+        nodes={nodes}
+        activeNodeId={activeNodeId}
+        nodeSize={NODE_SIZE}
+        colGap={COL_GAP}
+        rowHeight={ROW_H}
+        prioritizeActiveRoot
+        outerClassName="w-full rounded-xl border border-gray-800 bg-gray-900 overflow-visible"
+        contentClassName="overflow-visible px-4 py-3"
+        renderNode={(node, { isActive, onActivePath, nodeSize }) => {
+          const { icon, color } = getNodeMeta(node.trigger)
+          const isPreSolver = isPreSolverTrigger(node.trigger)
+          const ringClass = isActive
+            ? 'border-blue-400 shadow-md shadow-blue-600/30 scale-110'
+            : COLOR_RING[color]
+          const bgClass = isActive ? 'bg-blue-600' : COLOR_BG[color]
+          const textClass = isActive
+            ? 'text-white'
+            : onActivePath
+              ? 'text-gray-200 opacity-90'
+              : COLOR_TEXT[color]
+          const opacityClass = !isActive && !onActivePath ? 'opacity-55' : ''
+          const borderClass = isPreSolver ? 'border-dashed' : ''
+          const className = `flex items-center justify-center rounded-full border transition-colors ${borderClass} ${ringClass} ${bgClass} ${textClass} ${opacityClass}`
+          const style = { width: `${nodeSize}px`, height: `${nodeSize}px` }
+
+          if (isPreSolver) {
+            return (
               <div
-                className="relative"
-                style={{ width: `${totalWidth}px`, height: `${totalHeight}px`, minWidth: '100%' }}
+                data-testid={`timeline-node-${node.id}`}
+                className={`${className} cursor-default`}
+                style={style}
               >
-                <svg
-                  className="absolute inset-0 pointer-events-none overflow-visible"
-                  width={totalWidth}
-                  height={totalHeight}
-                >
-                  {connectors}
-                </svg>
-
-                {rows.map((rowNodes, rowIdx) => (
-                  <Fragment key={rowIdx}>
-                    {rowNodes.map((pos) => {
-                      const node = nodeMap.get(pos.nodeId)
-                      if (!node) return null
-                      const isActive = node.id === activeNodeId
-                      const onActivePath = activePath.has(node.id)
-                      const { icon, color } = getNodeMeta(node.trigger)
-                      const tooltipLabel = getLabel(node.trigger)
-                      const swatches = getColorsUsed(node.trigger)
-
-                      const isPreSolver = isPreSolverTrigger(node.trigger)
-                      const ringClass = isActive ? 'border-blue-400 shadow-md shadow-blue-600/30 scale-110' : COLOR_RING[color]
-                      const bgClass = isActive ? 'bg-blue-600' : COLOR_BG[color]
-                      const textClass = isActive ? 'text-white' : onActivePath ? 'text-gray-200 opacity-90' : COLOR_TEXT[color]
-                      const opacityClass = !isActive && !onActivePath ? 'opacity-55' : ''
-                      const borderClass = isPreSolver ? 'border-dashed' : ''
-                      return (
-                        <div
-                          key={node.id}
-                          className="absolute"
-                          style={{
-                            left: `${nodeCX(pos.col) - NODE_SIZE / 2}px`,
-                            top: `${nodeCY(pos.row) - NODE_SIZE / 2}px`,
-                          }}
-                        >
-                          <Tooltip.Root>
-                            <Tooltip.Trigger asChild>
-                              {isPreSolver ? (
-                                <div
-                                  data-testid={`timeline-node-${node.id}`}
-                                  className={`flex items-center justify-center rounded-full
-                                    border transition-colors cursor-default ${borderClass} ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
-                                  style={{
-                                    width: `${NODE_SIZE}px`,
-                                    height: `${NODE_SIZE}px`,
-                                  }}
-                                >
-                                  {icon}
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  data-testid={`timeline-node-${node.id}`}
-                                  onClick={() => onNodeClick(node.id)}
-                                  className={`flex items-center justify-center rounded-full
-                                    border transition-colors cursor-pointer ${ringClass} ${bgClass} ${textClass} ${opacityClass}`}
-                                  style={{
-                                    width: `${NODE_SIZE}px`,
-                                    height: `${NODE_SIZE}px`,
-                                  }}
-                                >
-                                  {icon}
-                                </button>
-                              )}
-                            </Tooltip.Trigger>
-                            <Tooltip.Portal>
-                              <Tooltip.Content
-                                side="top"
-                                align="center"
-                                sideOffset={6}
-                                collisionPadding={8}
-                                className="relative z-[100] max-w-64 rounded-lg border border-gray-700 bg-gray-800 px-2.5 py-1.5 shadow-lg break-words"
-                              >
-                                <span className="text-[11px] text-gray-300 block">{tooltipLabel}</span>
-                                {swatches.length > 0 && (
-                                  <div className="flex gap-1 mt-1">
-                                    {swatches.map((c, i) => (
-                                      <span
-                                        key={i}
-                                        className="w-3 h-3 rounded-sm border border-gray-500 shrink-0"
-                                        style={{ backgroundColor: c }}
-                                      />
-                                    ))}
-                                  </div>
-                                )}
-                              </Tooltip.Content>
-                            </Tooltip.Portal>
-                          </Tooltip.Root>
-                        </div>
-                      )
-                    })}
-                  </Fragment>
-                ))}
+                {icon}
               </div>
-            </div>
-          </div>
-        </div>
-      </Tooltip.Provider>
+            )
+          }
+
+          return (
+            <button
+              type="button"
+              data-testid={`timeline-node-${node.id}`}
+              onClick={() => onNodeClick(node.id)}
+              className={`${className} cursor-pointer`}
+              style={style}
+            >
+              {icon}
+            </button>
+          )
+        }}
+        renderTooltip={(node) => {
+          const swatches = getColorsUsed(node.trigger)
+
+          return (
+            <>
+              <span className="text-[11px] text-gray-300 block">{getLabel(node.trigger)}</span>
+              {swatches.length > 0 && (
+                <div className="flex gap-1 mt-1">
+                  {swatches.map((c, i) => (
+                    <span
+                      key={i}
+                      className="w-3 h-3 rounded-sm border border-gray-500 shrink-0"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )
+        }}
+      />
     </div>
   )
 }
