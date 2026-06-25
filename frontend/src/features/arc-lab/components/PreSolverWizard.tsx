@@ -83,6 +83,10 @@ const REVISION_TYPES: { key: RevisionType; labelKey: string }[] = [
   { key: 'uncertain', labelKey: 'pre_solver.uncertain' },
 ]
 
+// Once the user has entered a rule, the "I can't find the rule" escape hatch is
+// removed from revision steps so reasoning is captured end-to-end.
+const REVISION_OPTIONS = REVISION_TYPES.filter((r) => r.key !== 'uncertain')
+
 function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length
 }
@@ -104,7 +108,11 @@ export function PreSolverWizard({
   const [revisionText, setRevisionText] = useState('')
   const [invalidatedContradictionText, setInvalidatedContradictionText] = useState('')
   const [invalidatedNewHypothesisText, setInvalidatedNewHypothesisText] = useState('')
+  const [finalAlgorithmText, setFinalAlgorithmText] = useState('')
+  const [showFinalStep, setShowFinalStep] = useState(false)
   const [error, setError] = useState('')
+  const [enteredRule, setEnteredRule] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const lastHypothesisRef = useRef('')
 
   useEffect(() => {
@@ -138,6 +146,7 @@ export function PreSolverWizard({
       visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
     })
     lastHypothesisRef.current = trimmed
+    setEnteredRule(true)
     setHypothesisText('')
     advanceToNext()
   }, [isValid, hypothesisText, onAddCognitiveNode, visibleTrainPairCount, advanceToNext, t])
@@ -199,6 +208,7 @@ export function PreSolverWizard({
     setError('')
     onAddCognitiveNode('hypothesis_revision', text, details)
     lastHypothesisRef.current = text
+    setEnteredRule(true)
 
     setRevisionType(null)
     setRevisionText('')
@@ -209,7 +219,12 @@ export function PreSolverWizard({
 
   const advanceToNextTest = useCallback(() => {
     if (isLastTestStep) {
-      onComplete()
+      if (lastHypothesisRef.current) {
+        setIsEditing(false)
+        setShowFinalStep(true)
+      } else {
+        onComplete()
+      }
     } else {
       setRevisionType(null)
       setRevisionText('')
@@ -218,6 +233,25 @@ export function PreSolverWizard({
       setWizardStep((s) => s + 1)
     }
   }, [isLastTestStep, onComplete])
+
+  // Logged escape hatch for the exploring phase: the user still has no rule.
+  // Records an `uncertain` node (train or test) so the reasoning flow is visible
+  // end-to-end even when no hypothesis has been written yet.
+  const handleExploringUncertain = useCallback(() => {
+    setError('')
+    onAddCognitiveNode('hypothesis_revision', '', {
+      revisionType: 'uncertain',
+      ...(isTestStep
+        ? { testIndex }
+        : { visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i) }),
+    })
+    setHypothesisText('')
+    if (isTestStep) {
+      advanceToNextTest()
+    } else {
+      advanceToNext()
+    }
+  }, [isTestStep, testIndex, visibleTrainPairCount, onAddCognitiveNode, advanceToNext, advanceToNextTest])
 
   const handleTestRevisionSelect = useCallback((key: RevisionType) => {
     setError('')
@@ -275,9 +309,40 @@ export function PreSolverWizard({
     setError('')
     onAddCognitiveNode('hypothesis_revision', text, details)
     lastHypothesisRef.current = text
+    setEnteredRule(true)
 
     advanceToNextTest()
   }, [revisionType, revisionText, invalidatedContradictionText, invalidatedNewHypothesisText, onAddCognitiveNode, visibleTrainPairCount, testIndex, advanceToNextTest, t])
+
+  const handleFinalConfirm = useCallback(() => {
+    const text = lastHypothesisRef.current.trim()
+    onAddCognitiveNode('hypothesis_finalized', text, {
+      visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
+    })
+    setShowFinalStep(false)
+    onComplete()
+  }, [onAddCognitiveNode, visibleTrainPairCount, onComplete])
+
+  const handleStartEdit = useCallback(() => {
+    setFinalAlgorithmText(lastHypothesisRef.current)
+    setIsEditing(true)
+  }, [])
+
+  const handleFinalEditConfirm = useCallback(() => {
+    if (wordCount(finalAlgorithmText) < 5) {
+      setError(t('pre_solver.no_text'))
+      return
+    }
+    setError('')
+    const trimmed = finalAlgorithmText.trim()
+    onAddCognitiveNode('hypothesis_finalized', trimmed, {
+      visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
+      edited: true,
+    })
+    lastHypothesisRef.current = trimmed
+    setShowFinalStep(false)
+    onComplete()
+  }, [finalAlgorithmText, onAddCognitiveNode, visibleTrainPairCount, onComplete, t])
 
   if (train.length === 0) {
     return (
@@ -289,7 +354,13 @@ export function PreSolverWizard({
     )
   }
 
-  const isInitialStep = wizardStep === 0
+  const isFinalStep = showFinalStep
+  // The "exploring" phase lasts until the user writes their first rule. During
+  // it we keep showing the initial prompt (with the "I can't find the rule"
+  // escape hatch) on every step — train or test — so we never wrongly assume
+  // a prior hypothesis. Once a rule exists, we switch to the revision UI and
+  // drop the escape hatch so reasoning is captured for every remaining step.
+  const isInitialStep = !isFinalStep && !enteredRule
   const needsInput = revisionType === 'refined' || revisionType === 'invalidated'
 
   return (
@@ -298,14 +369,14 @@ export function PreSolverWizard({
       <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-300">
-          {t('pre_solver.step_title', { current: wizardStep + 1, total: totalSteps })}
+          {t('pre_solver.step_title', { current: isFinalStep ? totalSteps + 1 : wizardStep + 1, total: totalSteps + (isFinalStep ? 1 : 0) })}
         </h2>
         <div className="flex gap-1.5">
-          {Array.from({ length: totalSteps }, (_, i) => (
+          {Array.from({ length: totalSteps + (isFinalStep ? 1 : 0) }, (_, i) => (
             <div
               key={i}
               className={`h-2 w-8 rounded-full transition-colors ${
-                i <= wizardStep ? 'bg-green-500' : 'bg-gray-700'
+                isFinalStep || i <= wizardStep ? 'bg-green-500' : 'bg-gray-700'
               }`}
             />
           ))}
@@ -358,6 +429,16 @@ export function PreSolverWizard({
                 {t('pre_solver.record')}
               </button>
             </div>
+            <div className="mt-3 flex justify-center border-t border-gray-700 pt-3">
+              <button
+                type="button"
+                onClick={handleExploringUncertain}
+                data-testid="pre-solver-uncertain"
+                className="rounded-md border border-gray-600 bg-gray-800 px-4 py-1.5 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-gray-100"
+              >
+                {t('pre_solver.uncertain')}
+              </button>
+            </div>
           </div>
         )}
 
@@ -367,7 +448,7 @@ export function PreSolverWizard({
               {t('pre_solver.revision_question')}
             </p>
             <div className="mb-4 flex flex-wrap gap-2">
-              {REVISION_TYPES.map(({ key, labelKey }) => (
+              {REVISION_OPTIONS.map(({ key, labelKey }) => (
                 <button
                   key={key}
                   type="button"
@@ -459,13 +540,73 @@ export function PreSolverWizard({
           </div>
         )}
 
-        {isTestStep && (
+        {isFinalStep && !isEditing && (
+          <div>
+            <p className="mb-3 text-sm font-medium text-gray-200">
+              {t('pre_solver.review_prompt')}
+            </p>
+            <div className="rounded-md border border-gray-600 bg-gray-900/60 px-4 py-3 text-sm leading-relaxed text-gray-200">
+              {lastHypothesisRef.current}
+            </div>
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={handleFinalConfirm}
+                data-testid="pre-solver-confirm"
+                className="rounded-md bg-green-600 px-5 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
+              >
+                {t('pre_solver.confirmed')}
+              </button>
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                data-testid="pre-solver-edit"
+                className="rounded-md border border-gray-600 bg-gray-800 px-5 py-1.5 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-gray-100"
+              >
+                {t('pre_solver.edit')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isFinalStep && isEditing && (
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-200">
+              {t('pre_solver.final_prompt')}
+            </label>
+            <textarea
+              ref={(el) => el?.focus()}
+              rows={4}
+              value={finalAlgorithmText}
+              onChange={(e) => { setFinalAlgorithmText(e.target.value); setError('') }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFinalEditConfirm() } }}
+              data-testid="pre-solver-final"
+              className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+            />
+            <div className="mt-2 flex items-center justify-between">
+              <span className={`text-xs ${wordCount(finalAlgorithmText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
+                {t('pre_solver.words', { count: wordCount(finalAlgorithmText) })}
+              </span>
+              <button
+                type="button"
+                onClick={handleFinalEditConfirm}
+                disabled={wordCount(finalAlgorithmText) < 5}
+                data-testid="pre-solver-start-solving"
+                className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+              >
+                {t('pre_solver.start_solving')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isTestStep && !isFinalStep && enteredRule && (
           <div>
             <p className="mb-3 text-sm font-medium text-gray-200">
               {t('pre_solver.revision_question')}
             </p>
             <div className="mb-4 flex flex-wrap gap-2">
-              {REVISION_TYPES.map(({ key, labelKey }) => (
+              {REVISION_OPTIONS.map(({ key, labelKey }) => (
                 <button
                   key={key}
                   type="button"

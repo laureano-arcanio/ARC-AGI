@@ -4,13 +4,14 @@ import { useTranslation } from '../../../lib/i18n'
 type AhaMomentModalProps = {
   open: boolean
   onSubmit: (text: string) => void
+  mode?: 'aha' | 'capture'
 }
 
 function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length
 }
 
-export function AhaMomentModal({ open, onSubmit }: AhaMomentModalProps) {
+export function AhaMomentModal({ open, onSubmit, mode = 'aha' }: AhaMomentModalProps) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const [error, setError] = useState('')
@@ -18,6 +19,7 @@ export function AhaMomentModal({ open, onSubmit }: AhaMomentModalProps) {
   if (!open) return null
 
   const valid = wordCount(text) >= 5
+  const isCapture = mode === 'capture'
 
   const handleSubmit = () => {
     if (!valid) {
@@ -36,10 +38,10 @@ export function AhaMomentModal({ open, onSubmit }: AhaMomentModalProps) {
     >
       <div className="mx-auto w-full max-w-lg rounded-xl border border-amber-700/50 bg-gray-800 p-6 shadow-2xl">
         <h2 className="mb-2 text-lg font-bold text-amber-400">
-          {t('pre_solver.aha_title')}
+          {isCapture ? t('post_solve_capture.title') : t('pre_solver.aha_title')}
         </h2>
         <p className="mb-4 text-sm text-gray-300">
-          {t('pre_solver.aha_subtitle')}
+          {isCapture ? t('post_solve_capture.subtitle') : t('pre_solver.aha_subtitle')}
         </p>
         <textarea
           ref={(el) => el?.focus()}
@@ -65,7 +67,7 @@ export function AhaMomentModal({ open, onSubmit }: AhaMomentModalProps) {
             data-testid="aha-submit"
             className="rounded-md bg-amber-600 px-5 py-2 text-xs font-semibold text-white transition hover:bg-amber-700 disabled:opacity-40"
           >
-            {t('pre_solver.aha_submit')}
+            {isCapture ? t('post_solve_capture.submit') : t('pre_solver.aha_submit')}
           </button>
         </div>
       </div>

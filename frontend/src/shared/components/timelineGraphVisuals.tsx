@@ -28,6 +28,7 @@ export const PRE_SOLVER_INTENTS: CognitiveIntent[] = [
   'initial_hypothesis',
   'hypothesis_revision',
   'final_algorithm_before_solving',
+  'hypothesis_finalized',
 ]
 
 const COLOR_RING: Record<TimelineIconColor, string> = {
@@ -91,6 +92,8 @@ export function getTimelineNodeMeta(trigger: GraphTrigger): {
       case 'hypothesis_revision':
         return { icon: <TimelineRefreshIcon />, color: 'active' }
       case 'final_algorithm_before_solving':
+        return { icon: <TimelineCheckIcon />, color: 'success' }
+      case 'hypothesis_finalized':
         return { icon: <TimelineCheckIcon />, color: 'success' }
     }
   }

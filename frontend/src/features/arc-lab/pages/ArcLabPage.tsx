@@ -33,6 +33,7 @@ import {
 import { DemonstrationPanel } from '../components/DemonstrationPanel'
 import { HypothesisPanel } from '../components/HypothesisPanel'
 import { AhaMomentModal } from '../components/AhaMomentModal'
+import { FailureModal } from '../components/FailureModal'
 import { TestInputPanel } from '../components/TestInputPanel'
 import { OutputEditor } from '../components/OutputEditor'
 import { Toast } from '../components/Toast'
@@ -83,6 +84,7 @@ type Action =
   | { type: 'NAVIGATE_PREV' }
   | { type: 'NAVIGATE_NEXT' }
   | { type: 'LOAD_PRE_SOLVER_EVENTS'; nodes: GraphNode[] }
+  | { type: 'ADD_BRANCH_PIVOT'; text: string; parentNodeId: string }
 
 function makeNodeId(n: number): string {
   return `node_${String(n).padStart(3, '0')}`
@@ -439,6 +441,29 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCog]!, true) }
     }
 
+    case 'ADD_BRANCH_PIVOT': {
+      const idxBp = state.currentTestIndex
+      const nodes = state.graphNodesByTest[idxBp] ?? []
+      const nextId = state.nextNodeIdByTest[idxBp] ?? 0
+      const id = makeNodeId(nextId)
+      const node: GraphNode = {
+        id,
+        trigger: { kind: 'cognitive', intent: 'branch_pivot', text: action.text },
+        stateSnapshot: cloneGrid(state.outputGrid),
+        parentId: action.parentNodeId,
+        timestamp: Date.now(),
+        testPairIndex: idxBp,
+      }
+      return {
+        ...state,
+        graphNodesByTest: { ...state.graphNodesByTest, [idxBp]: [...nodes, node] },
+        activeNodeIdByTest: { ...state.activeNodeIdByTest, [idxBp]: id },
+        nextNodeIdByTest: { ...state.nextNodeIdByTest, [idxBp]: nextId + 1 },
+        ...updateHistory(state, id, true),
+        blockReason: null,
+      }
+    }
+
     case 'SET_BLOCK_REASON': {
       return { ...state, blockReason: action.reason }
     }
@@ -565,6 +590,7 @@ const COGNITIVE_COMPACT: Record<CognitiveIntent, string> = {
   initial_hypothesis: 'Initial hypothesis',
   hypothesis_revision: 'Hypothesis revision',
   final_algorithm_before_solving: 'Final algorithm',
+  hypothesis_finalized: 'Hypothesis finalized',
 }
 
 function getNodeLabel(trigger: GraphTrigger): string {
@@ -617,7 +643,7 @@ function getFinalHypothesis(nodes: GraphNode[]): { text: string | null; isUncert
   for (const node of sorted) {
     const trig = node.trigger as { kind: 'cognitive'; intent: CognitiveIntent; text: string; details?: Record<string, unknown> }
     const intent = trig.intent
-    if (intent === 'initial_hypothesis' || intent === 'hypothesis_revision' || intent === 'final_algorithm_before_solving') {
+    if (intent === 'initial_hypothesis' || intent === 'hypothesis_revision' || intent === 'final_algorithm_before_solving' || intent === 'hypothesis_finalized') {
       if (trig.details?.isPreSolverFinal && !trig.text) continue
       if (trig.text) lastText = trig.text
       if (intent === 'hypothesis_revision') {
@@ -631,6 +657,21 @@ function getFinalHypothesis(nodes: GraphNode[]): { text: string | null; isUncert
   return { text: lastText, isUncertain }
 }
 
+function getLastHypothesisNodeId(nodes: GraphNode[]): string | null {
+  const hypothesisIntents = new Set<CognitiveIntent>([
+    'hypothesis',
+    'hypothesis_revision',
+    'initial_hypothesis',
+    'final_algorithm_before_solving',
+    'hypothesis_finalized',
+  ])
+  const hypothesisNodes = nodes.filter(
+    (n) => n.trigger.kind === 'cognitive' && hypothesisIntents.has(n.trigger.intent),
+  )
+  if (hypothesisNodes.length === 0) return null
+  return hypothesisNodes[hypothesisNodes.length - 1].id
+}
+
 export function ArcLabPage() {
   const { taskId, userId: routeUserId } = useParams<{ taskId: string; userId: string }>()
   const [searchParams] = useSearchParams()
@@ -640,6 +681,8 @@ export function ArcLabPage() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const [abandonOpen, setAbandonOpen] = useState(false)
   const [ahaOpen, setAhaOpen] = useState(false)
+  const [pendingFailureAnalysis, setPendingFailureAnalysis] = useState(false)
+  const [failureModalOpen, setFailureModalOpen] = useState(false)
 
   const [userId, setUserId] = useState<number | null>(null)
   const [userError, setUserError] = useState(false)
@@ -834,9 +877,21 @@ export function ArcLabPage() {
     }
   }, [specificTask])
 
+  const prevMsgTextRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const msgText = state.message?.text ?? null
+    if (msgText === 'toast.wrong' && prevMsgTextRef.current !== 'toast.wrong' && hypothesisText !== null) {
+      setPendingFailureAnalysis(true)
+    }
+    prevMsgTextRef.current = msgText
+  }, [state.message, hypothesisText])
+
   useEffect(() => {
     if (state.blockReason === 'correct_analysis') {
-      if (isUncertain && hypothesisText === null) {
+      if (hypothesisText === null) {
+        setAhaOpen(true)
+      } else if (isUncertain) {
         setAhaOpen(true)
       } else {
         const id = setTimeout(() => navigate('/my-tasks'), 1500)
@@ -845,7 +900,10 @@ export function ArcLabPage() {
     }
   }, [state.blockReason, isUncertain, hypothesisText, navigate])
 
+
+
   const handleSymbolSelect = (symbol: number) => {
+    if (interceptFailureAnalysis()) return
     dispatch({ type: 'SET_SYMBOL', symbol })
     if (state.toolMode === 'select') {
       dispatch({ type: 'FILL_SELECTED' })
@@ -854,8 +912,17 @@ export function ArcLabPage() {
   }
 
   const handleCellClick = (x: number, y: number) => {
+    if (interceptFailureAnalysis()) return
     if (!shouldDispatchEvent(`cell_paint:${x}:${y}:${state.selectedSymbol}`)) return
     dispatch({ type: 'CELL_CLICK', x, y })
+  }
+
+  const interceptFailureAnalysis = (): boolean => {
+    if (pendingFailureAnalysis) {
+      setFailureModalOpen(true)
+      return true
+    }
+    return false
   }
 
   const handleSubmit = () => {
@@ -866,6 +933,24 @@ export function ArcLabPage() {
     dispatch({ type: 'SUBMIT_REFLECTION', intent: 'correct_analysis', text })
     setAhaOpen(false)
     navigate('/my-tasks')
+  }
+
+  const handleFailureHypothesisWrong = (text: string) => {
+    const hypothesisNodeId = getLastHypothesisNodeId(currentNodes)
+    if (hypothesisNodeId) {
+      dispatch({ type: 'ADD_BRANCH_PIVOT', text, parentNodeId: hypothesisNodeId })
+    } else {
+      dispatch({ type: 'ADD_BRANCH_PIVOT', text, parentNodeId: currentNodes[0]?.id ?? 'node_000' })
+    }
+    setFailureModalOpen(false)
+    setPendingFailureAnalysis(false)
+    dispatch({ type: 'DISMISS_MESSAGE' })
+  }
+
+  const handleFailurePaintMistake = () => {
+    setFailureModalOpen(false)
+    setPendingFailureAnalysis(false)
+    dispatch({ type: 'DISMISS_MESSAGE' })
   }
 
   const handleAbandonConfirm = () => {
@@ -879,16 +964,19 @@ export function ArcLabPage() {
   }
 
   const handleReset = () => {
+    if (interceptFailureAnalysis()) return
     if (!shouldDispatchEvent('reset_output')) return
     dispatch({ type: 'RESET_OUTPUT' })
   }
 
   const handleResize = () => {
+    if (interceptFailureAnalysis()) return
     if (!shouldDispatchEvent(`resize:${state.sizeInput}`)) return
     dispatch({ type: 'RESIZE' })
   }
 
   const handleCopyFromInput = () => {
+    if (interceptFailureAnalysis()) return
     if (!shouldDispatchEvent('copy_from_input')) return
     dispatch({ type: 'COPY_FROM_INPUT' })
   }
@@ -1065,6 +1153,13 @@ export function ArcLabPage() {
       <AhaMomentModal
         open={ahaOpen}
         onSubmit={handleAhaSubmit}
+        mode={hypothesisText === null ? 'capture' : 'aha'}
+      />
+
+      <FailureModal
+        open={failureModalOpen}
+        onHypothesisWrong={handleFailureHypothesisWrong}
+        onPaintMistake={handleFailurePaintMistake}
       />
       </>
       )}

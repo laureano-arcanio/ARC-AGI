@@ -9,7 +9,7 @@ import {
   useDeleteAttempts,
   useUserDetail,
 } from '../queries'
-import { eventsToGraphNodes, getNodeLabel, formatDelta } from '../utils'
+import { eventsToGraphNodes, synthesizeGraphNodes, getNodeLabel, formatDelta } from '../utils'
 import { EventGraph } from '../components/EventGraph'
 import { EventDetailsPanel } from '../components/EventDetailsPanel'
 import type { GraphNode } from '../../../shared/types/arc-graph'
@@ -324,7 +324,7 @@ export function AdminUserTaskDetailPage() {
             const filteredEvents = activeTest !== null
               ? events.filter((ev) => ev.testPairIndex === activeTest)
               : events
-            const nodes: GraphNode[] = eventsToGraphNodes(filteredEvents)
+            const nodes: GraphNode[] = synthesizeGraphNodes(eventsToGraphNodes(filteredEvents))
             const activeNode = nodes.find((n) => n.id === activeNodeId) ?? null
 
             const firstEvent = filteredEvents[0]

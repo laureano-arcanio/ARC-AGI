@@ -21,6 +21,54 @@ export function eventsToGraphNodes(events: EventRead[]): GraphNode[] {
   })
 }
 
+function getLastHypothesisText(nodes: GraphNode[]): string {
+  const hypothesisIntents = new Set(['hypothesis', 'hypothesis_revision', 'initial_hypothesis', 'final_algorithm_before_solving', 'hypothesis_finalized'])
+  const hypothesisNodes = nodes
+    .filter((n) => n.trigger.kind === 'cognitive' && hypothesisIntents.has(n.trigger.intent))
+    .sort((a, b) => a.timestamp - b.timestamp)
+  const last = hypothesisNodes[hypothesisNodes.length - 1]
+  if (!last || last.trigger.kind !== 'cognitive') return ''
+  return last.trigger.text
+}
+
+export function synthesizeGraphNodes(nodes: GraphNode[]): GraphNode[] {
+  const existingIds = new Set(nodes.map((n) => n.id))
+  const missingParentIds = new Set<string>()
+
+  for (const node of nodes) {
+    if (node.parentId && !existingIds.has(node.parentId)) {
+      missingParentIds.add(node.parentId)
+    }
+  }
+
+  if (missingParentIds.size === 0) return nodes
+
+  const result = [...nodes]
+
+  for (const missingId of missingParentIds) {
+    if (missingId === 'hypothesis_final') {
+      const hypothesisText = getLastHypothesisText(nodes)
+      const rootNode = nodes.find((n) => n.id === 'node_000')
+      const timestamp = rootNode ? rootNode.timestamp + 1 : Date.now()
+
+      result.push({
+        id: 'hypothesis_final',
+        parentId: 'node_000',
+        trigger: {
+          kind: 'cognitive',
+          intent: 'hypothesis',
+          text: hypothesisText,
+          details: { isPreSolverFinal: true },
+        },
+        stateSnapshot: [[0]],
+        timestamp,
+      })
+    }
+  }
+
+  return result
+}
+
 export function getNodeLabel(trigger: GraphTrigger): string {
   if (trigger.kind === 'mechanical') {
     const label = trigger.action

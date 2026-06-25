@@ -8,6 +8,7 @@ export type CognitiveIntent =
   | 'initial_hypothesis'
   | 'hypothesis_revision'
   | 'final_algorithm_before_solving'
+  | 'hypothesis_finalized'
 
 export type MechanicalAction =
   | 'cell_paint'
