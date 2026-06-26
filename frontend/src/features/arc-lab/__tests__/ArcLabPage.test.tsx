@@ -7,6 +7,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     useParams: vi.fn(),
     useNavigate: vi.fn(),
+    useSearchParams: vi.fn(),
     useRandomTasks: vi.fn(),
     useTaskById: vi.fn(),
   },
@@ -15,6 +16,7 @@ const { mocks } = vi.hoisted(() => ({
 vi.mock('react-router-dom', () => ({
   useParams: mocks.useParams,
   useNavigate: mocks.useNavigate,
+  useSearchParams: mocks.useSearchParams,
 }))
 
 vi.mock('../queries', () => ({
@@ -37,6 +39,7 @@ function renderPage(task = taskWithTwoTests) {
   const navigate = vi.fn()
   mocks.useParams.mockReturnValue({ taskId: 'task-1' })
   mocks.useNavigate.mockReturnValue(navigate)
+  mocks.useSearchParams.mockReturnValue([new URLSearchParams(), vi.fn()])
   mocks.useRandomTasks.mockReturnValue({ data: undefined, isFetched: false })
   mocks.useTaskById.mockReturnValue({ data: task })
   const utils = render(<ArcLabPage />)

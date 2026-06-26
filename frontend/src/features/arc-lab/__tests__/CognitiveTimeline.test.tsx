@@ -101,6 +101,37 @@ describe('CognitiveTimeline', () => {
     expect(secondLeft).toBeGreaterThan(firstLeft)
   })
 
+  it('renders without hanging when parentId forms a cycle', () => {
+    // Regression: a node-id collision on test 2 used to append a second
+    // `node_000` whose parent was `hypothesis_final` (whose parent is the
+    // root `node_000`). The duplicate id overwrote the root in the node map,
+    // forming a node_000 ⇄ hypothesis_final cycle that looped the layout walk
+    // forever and froze the tab. The layout must terminate and still render.
+    const cyclic: GraphNode[] = [
+      rootNode, // node_000, parentId null
+      {
+        id: 'hypothesis_final',
+        trigger: { kind: 'cognitive', intent: 'hypothesis', text: 'h' },
+        stateSnapshot: [[0]],
+        parentId: 'node_000',
+        timestamp: 0,
+      },
+      {
+        // colliding id — same as the root, but parented under hypothesis_final
+        id: 'node_000',
+        trigger: { kind: 'mechanical', action: 'cell_paint', details: { cells: [] } },
+        stateSnapshot: [[0]],
+        parentId: 'hypothesis_final',
+        timestamp: 0,
+      },
+    ]
+
+    renderTimeline({ nodes: cyclic, activeNodeId: 'node_000' })
+
+    expect(screen.getByTestId('timeline-node-node_000')).toBeInTheDocument()
+    expect(screen.getByTestId('timeline-node-hypothesis_final')).toBeInTheDocument()
+  })
+
   it('places branch nodes on separate rows', () => {
     const nodes: GraphNode[] = [
       rootNode,

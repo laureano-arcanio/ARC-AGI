@@ -117,6 +117,34 @@ export function computeCellSize(
   return Math.min(candidateHeight, candidateWidth, maxCellSize)
 }
 
+export function getConnectedComponent(
+  grid: GridData,
+  startX: number,
+  startY: number,
+): Set<string> {
+  const target = grid[startX]?.[startY]
+  if (target === undefined) return new Set()
+
+  const h = gridHeight(grid)
+  const w = gridWidth(grid)
+  const visited = new Set<string>()
+  const result = new Set<string>()
+  const stack: Array<[number, number]> = [[startX, startY]]
+
+  while (stack.length > 0) {
+    const [x, y] = stack.pop()!
+    if (x < 0 || x >= h || y < 0 || y >= w) continue
+    const key = cellKey(x, y)
+    if (visited.has(key)) continue
+    visited.add(key)
+    if (grid[x][y] !== target) continue
+    result.add(key)
+    stack.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1])
+  }
+
+  return result
+}
+
 export function cellKey(x: number, y: number): string {
   return `${x},${y}`
 }

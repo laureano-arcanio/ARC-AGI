@@ -52,7 +52,9 @@ function computeLayout(
 
   const activePath = new Set<string>()
   let current = activeNodeId
-  while (current) {
+  // Guard against a malformed graph with a parentId cycle: stop once a node is
+  // revisited so the walk always terminates instead of hanging the browser.
+  while (current && !activePath.has(current)) {
     activePath.add(current)
     current = nodeMap.get(current)?.parentId ?? null
   }
@@ -64,6 +66,9 @@ function computeLayout(
   function lay(nodeId: string, col: number, row: number): void {
     const node = nodeMap.get(nodeId)
     if (!node) return
+    // A parentId cycle would otherwise recurse forever / stack-overflow; a node
+    // already positioned must not be laid out again.
+    if (positions.has(nodeId)) return
 
     positions.set(nodeId, { nodeId, col, row })
     numCols = Math.max(numCols, col + 1)

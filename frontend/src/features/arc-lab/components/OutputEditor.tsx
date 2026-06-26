@@ -137,6 +137,15 @@ export function OutputEditor({
           >
             {t('button.reset')}
           </button>
+          <button
+            type="button"
+            onClick={() => onToolModeChange('object_select')}
+            disabled={readOnly}
+            data-testid="select-object-btn"
+            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
+          >
+            {t('button.select_object')}
+          </button>
         </div>
       </div>
 

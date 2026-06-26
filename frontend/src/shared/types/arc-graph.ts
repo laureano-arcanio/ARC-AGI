@@ -20,6 +20,7 @@ export type MechanicalAction =
   | 'submit'
   | 'abandon'
   | 'load_task'
+  | 'select_object'
 
 export type GraphTrigger =
   | { kind: 'mechanical'; action: MechanicalAction; details?: Record<string, unknown> }

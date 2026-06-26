@@ -15,6 +15,7 @@ import {
   createGrid,
   floodfill,
   formatSize,
+  getConnectedComponent,
   gridHeight,
   gridWidth,
   parseCellKey,
@@ -94,6 +95,19 @@ function makeNodeId(n: number): string {
   return `node_${String(n).padStart(3, '0')}`
 }
 
+// The per-test node counter must never regenerate an id that already exists,
+// otherwise two nodes share an id and their differing parentId values can form
+// a cycle in the timeline graph (which hangs the layout). Derive the next id
+// from the highest existing `node_NNN` so it is always collision-free.
+function nextNodeIdFor(nodes: GraphNode[]): number {
+  let max = -1
+  for (const n of nodes) {
+    const match = /^node_(\d+)$/.exec(n.id)
+    if (match) max = Math.max(max, Number(match[1]))
+  }
+  return max + 1
+}
+
 function addNode(
   state: ArcLabState,
   trigger: GraphTrigger,
@@ -169,6 +183,26 @@ const initialState: ArcLabState = {
   blockReason: null,
 }
 
+// Seed the per-test graph state for `idx` if it has never been visited, mirroring
+// how withTask() seeds index 0. Without this, navigating to a fresh test leaves
+// nextNodeIdByTest[idx] undefined (→ 0), so the first action regenerates
+// node_000 and collides with whatever root already exists.
+function ensureTestGraphInit(
+  state: ArcLabState,
+  idx: number,
+  outputGrid: GridData,
+): Partial<ArcLabState> {
+  if (state.graphNodesByTest[idx] !== undefined) return {}
+  const root = makeRootNode(outputGrid)
+  return {
+    graphNodesByTest: { ...state.graphNodesByTest, [idx]: [root] },
+    activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: root.id },
+    nextNodeIdByTest: { ...state.nextNodeIdByTest, [idx]: nextNodeIdFor([root]) },
+    navigationHistoryByTest: { ...state.navigationHistoryByTest, [idx]: [root.id] },
+    navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: 0 },
+  }
+}
+
 function makeRootNode(outputGrid: GridData): GraphNode {
   return {
     id: 'node_000',
@@ -226,6 +260,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         outputGrids: savedGridsNext,
         sizeInput: formatSize(outputGridNext.length, outputGridNext[0].length),
         selectedCells: new Set(),
+        ...ensureTestGraphInit(state, nextIndex, outputGridNext),
       }
     }
 
@@ -245,6 +280,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         outputGrids: savedGridsPrev,
         sizeInput: formatSize(outputGridPrev.length, outputGridPrev[0].length),
         selectedCells: new Set(),
+        ...ensureTestGraphInit(state, prevIndex, outputGridPrev),
       }
     }
 
@@ -389,6 +425,32 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         )
         return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![state.currentTestIndex]!, true) }
       }
+      if (state.toolMode === 'object_select') {
+        const cells = getConnectedComponent(state.outputGrid, action.x, action.y)
+        if (cells.size === 0) {
+          return { ...state, toolMode: 'edit', selectedCells: new Set() }
+        }
+        const symbol = state.outputGrid[action.x]?.[action.y] ?? 0
+        const graph = addNode(
+          { ...state },
+          {
+            kind: 'mechanical',
+            action: 'select_object',
+            details: {
+              cells: Array.from(cells).map(parseCellKey),
+              symbol,
+              count: cells.size,
+            },
+          },
+        )
+        return {
+          ...state,
+          selectedCells: cells,
+          toolMode: 'select',
+          ...graph,
+          ...updateHistory(state, graph.activeNodeIdByTest![state.currentTestIndex]!, true),
+        }
+      }
       return state
     }
 
@@ -519,6 +581,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const testCount = state.test.length
       const graphNodesByTest = { ...state.graphNodesByTest }
       const activeNodeIdByTest = { ...state.activeNodeIdByTest }
+      const nextNodeIdByTest = { ...state.nextNodeIdByTest }
       const navigationHistoryByTest = { ...state.navigationHistoryByTest }
       const navigationIndexByTest = { ...state.navigationIndexByTest }
 
@@ -562,6 +625,10 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         }
         graphNodesByTest[idx] = [...combined, hypothesisFinal]
         activeNodeIdByTest[idx] = hypothesisFinal.id
+        // Keep the per-test counter ahead of every node now assigned to this
+        // test so the next user action can't regenerate node_000 (which would
+        // collide with the root and cycle node_000 ⇄ hypothesis_final).
+        nextNodeIdByTest[idx] = nextNodeIdFor(graphNodesByTest[idx])
         navigationHistoryByTest[idx] = ['node_000', hypothesisFinal.id]
         navigationIndexByTest[idx] = 1
       }
@@ -571,6 +638,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         ...state,
         graphNodesByTest,
         activeNodeIdByTest,
+        nextNodeIdByTest,
         navigationHistoryByTest,
         navigationIndexByTest,
       }

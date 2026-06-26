@@ -6,6 +6,7 @@ import {
   createGrid,
   floodfill,
   formatSize,
+  getConnectedComponent,
   gridsEqual,
   gridHeight,
   gridWidth,
@@ -133,6 +134,79 @@ describe('cellKey / parseCellKey', () => {
   it('round-trips coordinates', () => {
     expect(cellKey(2, 5)).toBe('2,5')
     expect(parseCellKey('2,5')).toEqual({ x: 2, y: 5 })
+  })
+})
+
+describe('getConnectedComponent', () => {
+  it('returns all same-color connected cells (4-directional)', () => {
+    const grid = [
+      [1, 1, 0],
+      [1, 0, 0],
+      [0, 0, 1],
+    ]
+    expect(getConnectedComponent(grid, 0, 0)).toEqual(new Set(['0,0', '0,1', '1,0']))
+  })
+
+  it('returns a single cell when it has no same-color neighbors', () => {
+    const grid = [
+      [0, 1, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ]
+    expect(getConnectedComponent(grid, 0, 1)).toEqual(new Set(['0,1']))
+  })
+
+  it('ignores diagonal neighbor of different selection (4-dir only)', () => {
+    const grid = [
+      [1, 0],
+      [0, 1],
+    ]
+    expect(getConnectedComponent(grid, 0, 0)).toEqual(new Set(['0,0']))
+  })
+
+  it('includes diagonal cell only if connected via 4-dir path', () => {
+    const grid = [
+      [1, 1],
+      [1, 1],
+    ]
+    expect(getConnectedComponent(grid, 0, 0)).toEqual(new Set(['0,0', '0,1', '1,0', '1,1']))
+  })
+
+  it('returns all black cells when clicking a black (0) cell', () => {
+    const grid = [
+      [0, 0],
+      [0, 0],
+    ]
+    expect(getConnectedComponent(grid, 0, 0)).toEqual(new Set(['0,0', '0,1', '1,0', '1,1']))
+  })
+
+  it('returns empty set when start is out of bounds', () => {
+    const grid = [[1]]
+    expect(getConnectedComponent(grid, 5, 5)).toEqual(new Set())
+  })
+
+  it('selects the entire grid when all cells share the color', () => {
+    const grid = [
+      [2, 2, 2],
+      [2, 2, 2],
+      [2, 2, 2],
+    ]
+    const expected = new Set([
+      '0,0', '0,1', '0,2',
+      '1,0', '1,1', '1,2',
+      '2,0', '2,1', '2,2',
+    ])
+    expect(getConnectedComponent(grid, 1, 1)).toEqual(expected)
+  })
+
+  it('does not mutate the grid', () => {
+    const grid = [
+      [1, 1],
+      [0, 0],
+    ]
+    const before = grid.map((r) => [...r])
+    getConnectedComponent(grid, 0, 0)
+    expect(grid).toEqual(before)
   })
 })
 

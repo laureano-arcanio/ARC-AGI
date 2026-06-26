@@ -48,6 +48,7 @@ Shape:
 | `resize` | `details.size`: formatted grid size string, e.g. `5x5`. |
 | `copy_from_input` | Copies current test input into output. No details. |
 | `reset_output` | Resets output grid and jumps active node back to root. No details. |
+| `select_object` | `details.cells`: array of `{ x, y }`, `details.symbol`: number, `details.count`: number. |
 | `submit` | `details.correct`: boolean computed only by the backend submit endpoint. Drives attempt status. |
 | `abandon` | Marks the attempt as abandoned. No details. |
 
