@@ -127,10 +127,16 @@ class TestArcTaskServiceCheckSubmission:
         )
         assert ok is False
 
-    async def test_returns_false_when_a_test_is_missing(
+    async def test_returns_true_when_only_submitted_pairs_are_checked(
         self, service: ArcTaskService
     ) -> None:
         ok = await service.check_submission("task-1", {0: [[10, 10]]})
+        assert ok is True
+
+    async def test_returns_false_when_submitted_index_is_out_of_range(
+        self, service: ArcTaskService
+    ) -> None:
+        ok = await service.check_submission("task-1", {99: [[10, 10]]})
         assert ok is False
 
     async def test_returns_false_when_no_solutions(

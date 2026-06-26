@@ -16,7 +16,6 @@ type OutputEditorProps = {
   onSizeInputChange: (value: string) => void
   onResize: () => void
   onCopyFromInput: () => void
-  onReset: () => void
   onCellClick: (x: number, y: number) => void
   onSelectionChange: (cells: Set<string>) => void
   onToolModeChange: (mode: ToolMode) => void
@@ -38,7 +37,6 @@ export function OutputEditor({
   onSizeInputChange,
   onResize,
   onCopyFromInput,
-  onReset,
   onCellClick,
   onSelectionChange,
   onToolModeChange,
@@ -127,15 +125,6 @@ export function OutputEditor({
             className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
           >
             {t('button.copy_input')}
-          </button>
-          <button
-            type="button"
-            onClick={onReset}
-            disabled={readOnly}
-            data-testid="reset-btn"
-            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
-          >
-            {t('button.reset')}
           </button>
           <button
             type="button"

@@ -36,11 +36,10 @@ const baseProps = {
 }
 
 describe('OutputEditor', () => {
-  it('renders resize, copy, and reset buttons', () => {
+  it('renders resize and copy buttons', () => {
     render(<OutputEditor {...baseProps} />)
     expect(screen.getByTestId('resize-btn')).toBeInTheDocument()
     expect(screen.getByTestId('copy-from-input')).toBeInTheDocument()
-    expect(screen.getByTestId('reset-btn')).toBeInTheDocument()
   })
 
   it('renders the editable grid', () => {
@@ -74,20 +73,16 @@ describe('OutputEditor', () => {
     expect(onSizeInputChange).toHaveBeenCalledWith('5x5')
   })
 
-  it('calls onCopyFromInput and onReset', () => {
+  it('calls onCopyFromInput', () => {
     const onCopyFromInput = vi.fn()
-    const onReset = vi.fn()
     render(
       <OutputEditor
         {...baseProps}
         onCopyFromInput={onCopyFromInput}
-        onReset={onReset}
       />,
     )
     fireEvent.click(screen.getByTestId('copy-from-input'))
-    fireEvent.click(screen.getByTestId('reset-btn'))
     expect(onCopyFromInput).toHaveBeenCalledTimes(1)
-    expect(onReset).toHaveBeenCalledTimes(1)
   })
 
   it('forwards cell clicks to onCellClick', () => {

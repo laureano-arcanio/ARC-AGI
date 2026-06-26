@@ -57,14 +57,17 @@ class ArcTaskService:
     ) -> bool:
         """Validate submitted grids against the stored solutions.
 
-        Correct only when every test pair of the task has a submitted grid that
-        matches its solution. The client never supplies correctness.
+        Only the test-pair indices present in *grids* are checked. This allows
+        the client to verify test pairs one at a time instead of requiring all
+        pairs in a single request.
         """
         solutions = await self.get_solutions(task_id)
         if not solutions:
             return False
-        for index, solution in enumerate(solutions):
-            if grids.get(index) != solution:
+        for index, grid in grids.items():
+            if index < 0 or index >= len(solutions):
+                return False
+            if grid != solutions[index]:
                 return False
         return True
 

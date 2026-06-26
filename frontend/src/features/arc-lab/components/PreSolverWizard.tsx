@@ -106,13 +106,9 @@ export function PreSolverWizard({
   const [hypothesisText, setHypothesisText] = useState('')
   const [revisionType, setRevisionType] = useState<RevisionType | null>(null)
   const [revisionText, setRevisionText] = useState('')
-  const [invalidatedContradictionText, setInvalidatedContradictionText] = useState('')
   const [invalidatedNewHypothesisText, setInvalidatedNewHypothesisText] = useState('')
-  const [finalAlgorithmText, setFinalAlgorithmText] = useState('')
-  const [showFinalStep, setShowFinalStep] = useState(false)
   const [error, setError] = useState('')
   const [enteredRule, setEnteredRule] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
   const lastHypothesisRef = useRef('')
 
   useEffect(() => {
@@ -166,12 +162,10 @@ export function PreSolverWizard({
     } else if (key === 'refined') {
       setRevisionType(key)
       setRevisionText(lastHypothesisRef.current)
-      setInvalidatedContradictionText('')
       setInvalidatedNewHypothesisText('')
     } else if (key === 'invalidated') {
       setRevisionType(key)
       setRevisionText('')
-      setInvalidatedContradictionText('')
       setInvalidatedNewHypothesisText('')
     }
   }, [onAddCognitiveNode, visibleTrainPairCount, onSetVisibleCount, train.length])
@@ -195,12 +189,11 @@ export function PreSolverWizard({
       }
       text = revisionText.trim()
     } else if (revisionType === 'invalidated') {
-      if (wordCount(invalidatedContradictionText) < 5 || wordCount(invalidatedNewHypothesisText) < 5) {
+      if (wordCount(invalidatedNewHypothesisText) < 5) {
         setError(t('pre_solver.no_text_invalidated'))
         return
       }
       text = invalidatedNewHypothesisText.trim()
-      details.contradiction = invalidatedContradictionText.trim()
     } else {
       return
     }
@@ -212,27 +205,25 @@ export function PreSolverWizard({
 
     setRevisionType(null)
     setRevisionText('')
-    setInvalidatedContradictionText('')
     setInvalidatedNewHypothesisText('')
     advanceToNext()
-  }, [revisionType, revisionText, invalidatedContradictionText, invalidatedNewHypothesisText, onAddCognitiveNode, visibleTrainPairCount, advanceToNext, t])
+  }, [revisionType, revisionText, invalidatedNewHypothesisText, onAddCognitiveNode, visibleTrainPairCount, advanceToNext, t])
 
   const advanceToNextTest = useCallback(() => {
     if (isLastTestStep) {
       if (lastHypothesisRef.current) {
-        setIsEditing(false)
-        setShowFinalStep(true)
-      } else {
-        onComplete()
+        onAddCognitiveNode('hypothesis_finalized', lastHypothesisRef.current.trim(), {
+          visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
+        })
       }
+      onComplete()
     } else {
       setRevisionType(null)
       setRevisionText('')
-      setInvalidatedContradictionText('')
       setInvalidatedNewHypothesisText('')
       setWizardStep((s) => s + 1)
     }
-  }, [isLastTestStep, onComplete])
+  }, [isLastTestStep, lastHypothesisRef, onAddCognitiveNode, visibleTrainPairCount, onComplete])
 
   // Logged escape hatch for the exploring phase: the user still has no rule.
   // Records an `uncertain` node (train or test) so the reasoning flow is visible
@@ -266,12 +257,10 @@ export function PreSolverWizard({
     } else if (key === 'refined') {
       setRevisionType(key)
       setRevisionText(lastHypothesisRef.current)
-      setInvalidatedContradictionText('')
       setInvalidatedNewHypothesisText('')
     } else if (key === 'invalidated') {
       setRevisionType(key)
       setRevisionText('')
-      setInvalidatedContradictionText('')
       setInvalidatedNewHypothesisText('')
     }
   }, [onAddCognitiveNode, visibleTrainPairCount, testIndex, advanceToNextTest])
@@ -296,12 +285,11 @@ export function PreSolverWizard({
       }
       text = revisionText.trim()
     } else if (revisionType === 'invalidated') {
-      if (wordCount(invalidatedContradictionText) < 5 || wordCount(invalidatedNewHypothesisText) < 5) {
+      if (wordCount(invalidatedNewHypothesisText) < 5) {
         setError(t('pre_solver.no_text_invalidated'))
         return
       }
       text = invalidatedNewHypothesisText.trim()
-      details.contradiction = invalidatedContradictionText.trim()
     } else {
       return
     }
@@ -312,37 +300,7 @@ export function PreSolverWizard({
     setEnteredRule(true)
 
     advanceToNextTest()
-  }, [revisionType, revisionText, invalidatedContradictionText, invalidatedNewHypothesisText, onAddCognitiveNode, visibleTrainPairCount, testIndex, advanceToNextTest, t])
-
-  const handleFinalConfirm = useCallback(() => {
-    const text = lastHypothesisRef.current.trim()
-    onAddCognitiveNode('hypothesis_finalized', text, {
-      visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
-    })
-    setShowFinalStep(false)
-    onComplete()
-  }, [onAddCognitiveNode, visibleTrainPairCount, onComplete])
-
-  const handleStartEdit = useCallback(() => {
-    setFinalAlgorithmText(lastHypothesisRef.current)
-    setIsEditing(true)
-  }, [])
-
-  const handleFinalEditConfirm = useCallback(() => {
-    if (wordCount(finalAlgorithmText) < 5) {
-      setError(t('pre_solver.no_text'))
-      return
-    }
-    setError('')
-    const trimmed = finalAlgorithmText.trim()
-    onAddCognitiveNode('hypothesis_finalized', trimmed, {
-      visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
-      edited: true,
-    })
-    lastHypothesisRef.current = trimmed
-    setShowFinalStep(false)
-    onComplete()
-  }, [finalAlgorithmText, onAddCognitiveNode, visibleTrainPairCount, onComplete, t])
+  }, [revisionType, revisionText, invalidatedNewHypothesisText, onAddCognitiveNode, visibleTrainPairCount, testIndex, advanceToNextTest, t])
 
   if (train.length === 0) {
     return (
@@ -354,13 +312,12 @@ export function PreSolverWizard({
     )
   }
 
-  const isFinalStep = showFinalStep
   // The "exploring" phase lasts until the user writes their first rule. During
   // it we keep showing the initial prompt (with the "I can't find the rule"
   // escape hatch) on every step — train or test — so we never wrongly assume
   // a prior hypothesis. Once a rule exists, we switch to the revision UI and
   // drop the escape hatch so reasoning is captured for every remaining step.
-  const isInitialStep = !isFinalStep && !enteredRule
+  const isInitialStep = !enteredRule
   const needsInput = revisionType === 'refined' || revisionType === 'invalidated'
 
   return (
@@ -369,14 +326,14 @@ export function PreSolverWizard({
       <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-300">
-          {t('pre_solver.step_title', { current: isFinalStep ? totalSteps + 1 : wizardStep + 1, total: totalSteps + (isFinalStep ? 1 : 0) })}
+          {t('pre_solver.step_title', { current: wizardStep + 1, total: totalSteps })}
         </h2>
         <div className="flex gap-1.5">
-          {Array.from({ length: totalSteps + (isFinalStep ? 1 : 0) }, (_, i) => (
+          {Array.from({ length: totalSteps }, (_, i) => (
             <div
               key={i}
               className={`h-2 w-8 rounded-full transition-colors ${
-                isFinalStep || i <= wizardStep ? 'bg-green-500' : 'bg-gray-700'
+                i <= wizardStep ? 'bg-green-500' : 'bg-gray-700'
               }`}
             />
           ))}
@@ -419,25 +376,36 @@ export function PreSolverWizard({
               <span className={`text-xs ${isValid ? 'text-green-400' : 'text-gray-500'}`}>
                 {t('pre_solver.words', { count: wordCount(hypothesisText) })}
               </span>
-              <button
-                type="button"
-                onClick={handleInitialSubmit}
-                disabled={!isValid}
-                data-testid="pre-solver-record"
-                className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
-              >
-                {t('pre_solver.record')}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleExploringUncertain}
+                  data-testid="pre-solver-uncertain"
+                  className="rounded-md border border-gray-600 bg-gray-800 px-4 py-1.5 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-gray-100"
+                >
+                  {t('pre_solver.uncertain')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleInitialSubmit}
+                  disabled={!isValid}
+                  data-testid="pre-solver-record"
+                  className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
+                >
+                  {t('pre_solver.record')}
+                </button>
+              </div>
             </div>
-            <div className="mt-3 flex justify-center border-t border-gray-700 pt-3">
-              <button
-                type="button"
-                onClick={handleExploringUncertain}
-                data-testid="pre-solver-uncertain"
-                className="rounded-md border border-gray-600 bg-gray-800 px-4 py-1.5 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-gray-100"
-              >
-                {t('pre_solver.uncertain')}
-              </button>
+          </div>
+        )}
+
+        {!isInitialStep && lastHypothesisRef.current && (
+          <div className="mb-4">
+            <span className="mb-2 block text-sm font-semibold text-gray-200">
+              {t('panel.hypothesis')}
+            </span>
+            <div className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900 px-5 py-4">
+              <p className="text-sm text-gray-300 leading-relaxed">{lastHypothesisRef.current}</p>
             </div>
           </div>
         )}
@@ -486,39 +454,22 @@ export function PreSolverWizard({
             )}
 
             {revisionType === 'invalidated' && (
-              <div className="mb-3 space-y-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-300">
-                    {t('pre_solver.invalidated_contradiction_prompt')}
-                  </label>
-                  <textarea
-                    ref={(el) => el?.focus()}
-                    rows={2}
-                    value={invalidatedContradictionText}
-                    onChange={(e) => { setInvalidatedContradictionText(e.target.value); setError('') }}
-                    data-testid="pre-solver-invalidated-contradiction"
-                    className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
-                  />
-                  <span className={`mt-1 block text-xs ${wordCount(invalidatedContradictionText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
-                    {t('pre_solver.words', { count: wordCount(invalidatedContradictionText) })}
-                  </span>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-300">
-                    {t('pre_solver.invalidated_new_hypothesis_prompt')}
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={invalidatedNewHypothesisText}
-                    onChange={(e) => { setInvalidatedNewHypothesisText(e.target.value); setError('') }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRevisionContinue() } }}
-                    data-testid="pre-solver-invalidated-new-hypothesis"
-                    className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
-                  />
-                  <span className={`mt-1 block text-xs ${wordCount(invalidatedNewHypothesisText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
-                    {t('pre_solver.words', { count: wordCount(invalidatedNewHypothesisText) })}
-                  </span>
-                </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-xs font-medium text-gray-300">
+                  {t('pre_solver.invalidated_new_hypothesis_prompt')}
+                </label>
+                <textarea
+                  autoFocus
+                  rows={3}
+                  value={invalidatedNewHypothesisText}
+                  onChange={(e) => { setInvalidatedNewHypothesisText(e.target.value); setError('') }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRevisionContinue() } }}
+                  data-testid="pre-solver-invalidated-new-hypothesis"
+                  className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+                />
+                <span className={`mt-1 block text-xs ${wordCount(invalidatedNewHypothesisText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
+                  {t('pre_solver.words', { count: wordCount(invalidatedNewHypothesisText) })}
+                </span>
               </div>
             )}
 
@@ -540,67 +491,7 @@ export function PreSolverWizard({
           </div>
         )}
 
-        {isFinalStep && !isEditing && (
-          <div>
-            <p className="mb-3 text-sm font-medium text-gray-200">
-              {t('pre_solver.review_prompt')}
-            </p>
-            <div className="rounded-md border border-gray-600 bg-gray-900/60 px-4 py-3 text-sm leading-relaxed text-gray-200">
-              {lastHypothesisRef.current}
-            </div>
-            <div className="mt-4 flex gap-3">
-              <button
-                type="button"
-                onClick={handleFinalConfirm}
-                data-testid="pre-solver-confirm"
-                className="rounded-md bg-green-600 px-5 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
-              >
-                {t('pre_solver.confirmed')}
-              </button>
-              <button
-                type="button"
-                onClick={handleStartEdit}
-                data-testid="pre-solver-edit"
-                className="rounded-md border border-gray-600 bg-gray-800 px-5 py-1.5 text-xs font-medium text-gray-300 transition hover:border-gray-500 hover:text-gray-100"
-              >
-                {t('pre_solver.edit')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {isFinalStep && isEditing && (
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-200">
-              {t('pre_solver.final_prompt')}
-            </label>
-            <textarea
-              ref={(el) => el?.focus()}
-              rows={4}
-              value={finalAlgorithmText}
-              onChange={(e) => { setFinalAlgorithmText(e.target.value); setError('') }}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFinalEditConfirm() } }}
-              data-testid="pre-solver-final"
-              className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
-            />
-            <div className="mt-2 flex items-center justify-between">
-              <span className={`text-xs ${wordCount(finalAlgorithmText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
-                {t('pre_solver.words', { count: wordCount(finalAlgorithmText) })}
-              </span>
-              <button
-                type="button"
-                onClick={handleFinalEditConfirm}
-                disabled={wordCount(finalAlgorithmText) < 5}
-                data-testid="pre-solver-start-solving"
-                className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
-              >
-                {t('pre_solver.start_solving')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {isTestStep && !isFinalStep && enteredRule && (
+        {isTestStep && enteredRule && (
           <div>
             <p className="mb-3 text-sm font-medium text-gray-200">
               {t('pre_solver.revision_question')}
@@ -644,39 +535,22 @@ export function PreSolverWizard({
             )}
 
             {revisionType === 'invalidated' && (
-              <div className="mb-3 space-y-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-300">
-                    {t('pre_solver.invalidated_contradiction_prompt')}
-                  </label>
-                  <textarea
-                    ref={(el) => el?.focus()}
-                    rows={2}
-                    value={invalidatedContradictionText}
-                    onChange={(e) => { setInvalidatedContradictionText(e.target.value); setError('') }}
-                    data-testid="pre-solver-invalidated-contradiction"
-                    className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
-                  />
-                  <span className={`mt-1 block text-xs ${wordCount(invalidatedContradictionText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
-                    {t('pre_solver.words', { count: wordCount(invalidatedContradictionText) })}
-                  </span>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-300">
-                    {t('pre_solver.invalidated_new_hypothesis_prompt')}
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={invalidatedNewHypothesisText}
-                    onChange={(e) => { setInvalidatedNewHypothesisText(e.target.value); setError('') }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTestRevisionContinue() } }}
-                    data-testid="pre-solver-invalidated-new-hypothesis"
-                    className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
-                  />
-                  <span className={`mt-1 block text-xs ${wordCount(invalidatedNewHypothesisText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
-                    {t('pre_solver.words', { count: wordCount(invalidatedNewHypothesisText) })}
-                  </span>
-                </div>
+              <div className="mb-3">
+                <label className="mb-1 block text-xs font-medium text-gray-300">
+                  {t('pre_solver.invalidated_new_hypothesis_prompt')}
+                </label>
+                <textarea
+                  autoFocus
+                  rows={3}
+                  value={invalidatedNewHypothesisText}
+                  onChange={(e) => { setInvalidatedNewHypothesisText(e.target.value); setError('') }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTestRevisionContinue() } }}
+                  data-testid="pre-solver-invalidated-new-hypothesis"
+                  className="w-full resize-none rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-green-500 focus:outline-none"
+                />
+                <span className={`mt-1 block text-xs ${wordCount(invalidatedNewHypothesisText) >= 5 ? 'text-green-400' : 'text-gray-500'}`}>
+                  {t('pre_solver.words', { count: wordCount(invalidatedNewHypothesisText) })}
+                </span>
               </div>
             )}
 

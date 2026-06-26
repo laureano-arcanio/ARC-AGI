@@ -63,6 +63,7 @@ type ArcLabState = {
   navigationHistoryByTest: Record<number, string[]>
   navigationIndexByTest: Record<number, number>
   blockReason: BlockReason
+  correctPairs: Record<number, boolean>
 }
 
 type Action =
@@ -181,6 +182,7 @@ const initialState: ArcLabState = {
   navigationHistoryByTest: {},
   navigationIndexByTest: {},
   blockReason: null,
+  correctPairs: {},
 }
 
 // Seed the per-test graph state for `idx` if it has never been visited, mirroring
@@ -235,6 +237,7 @@ function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
     navigationHistoryByTest: { 0: ['node_000'] },
     navigationIndexByTest: { 0: 0 },
     blockReason: null,
+    correctPairs: {},
   }
 }
 
@@ -354,23 +357,29 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
 
     case 'SUBMIT': {
       const allGrids = { ...state.outputGrids, [state.currentTestIndex]: state.outputGrid }
-      // Correctness is decided by the server (it holds the solutions); the
-      // reducer just records the authoritative result.
-      const allCorrect = action.correct
+      const pairCorrect = action.correct
       const idxSubmit = state.currentTestIndex
+      const newCorrectPairs = { ...state.correctPairs }
+      if (pairCorrect) {
+        newCorrectPairs[idxSubmit] = true
+      } else {
+        delete newCorrectPairs[idxSubmit]
+      }
+      const allPairsCorrect = Object.keys(newCorrectPairs).length === state.test.length
       const graph = addNode(
         state,
-        { kind: 'mechanical', action: 'submit', details: { correct: allCorrect } },
+        { kind: 'mechanical', action: 'submit', details: { correct: pairCorrect } },
       )
       return {
         ...state,
         outputGrids: allGrids,
+        correctPairs: newCorrectPairs,
         ...graph,
         ...updateHistory(state, graph.activeNodeIdByTest![idxSubmit]!, true),
-        message: allCorrect
+        message: pairCorrect
           ? { kind: 'info', text: 'toast.correct' }
           : { kind: 'error', text: 'toast.wrong' },
-        blockReason: allCorrect ? 'correct_analysis' : null,
+        blockReason: allPairsCorrect ? 'correct_analysis' : null,
       }
     }
 
@@ -1030,10 +1039,6 @@ export function ArcLabPage() {
     if (lastSubmittedGridRef.current === gridKey) return
     submittingRef.current = true
     lastSubmittedGridRef.current = gridKey
-    const allGrids: Record<number, GridData> = {
-      ...state.outputGrids,
-      [idx]: state.outputGrid,
-    }
     const nextId = state.nextNodeIdByTest[idx] ?? 0
     const nodeId = makeNodeId(nextId)
     const parentNodeId = state.activeNodeIdByTest[idx] ?? null
@@ -1045,11 +1050,14 @@ export function ArcLabPage() {
         nodeId,
         parentNodeId,
         testPairIndex: idx,
-        grids: allGrids,
+        grids: { [idx]: state.outputGrid },
         stateSnapshot: state.outputGrid,
         timestamp: Date.now(),
       })
       dispatch({ type: 'SUBMIT', correct })
+      if (correct && idx < state.test.length - 1) {
+        dispatch({ type: 'NEXT_TEST_INPUT' })
+      }
     } catch {
       dispatch({
         type: 'SET_MESSAGE',
@@ -1181,6 +1189,15 @@ export function ArcLabPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={handleReset}
+              disabled={readOnly}
+              data-testid="reset-btn"
+              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
+            >
+              {t('button.reset')}
+            </button>
+            <button
+              type="button"
               onClick={() => setAbandonOpen(true)}
               data-testid="abandon-btn"
               className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-orange-700"
@@ -1250,7 +1267,6 @@ export function ArcLabPage() {
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
               onResize={handleResize}
               onCopyFromInput={handleCopyFromInput}
-              onReset={handleReset}
               onCellClick={handleCellClick}
               onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}
               onToolModeChange={(mode) => dispatch({ type: 'SET_TOOL_MODE', mode })}

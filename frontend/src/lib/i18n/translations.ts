@@ -376,7 +376,7 @@ const es = {
   'instruction.undo_title': 'Deshacer / Rehacer y Línea de tiempo',
   'instruction.undo_desc': 'Navega por tus acciones con los botones deshacer/rehacer. Haz clic en cualquier nodo de la línea de tiempo para saltar directamente a ese estado.',
   'instruction.actions_title': 'Acciones',
-  'instruction.actions_desc': 'Verificar para comprobar tu solución, Abandonar para guardar progreso y continuar después, Reiniciar para empezar de cero, Copiar entrada para copiar la cuadrícula de prueba, Redimensionar para cambiar las dimensiones de la cuadrícula.',
+  'instruction.actions_desc': 'Verificar para comprobar tu solución, Abandonar para guardar progreso y continuar después, Reiniciar para empezar de cero, Seleccionar objeto para aislar y operar sobre figuras conectadas, Copiar entrada para copiar la cuadrícula de prueba, Redimensionar para cambiar las dimensiones de la cuadrícula.',
   'instruction.emphasis': 'No hay temporizador. Tu proceso de pensamiento importa más que tu respuesta — estamos aquí para entender cómo razonas.',
   'instruction.dismiss': 'Entendido',
 }
@@ -755,7 +755,7 @@ const en: Record<string, string> = {
   'instruction.undo_title': 'Undo / Redo & Timeline',
   'instruction.undo_desc': 'Step through your actions with the undo/redo buttons. Click any node in the timeline to jump directly to that state.',
   'instruction.actions_title': 'Actions',
-  'instruction.actions_desc': 'Verify to check your solution, Abandon to save progress and continue later, Reset to start fresh, Copy input to copy the test grid, Resize to change grid dimensions.',
+  'instruction.actions_desc': 'Verify to check your solution, Abandon to save progress and continue later, Reset to start fresh, Select Object to isolate and operate on connected shapes, Copy input to copy the test grid, Resize to change grid dimensions.',
   'instruction.emphasis': 'There\'s no timer. Your thinking process matters more than your answer — we\'re here to understand how you reason.',
   'instruction.dismiss': 'Got it',
 }

@@ -19,6 +19,7 @@ import {
   Pencil,
   RefreshCcw,
   RotateCcw,
+  Scan,
   X,
 } from 'lucide-react'
 
@@ -124,6 +125,8 @@ export function getTimelineNodeMeta(trigger: GraphTrigger): {
         : { icon: <X size={18} />, color: 'error' }
     case 'abandon':
       return { icon: <LogOut size={18} />, color: 'neutral' }
+    case 'select_object':
+      return { icon: <Scan size={18} />, color: 'neutral' }
     default:
       return { icon: <span className="text-[10px] font-bold">?</span>, color: 'neutral' }
   }
