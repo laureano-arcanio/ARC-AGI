@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { EditableGrid } from './EditableGrid'
 import { SymbolPicker } from './SymbolPicker'
 import { formatSize } from '../utils'
@@ -64,9 +65,7 @@ export function OutputEditor({
           className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30"
           title={t('button.prev')}
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <ChevronLeft size={16} />
         </button>
 
         <div data-testid="output-grid" className="relative">
@@ -90,9 +89,7 @@ export function OutputEditor({
           className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30"
           title={t('button.next')}
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          <ChevronRight size={16} />
         </button>
       </div>
 

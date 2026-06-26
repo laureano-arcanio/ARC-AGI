@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react'
 import { GridDisplay } from './GridDisplay'
 import { gridHeight, gridWidth } from '../utils'
 import { useTranslation } from '../../../lib/i18n'
@@ -45,9 +46,7 @@ export function DemonstrationPanel({ pairs, showNumbers = false, visibleCount }:
                 </div>
               </div>
               <div className="shrink-0 text-gray-600">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight size={16} />
               </div>
               <div className="flex flex-1 flex-col items-start gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">

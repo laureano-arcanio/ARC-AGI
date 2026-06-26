@@ -6,22 +6,21 @@ import {
   type MechanicalAction,
 } from '../types/arc-graph'
 import {
-  TimelineAbandonIcon,
-  TimelineBulbIcon,
-  TimelineCheckIcon,
-  TimelineCopyInIcon,
-  TimelineFillIcon,
-  TimelineFlagIcon,
-  TimelineMultiIcon,
-  TimelineNotesIcon,
-  TimelinePasteIcon,
-  TimelinePencilIcon,
-  TimelineQuestionIcon,
-  TimelineRefreshIcon,
-  TimelineResetIcon,
-  TimelineResizeIcon,
-  TimelineXMarkIcon,
-} from './timelineGraphIcons'
+  CircleCheck,
+  CircleHelp,
+  ClipboardPaste,
+  Copy,
+  FileText,
+  Flag,
+  Lightbulb,
+  LogOut,
+  MoveDiagonal,
+  PaintBucket,
+  Pencil,
+  RefreshCcw,
+  RotateCcw,
+  X,
+} from 'lucide-react'
 
 export type TimelineIconColor = 'neutral' | 'success' | 'error' | 'warning' | 'active'
 
@@ -82,50 +81,49 @@ export function getTimelineNodeMeta(trigger: GraphTrigger): {
     switch (trigger.intent) {
       case 'hypothesis':
         if (trigger.details?.revisionType === 'uncertain') {
-          return { icon: <TimelineQuestionIcon />, color: 'neutral' }
+          return { icon: <CircleHelp size={18} />, color: 'neutral' }
         }
-        return { icon: <TimelineBulbIcon />, color: 'warning' }
+        return { icon: <Lightbulb size={18} />, color: 'warning' }
       case 'correct_analysis':
-        return { icon: <TimelineCheckIcon />, color: 'success' }
+        return { icon: <CircleCheck size={18} />, color: 'success' }
       case 'failure_analysis':
-        return { icon: <TimelineNotesIcon />, color: 'error' }
+        return { icon: <FileText size={18} />, color: 'error' }
       case 'branch_pivot':
-        return { icon: <TimelineNotesIcon />, color: 'warning' }
+        return { icon: <FileText size={18} />, color: 'warning' }
       case 'initial_hypothesis':
-        return { icon: <TimelineBulbIcon />, color: 'active' }
+        return { icon: <Lightbulb size={18} />, color: 'active' }
       case 'hypothesis_revision':
-        return { icon: <TimelineRefreshIcon />, color: 'active' }
+        return { icon: <RefreshCcw size={16} />, color: 'active' }
       case 'final_algorithm_before_solving':
-        return { icon: <TimelineCheckIcon />, color: 'success' }
+        return { icon: <CircleCheck size={18} />, color: 'success' }
       case 'hypothesis_finalized':
-        return { icon: <TimelineCheckIcon />, color: 'success' }
+        return { icon: <CircleCheck size={18} />, color: 'success' }
     }
   }
 
   const action = trigger.action as MechanicalAction
   switch (action) {
     case 'load_task':
-      return { icon: <TimelineFlagIcon />, color: 'neutral' }
+      return { icon: <Flag size={18} />, color: 'neutral' }
     case 'cell_paint': {
-      const cells = (trigger.details?.cells as Array<unknown>) ?? []
-      return { icon: cells.length > 1 ? <TimelineMultiIcon /> : <TimelinePencilIcon />, color: 'neutral' }
+      return { icon: <Pencil size={18} />, color: 'neutral' }
     }
     case 'fill_selected':
-      return { icon: <TimelineFillIcon />, color: 'neutral' }
+      return { icon: <PaintBucket size={18} />, color: 'neutral' }
     case 'paste':
-      return { icon: <TimelinePasteIcon />, color: 'neutral' }
+      return { icon: <ClipboardPaste size={18} />, color: 'neutral' }
     case 'resize':
-      return { icon: <TimelineResizeIcon />, color: 'neutral' }
+      return { icon: <MoveDiagonal size={18} />, color: 'neutral' }
     case 'copy_from_input':
-      return { icon: <TimelineCopyInIcon />, color: 'neutral' }
+      return { icon: <Copy size={18} />, color: 'neutral' }
     case 'reset_output':
-      return { icon: <TimelineResetIcon />, color: 'neutral' }
+      return { icon: <RotateCcw size={18} />, color: 'neutral' }
     case 'submit':
       return trigger.details?.correct
-        ? { icon: <TimelineCheckIcon />, color: 'success' }
-        : { icon: <TimelineXMarkIcon />, color: 'error' }
+        ? { icon: <CircleCheck size={18} />, color: 'success' }
+        : { icon: <X size={18} />, color: 'error' }
     case 'abandon':
-      return { icon: <TimelineAbandonIcon />, color: 'neutral' }
+      return { icon: <LogOut size={18} />, color: 'neutral' }
     default:
       return { icon: <span className="text-[10px] font-bold">?</span>, color: 'neutral' }
   }
