@@ -30,4 +30,4 @@ COPY . .
 EXPOSE 3000
 
 # Command to run the app
-CMD ["pnpm", "run", "dev"]
+CMD ["sh", "-c", "pnpm install && pnpm run dev"]
