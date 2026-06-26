@@ -1016,12 +1016,20 @@ export function ArcLabPage() {
     return false
   }
 
+  const submittingRef = useRef(false)
+  const lastSubmittedGridRef = useRef<string | null>(null)
+
   const handleSubmit = async () => {
     const idx = state.currentTestIndex
     const attemptId = attemptIdRef.current
     if (userId === null || !taskId || taskId === 'random' || attemptId === null) {
       return
     }
+    if (submittingRef.current) return
+    const gridKey = JSON.stringify(state.outputGrid)
+    if (lastSubmittedGridRef.current === gridKey) return
+    submittingRef.current = true
+    lastSubmittedGridRef.current = gridKey
     const allGrids: Record<number, GridData> = {
       ...state.outputGrids,
       [idx]: state.outputGrid,
@@ -1047,6 +1055,8 @@ export function ArcLabPage() {
         type: 'SET_MESSAGE',
         message: { kind: 'error', text: 'toast.submit_failed' },
       })
+    } finally {
+      submittingRef.current = false
     }
   }
 
@@ -1180,8 +1190,13 @@ export function ArcLabPage() {
             <button
               type="button"
               onClick={handleSubmit}
+              disabled={lastSubmittedGridRef.current === JSON.stringify(state.outputGrid)}
               data-testid="submit-btn"
-              className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold text-white transition ${
+                lastSubmittedGridRef.current === JSON.stringify(state.outputGrid)
+                  ? 'cursor-not-allowed bg-gray-600'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
             >
               {t('button.submit')}
             </button>
@@ -1247,6 +1262,7 @@ export function ArcLabPage() {
             />
 
               <Toast
+                key={state.message?.text ?? 'none'}
                 message={state.message ? { ...state.message, text: t(state.message.text, state.message.params) } : null}
                 onDismiss={() => dispatch({ type: 'DISMISS_MESSAGE' })}
               />

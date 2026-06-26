@@ -141,8 +141,13 @@ export function OutputEditor({
             type="button"
             onClick={() => onToolModeChange('object_select')}
             disabled={readOnly}
+            aria-pressed={toolMode === 'object_select'}
             data-testid="select-object-btn"
-            className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition disabled:opacity-40 ${
+              toolMode === 'object_select'
+                ? 'border border-blue-500 bg-blue-600 text-white'
+                : 'border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
+            }`}
           >
             {t('button.select_object')}
           </button>

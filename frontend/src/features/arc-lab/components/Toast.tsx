@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { ToastMessage } from '../types'
 
 type ToastProps = {
@@ -7,12 +7,21 @@ type ToastProps = {
   onDismiss: () => void
 }
 
-export function Toast({ message, durationMs = 5000, onDismiss }: ToastProps) {
+export function Toast({ message, durationMs = 2000, onDismiss }: ToastProps) {
+  const [closing, setClosing] = useState(false)
+
   useEffect(() => {
     if (!message) return
-    const timer = setTimeout(onDismiss, durationMs)
+    setClosing(false)
+    const timer = setTimeout(() => setClosing(true), durationMs)
     return () => clearTimeout(timer)
-  }, [message, durationMs, onDismiss])
+  }, [message, durationMs])
+
+  useEffect(() => {
+    if (!closing) return
+    const timer = setTimeout(onDismiss, 300)
+    return () => clearTimeout(timer)
+  }, [closing, onDismiss])
 
   if (!message) return null
 
@@ -23,7 +32,9 @@ export function Toast({ message, durationMs = 5000, onDismiss }: ToastProps) {
       data-testid="toast"
       data-kind={message.kind}
       role={isError ? 'alert' : 'status'}
-      className={`mt-4 rounded-lg border px-4 py-3 text-sm ${
+      className={`fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-lg border px-4 py-3 text-sm shadow-lg transition-opacity duration-300 ${
+        closing ? 'opacity-0' : 'opacity-100'
+      } ${
         isError
           ? 'border-red-800 bg-red-950/50 text-red-400'
           : 'border-green-800 bg-green-950/50 text-green-400'
