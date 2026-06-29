@@ -11,7 +11,7 @@ run-rebuild:
 	docker compose --profile local up --build
 
 db-console:
-	docker compose exec postgres psql -U dev-user -d dev_db
+	docker compose exec postgres psql -U dev-user -d postgres
 
 db-migrate:
 	docker compose exec backend poetry run alembic upgrade head

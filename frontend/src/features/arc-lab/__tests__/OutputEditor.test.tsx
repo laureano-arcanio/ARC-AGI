@@ -8,6 +8,7 @@ const baseProps = {
   selectedSymbol: 0,
   showNumbers: false,
   selectedCells: new Set<string>(),
+  clipboard: null,
   sizeInput: '3x3',
   hypothesisText: '',
   onHypothesisChange: vi.fn(),
@@ -29,6 +30,8 @@ const baseProps = {
   onSelectionChange: vi.fn(),
   onToolModeChange: vi.fn(),
   onSymbolSelect: vi.fn(),
+  onCopySelection: vi.fn(),
+  onPasteSelection: vi.fn(),
   onPrev: vi.fn(),
   onNext: vi.fn(),
   canGoPrev: true,
@@ -85,13 +88,15 @@ describe('OutputEditor', () => {
     expect(onCopyFromInput).toHaveBeenCalledTimes(1)
   })
 
-  it('forwards cell clicks to onCellClick', () => {
-    const onCellClick = vi.fn()
-    render(<OutputEditor {...baseProps} onCellClick={onCellClick} />)
+  it('selects cell on click in edit mode', () => {
+    const onSelectionChange = vi.fn()
+    const onToolModeChange = vi.fn()
+    render(<OutputEditor {...baseProps} onSelectionChange={onSelectionChange} onToolModeChange={onToolModeChange} />)
     const cell = screen.getByTestId('0,0')
     fireEvent.mouseDown(cell)
     fireEvent.mouseUp(cell)
-    expect(onCellClick).toHaveBeenCalledWith(0, 0)
+    expect(onSelectionChange).toHaveBeenCalledWith(new Set(['0,0']))
+    expect(onToolModeChange).toHaveBeenCalledWith('select')
   })
 
   it('forwards symbol selection', () => {

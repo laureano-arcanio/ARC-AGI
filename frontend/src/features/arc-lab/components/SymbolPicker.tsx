@@ -20,6 +20,7 @@ export function SymbolPicker({ selectedSymbol, onSelect }: SymbolPickerProps) {
           data-symbol={symbol}
           onClick={() => onSelect(symbol)}
           aria-label={t('symbol.aria', { n: symbol })}
+          title={t('symbol.aria', { n: symbol })}
           aria-pressed={selectedSymbol === symbol}
           className={`h-7 w-7 rounded-md transition ${
             selectedSymbol === symbol

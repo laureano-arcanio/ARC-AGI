@@ -44,11 +44,14 @@ Shape:
 | `load_task` | Root node. No details. Usually `node_000`; created in frontend state and may be persisted. |
 | `cell_paint` | `details.cells`: array of `{ x, y, symbol }`. Consecutive paints on the active node are compacted into one event. |
 | `fill_selected` | Flood-fill: `{ x, y, symbol }`. Multi-select fill: `{ count, symbol }`. |
-| `paste` | Supported by shared type and timeline visuals; not currently emitted by the solver page. |
+| `paste` | Legacy — kept for backward compatibility. Current solver emits `paste_selection` instead. |
 | `resize` | `details.size`: formatted grid size string, e.g. `5x5`. |
 | `copy_from_input` | Copies current test input into output. No details. |
 | `reset_output` | Resets output grid and jumps active node back to root. No details. |
 | `select_object` | `details.cells`: array of `{ x, y }`, `details.symbol`: number, `details.count`: number. |
+| `select_area` | `details.cellCount`: number of cells in the selected rectangle. The trigger is created on mouse-up after a rectangular drag in `area_select` mode. |
+| `copy_selection` | `details.width`, `details.height`, `details.cellCount`: dimensions and count of the copied bounding box. Stores the subgrid in the frontend `clipboard` state. |
+| `paste_selection` | `details.x`, `details.y`, `details.width`, `details.height`: position and dimensions of the paste operation. Reads from `clipboard` state. |
 | `submit` | `details.correct`: boolean computed only by the backend submit endpoint. Drives attempt status. |
 | `abandon` | Marks the attempt as abandoned. No details. |
 

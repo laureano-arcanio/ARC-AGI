@@ -21,6 +21,9 @@ export type MechanicalAction =
   | 'abandon'
   | 'load_task'
   | 'select_object'
+  | 'select_area'
+  | 'copy_selection'
+  | 'paste_selection'
 
 export type GraphTrigger =
   | { kind: 'mechanical'; action: MechanicalAction; details?: Record<string, unknown> }

@@ -47,11 +47,19 @@ export function EditableGrid({
 
   useEffect(() => {
     const handleMouseUp = () => {
-      if (dragStartRef.current && !hasDragRef.current) {
-        if (toolModeRef.current === 'select') {
-          onToolModeChange?.('edit')
+      if (dragStartRef.current) {
+        if (!hasDragRef.current) {
+          if (toolModeRef.current === 'edit') {
+            onSelectionChange(new Set([cellKey(dragStartRef.current.x, dragStartRef.current.y)]))
+            onToolModeChange?.('select')
+          } else if (toolModeRef.current === 'select') {
+            onSelectionChange(new Set([cellKey(dragStartRef.current.x, dragStartRef.current.y)]))
+          } else {
+            onCellClick(dragStartRef.current.x, dragStartRef.current.y)
+          }
+        } else if (toolModeRef.current === 'area_select') {
+          onCellClick(dragStartRef.current.x, dragStartRef.current.y)
         }
-        onCellClick(dragStartRef.current.x, dragStartRef.current.y)
       }
       isMouseDownRef.current = false
       isSelectingRef.current = false
@@ -60,7 +68,7 @@ export function EditableGrid({
     }
     window.addEventListener('mouseup', handleMouseUp)
     return () => window.removeEventListener('mouseup', handleMouseUp)
-  }, [onCellClick, onToolModeChange])
+  }, [onCellClick, onToolModeChange, onSelectionChange])
 
   const handleMouseDown = (x: number, y: number) => {
     if (readOnly) return
@@ -68,7 +76,7 @@ export function EditableGrid({
     dragStartRef.current = { x, y }
     hasDragRef.current = false
 
-    if (toolMode === 'select') {
+    if (toolMode === 'select' || toolMode === 'area_select') {
       isSelectingRef.current = true
       onSelectionChange(new Set([cellKey(x, y)]))
     }
@@ -95,6 +103,20 @@ export function EditableGrid({
           ...selectedCells,
         ]))
       }
+    } else if (toolMode === 'area_select' && isSelectingRef.current && dragStartRef.current) {
+      hasDragRef.current = true
+      const start = dragStartRef.current
+      const minX = Math.min(start.x, x)
+      const maxX = Math.max(start.x, x)
+      const minY = Math.min(start.y, y)
+      const maxY = Math.max(start.y, y)
+      const rect = new Set<string>()
+      for (let i = minX; i <= maxX; i++) {
+        for (let j = minY; j <= maxY; j++) {
+          rect.add(cellKey(i, j))
+        }
+      }
+      onSelectionChange(rect)
     }
   }
 

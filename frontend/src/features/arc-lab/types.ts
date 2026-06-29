@@ -28,7 +28,7 @@ export type ArcTaskRead = ArcTask & {
   id: string
 }
 
-export type ToolMode = 'edit' | 'select' | 'floodfill' | 'object_select'
+export type ToolMode = 'edit' | 'select' | 'floodfill' | 'object_select' | 'area_select'
 
 export type CellCoord = {
   x: number

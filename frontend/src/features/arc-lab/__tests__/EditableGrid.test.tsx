@@ -24,22 +24,25 @@ describe('EditableGrid', () => {
     expect(screen.getByTestId('2,2')).toBeInTheDocument()
   })
 
-  it('calls onCellClick in edit mode', () => {
-    const onCellClick = vi.fn()
+  it('selects cell on click in edit mode instead of painting', () => {
+    const onSelectionChange = vi.fn()
+    const onToolModeChange = vi.fn()
     render(
       <EditableGrid
         grid={grid3}
         toolMode="edit"
         showNumbers={false}
         selectedCells={new Set()}
-        onCellClick={onCellClick}
-        onSelectionChange={vi.fn()}
+        onCellClick={vi.fn()}
+        onSelectionChange={onSelectionChange}
+        onToolModeChange={onToolModeChange}
       />,
     )
     const cell = screen.getByTestId('1,1')
     fireEvent.mouseDown(cell)
     fireEvent.mouseUp(cell)
-    expect(onCellClick).toHaveBeenCalledWith(1, 1)
+    expect(onSelectionChange).toHaveBeenCalledWith(new Set(['1,1']))
+    expect(onToolModeChange).toHaveBeenCalledWith('select')
   })
 
   it('calls onCellClick in floodfill mode', () => {
@@ -60,25 +63,22 @@ describe('EditableGrid', () => {
     expect(onCellClick).toHaveBeenCalledWith(0, 0)
   })
 
-  it('fills cell and switches to edit on single click in select mode', () => {
-    const onCellClick = vi.fn()
-    const onToolModeChange = vi.fn()
+  it('updates selection on single click in select mode', () => {
+    const onSelectionChange = vi.fn()
     render(
       <EditableGrid
         grid={grid3}
         toolMode="select"
         showNumbers={false}
         selectedCells={new Set()}
-        onCellClick={onCellClick}
-        onSelectionChange={vi.fn()}
-        onToolModeChange={onToolModeChange}
+        onCellClick={vi.fn()}
+        onSelectionChange={onSelectionChange}
       />,
     )
     const cell = screen.getByTestId('0,0')
     fireEvent.mouseDown(cell)
     fireEvent.mouseUp(cell)
-    expect(onToolModeChange).toHaveBeenCalledWith('edit')
-    expect(onCellClick).toHaveBeenCalledWith(0, 0)
+    expect(onSelectionChange).toHaveBeenLastCalledWith(new Set(['0,0']))
   })
 
   it('starts a selection on mousedown in select mode', () => {

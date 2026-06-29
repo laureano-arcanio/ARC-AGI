@@ -11,6 +11,7 @@ import { getUserAccessibleTaskIds } from '../../batches/api'
 import { useTranslation } from '../../../lib/i18n'
 import { ConfirmDialog, InstructionModal } from '../../../components/common'
 import {
+  cellKey,
   cloneGrid,
   createGrid,
   floodfill,
@@ -31,6 +32,7 @@ import {
   type GraphNode,
   type GraphTrigger,
   type GridData,
+  type MechanicalAction,
   type TaskPair,
   type ToastMessage,
   type ToolMode,
@@ -56,6 +58,7 @@ type ArcLabState = {
   selectedSymbol: number
   sizeInput: string
   selectedCells: Set<string>
+  clipboard: GridData | null
   message: ToastMessage | null
   graphNodesByTest: Record<number, GraphNode[]>
   activeNodeIdByTest: Record<number, string | null>
@@ -81,6 +84,8 @@ type Action =
   | { type: 'CELL_CLICK'; x: number; y: number }
   | { type: 'SELECTION_CHANGE'; cells: Set<string> }
   | { type: 'FILL_SELECTED' }
+  | { type: 'COPY_SELECTION' }
+  | { type: 'PASTE_SELECTION' }
   | { type: 'SET_MESSAGE'; message: ToastMessage | null }
   | { type: 'DISMISS_MESSAGE' }
   | { type: 'TRAVEL_TO_NODE'; nodeId: string }
@@ -175,6 +180,7 @@ const initialState: ArcLabState = {
   selectedSymbol: 0,
   sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
   selectedCells: new Set(),
+  clipboard: null,
   message: null,
   graphNodesByTest: {},
   activeNodeIdByTest: {},
@@ -230,6 +236,7 @@ function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
     outputGrids: {},
     sizeInput: formatSize(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
     selectedCells: new Set(),
+    clipboard: null,
     message: null,
     graphNodesByTest: { 0: [root] },
     activeNodeIdByTest: { 0: 'node_000' },
@@ -329,8 +336,55 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
     }
 
     case 'RESET_OUTPUT': {
-      const outputGrid = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
       const idx = state.currentTestIndex
+      const nodes = state.graphNodesByTest[idx] ?? []
+      const anchorActions = new Set<MechanicalAction>(['resize', 'copy_from_input'])
+      const nodeMap = new Map<string, GraphNode>(nodes.map((n) => [n.id, n]))
+      const activeId = state.activeNodeIdByTest[idx]
+      let anchorNode: GraphNode | undefined
+      if (activeId) {
+        let cur = nodeMap.get(activeId)
+        while (cur) {
+          if (cur.trigger.kind === 'mechanical' && anchorActions.has(cur.trigger.action)) {
+            anchorNode = cur
+            break
+          }
+          cur = cur.parentId ? nodeMap.get(cur.parentId) : undefined
+        }
+      }
+
+      if (anchorNode) {
+        const outputGrid = cloneGrid(anchorNode.stateSnapshot)
+        const sizeLabel = (anchorNode.trigger.details?.size as string)
+          ?? formatSize(outputGrid.length, outputGrid[0].length)
+        const nextId = state.nextNodeIdByTest[idx] ?? 0
+        const id = makeNodeId(nextId)
+        const node: GraphNode = {
+          id,
+          trigger: { kind: 'mechanical', action: 'reset_output', details: { branchedFrom: anchorNode.id } },
+          stateSnapshot: cloneGrid(outputGrid),
+          parentId: anchorNode.id,
+          timestamp: Date.now(),
+          testPairIndex: idx,
+        }
+        const graph = {
+          graphNodesByTest: { ...state.graphNodesByTest, [idx]: [...nodes, node] },
+          activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: id },
+          nextNodeIdByTest: { ...state.nextNodeIdByTest, [idx]: nextId + 1 },
+        }
+        return {
+          ...state,
+          outputGrid,
+          sizeInput: sizeLabel,
+          selectedCells: new Set(),
+          ...graph,
+          ...updateHistory(state, graph.activeNodeIdByTest![idx]!, true),
+          blockReason: null,
+          message: { kind: 'info', text: 'timeline.branch_discarded' },
+        }
+      }
+
+      const outputGrid = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
       const graph = addNode(
         { ...state, outputGrid },
         { kind: 'mechanical', action: 'reset_output' },
@@ -460,6 +514,14 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           ...updateHistory(state, graph.activeNodeIdByTest![state.currentTestIndex]!, true),
         }
       }
+      if (state.toolMode === 'area_select') {
+        const idx = state.currentTestIndex
+        const graph = addNode(
+          state,
+          { kind: 'mechanical', action: 'select_area', details: { cellCount: state.selectedCells.size } },
+        )
+        return { ...state, toolMode: 'select', ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idx]!, true) }
+      }
       return state
     }
 
@@ -481,6 +543,61 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { kind: 'mechanical', action: 'fill_selected', details: { count: state.selectedCells.size, symbol: state.selectedSymbol } },
       )
       return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxFill]!, true) }
+    }
+
+    case 'COPY_SELECTION': {
+      if (state.selectedCells.size === 0) return state
+      const keys = Array.from(state.selectedCells).map(parseCellKey)
+      const xs = keys.map((k) => k.x)
+      const ys = keys.map((k) => k.y)
+      const minX = Math.min(...xs)
+      const maxX = Math.max(...xs)
+      const minY = Math.min(...ys)
+      const maxY = Math.max(...ys)
+      const h = maxX - minX + 1
+      const w = maxY - minY + 1
+      const clipboard: GridData = Array.from({ length: h }, (_, i) =>
+        Array.from({ length: w }, (_, j) => {
+          const key = cellKey(minX + i, minY + j)
+          return state.selectedCells.has(key) ? state.outputGrid[minX + i]?.[minY + j] ?? 0 : 0
+        }),
+      )
+      const idxCopySel = state.currentTestIndex
+      const graph = addNode(
+        state,
+        { kind: 'mechanical', action: 'copy_selection', details: { width: w, height: h, cellCount: state.selectedCells.size } },
+      )
+      return { ...state, clipboard, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCopySel]!, true) }
+    }
+
+    case 'PASTE_SELECTION': {
+      if (!state.clipboard) return state
+      const keys = Array.from(state.selectedCells)
+      let pasteX = 0
+      let pasteY = 0
+      if (keys.length > 0) {
+        const parsed = parseCellKey(keys[0])
+        pasteX = parsed.x
+        pasteY = parsed.y
+      }
+      const outputGrid = cloneGrid(state.outputGrid)
+      const h = state.clipboard.length
+      const w = state.clipboard[0].length
+      for (let i = 0; i < h; i++) {
+        for (let j = 0; j < w; j++) {
+          const targetX = pasteX + i
+          const targetY = pasteY + j
+          if (targetX >= 0 && targetX < outputGrid.length && targetY >= 0 && targetY < outputGrid[targetX].length) {
+            outputGrid[targetX][targetY] = state.clipboard[i][j]
+          }
+        }
+      }
+      const idxPaste = state.currentTestIndex
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'paste_selection', details: { x: pasteX, y: pasteY, width: w, height: h } },
+      )
+      return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxPaste]!, true) }
     }
 
     case 'SET_MESSAGE':
@@ -695,6 +812,18 @@ function getNodeLabel(trigger: GraphTrigger): string {
       return 'Copy in'
     case 'reset_output':
       return 'Reset'
+    case 'select_object': {
+      const count = Number(trigger.details?.count ?? 0)
+      return `Select obj (\u00d7${count})`
+    }
+    case 'select_area': {
+      const count = Number(trigger.details?.cellCount ?? 0)
+      return `Select area (\u00d7${count})`
+    }
+    case 'copy_selection':
+      return 'Copy sel'
+    case 'paste_selection':
+      return 'Paste'
     case 'abandon':
       return 'Abandon'
     case 'submit': {
@@ -1013,7 +1142,8 @@ export function ArcLabPage() {
 
   const handleCellClick = (x: number, y: number) => {
     if (interceptFailureAnalysis()) return
-    if (!shouldDispatchEvent(`cell_paint:${x}:${y}:${state.selectedSymbol}`)) return
+    const key = `${state.toolMode}:${x}:${y}`
+    if (!shouldDispatchEvent(key)) return
     dispatch({ type: 'CELL_CLICK', x, y })
   }
 
@@ -1104,7 +1234,7 @@ export function ArcLabPage() {
 
   const handleReset = () => {
     if (interceptFailureAnalysis()) return
-    if (!shouldDispatchEvent('reset_output')) return
+    if (!shouldDispatchEvent(`reset_output:${++resetCounterRef.current}`)) return
     dispatch({ type: 'RESET_OUTPUT' })
   }
 
@@ -1118,6 +1248,22 @@ export function ArcLabPage() {
     if (interceptFailureAnalysis()) return
     if (!shouldDispatchEvent('copy_from_input')) return
     dispatch({ type: 'COPY_FROM_INPUT' })
+  }
+
+  const copyCounterRef = useRef(0)
+  const pasteCounterRef = useRef(0)
+  const resetCounterRef = useRef(0)
+
+  const handleCopySelection = () => {
+    if (interceptFailureAnalysis()) return
+    if (!shouldDispatchEvent(`copy_selection:${++copyCounterRef.current}`)) return
+    dispatch({ type: 'COPY_SELECTION' })
+  }
+
+  const handlePasteSelection = () => {
+    if (interceptFailureAnalysis()) return
+    if (!shouldDispatchEvent(`paste_selection:${++pasteCounterRef.current}`)) return
+    dispatch({ type: 'PASTE_SELECTION' })
   }
 
   const accessDenied =
@@ -1189,17 +1335,9 @@ export function ArcLabPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleReset}
-              disabled={readOnly}
-              data-testid="reset-btn"
-              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
-            >
-              {t('button.reset')}
-            </button>
-            <button
-              type="button"
               onClick={() => setAbandonOpen(true)}
               data-testid="abandon-btn"
+              title={t('button.abandon')}
               className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-orange-700"
             >
               {t('button.abandon')}
@@ -1209,6 +1347,7 @@ export function ArcLabPage() {
               onClick={handleSubmit}
               disabled={lastSubmittedGridRef.current === JSON.stringify(state.outputGrid)}
               data-testid="submit-btn"
+              title={t('button.submit')}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold text-white transition ${
                 lastSubmittedGridRef.current === JSON.stringify(state.outputGrid)
                   ? 'cursor-not-allowed bg-gray-600'
@@ -1236,6 +1375,7 @@ export function ArcLabPage() {
                       type="button"
                       onClick={() => dispatch({ type: 'PREV_TEST_INPUT' })}
                       data-testid="prev-test-input"
+                      title={t('button.prev_test')}
                       className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white"
                     >
                       {t('button.prev_test')}
@@ -1247,6 +1387,7 @@ export function ArcLabPage() {
                       type="button"
                       onClick={() => dispatch({ type: 'NEXT_TEST_INPUT' })}
                       data-testid="next-test-input"
+                      title={t('button.next_test')}
                       className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white"
                     >
                       {t('button.next_test')}
@@ -1262,6 +1403,7 @@ export function ArcLabPage() {
               toolMode={state.toolMode}
               selectedSymbol={state.selectedSymbol}
               selectedCells={state.selectedCells}
+              clipboard={state.clipboard}
               sizeInput={state.sizeInput}
               readOnly={readOnly}
               onSizeInputChange={(value) => dispatch({ type: 'SET_SIZE_INPUT', value })}
@@ -1271,6 +1413,9 @@ export function ArcLabPage() {
               onSelectionChange={(cells) => dispatch({ type: 'SELECTION_CHANGE', cells })}
               onToolModeChange={(mode) => dispatch({ type: 'SET_TOOL_MODE', mode })}
               onSymbolSelect={handleSymbolSelect}
+              onCopySelection={handleCopySelection}
+              onPasteSelection={handlePasteSelection}
+              onReset={handleReset}
               onPrev={() => dispatch({ type: 'NAVIGATE_PREV' })}
               onNext={() => dispatch({ type: 'NAVIGATE_NEXT' })}
               canGoPrev={canGoPrev}

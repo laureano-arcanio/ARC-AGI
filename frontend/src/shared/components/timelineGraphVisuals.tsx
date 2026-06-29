@@ -127,6 +127,12 @@ export function getTimelineNodeMeta(trigger: GraphTrigger): {
       return { icon: <LogOut size={18} />, color: 'neutral' }
     case 'select_object':
       return { icon: <Scan size={18} />, color: 'neutral' }
+    case 'select_area':
+      return { icon: <Scan size={18} />, color: 'neutral' }
+    case 'copy_selection':
+      return { icon: <Copy size={18} />, color: 'neutral' }
+    case 'paste_selection':
+      return { icon: <ClipboardPaste size={18} />, color: 'neutral' }
     default:
       return { icon: <span className="text-[10px] font-bold">?</span>, color: 'neutral' }
   }
