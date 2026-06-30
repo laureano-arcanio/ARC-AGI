@@ -104,6 +104,12 @@ const es = {
   'failure_analysis.submit': 'Registrar',
   'failure_analysis.words': '{count} / 5 palabras mínimo',
 
+  'verify_hypothesis.question': '¿Tu hipótesis inicial era correcta o tuviste que hacer cambios?',
+  'verify_hypothesis.confirm': 'Era correcta',
+  'verify_hypothesis.change': 'Tuve que cambiarla',
+  'verify_hypothesis.change_title': 'Actualizá tu hipótesis',
+  'verify_hypothesis.submit': 'Registrar y finalizar',
+
   'failure_modal.question': '¿La hipótesis inicial era incorrecta o fue un error de pintado?',
   'failure_modal.hypothesis_wrong': 'La hipótesis era incorrecta',
   'failure_modal.paint_mistake': 'Fue un error de pintado',
@@ -391,11 +397,11 @@ const es = {
   'pre_solver.write_rule_placeholder': 'Describe la regla que descubriste...',
 
   'instruction.title': 'Cómo resolver puzzles ARC-AGI',
-  'instruction.intro': 'Completaste la fase de hipótesis. Ahora es momento de resolver:',
+  'instruction.intro': 'Completaste la fase de hipótesis. Ahora es momento de resolver usando las tareas de edición:',
   'instruction.step1_label': 'Revisa tu hipótesis',
   'instruction.step1_desc': 'Tu hipótesis final de la fase anterior aparece en el panel. La línea de tiempo muestra toda tu cadena de razonamiento — haz clic en cualquier nodo para revisar tu progreso.',
-  'instruction.step2_label': 'Edita la cuadrícula',
-  'instruction.step2_desc': 'Usa el editor de cuadrícula, las herramientas de pintar/rellenar y la paleta para producir la salida esperada.',
+  'instruction.step2_label': 'Usa las tareas para editar',
+  'instruction.step2_desc': 'Cada herramienta — pintar, rellenar, seleccionar, cortar, copiar, pegar — es una tarea que modifica celdas. Usarlas (en vez de editar celda por celda) registra cada acción con nombre y propósito en la línea de tiempo, haciendo tu proceso trazable.',
   'instruction.step3_label': 'Verifica e itera',
   'instruction.step3_desc': 'Envía tu solución, analiza qué salió bien o mal, y repite si es necesario. Cada intento queda registrado en tu línea de tiempo.',
   'instruction.annotations_title': 'Anota tu razonamiento',
@@ -404,7 +410,7 @@ const es = {
   'instruction.undo_desc': 'Navega por tus acciones con los botones deshacer/rehacer. Haz clic en cualquier nodo de la línea de tiempo para saltar directamente a ese estado.',
   'instruction.actions_title': 'Acciones',
   'instruction.actions_desc': 'Verificar para comprobar tu solución, Continuar después para pausar y retomar luego, Abandonar para descartar el intento y empezar de nuevo, Reiniciar para empezar de cero, Seleccionar objeto para aislar y operar sobre figuras conectadas, Copiar entrada para copiar la cuadrícula de prueba, Redimensionar para cambiar las dimensiones de la cuadrícula.',
-  'instruction.emphasis': 'No hay temporizador. Tu proceso de pensamiento importa más que tu respuesta — estamos aquí para entender cómo razonas.',
+  'instruction.emphasis': 'Cada tarea de edición que uses queda registrada como una acción concreta en la línea de tiempo. Usar las herramientas permite entender qué hiciste y por qué, en vez de solo ver celdas cambiadas.',
   'instruction.dismiss': 'Entendido',
 }
 
@@ -509,6 +515,12 @@ const en: Record<string, string> = {
   'failure_analysis.placeholder': 'Your solution didn\'t match. Where did your thinking go wrong? Did you miss a detail in the examples, or was your inferred rule incorrect? Reflect before trying again.',
   'failure_analysis.submit': 'Register',
   'failure_analysis.words': '{count} / 5 minimum words',
+
+  'verify_hypothesis.question': 'Was your initial hypothesis correct, or did you have to make changes?',
+  'verify_hypothesis.confirm': 'It was correct',
+  'verify_hypothesis.change': 'I had to change it',
+  'verify_hypothesis.change_title': 'Update your hypothesis',
+  'verify_hypothesis.submit': 'Record and finish',
 
   'failure_modal.question': 'Was your initial hypothesis wrong, or was it a painting mistake?',
   'failure_modal.hypothesis_wrong': 'The hypothesis was wrong',
@@ -797,11 +809,11 @@ const en: Record<string, string> = {
   'pre_solver.write_rule_placeholder': 'Describe the rule you discovered...',
 
   'instruction.title': 'How to solve ARC-AGI puzzles',
-  'instruction.intro': 'You\'ve completed the hypothesis phase. Now it\'s time to solve:',
+  'instruction.intro': 'You\'ve completed the hypothesis phase. Now it\'s time to solve using the editing tasks:',
   'instruction.step1_label': 'Review your hypothesis',
   'instruction.step1_desc': 'Your final hypothesis from the pre-solver phase is shown in the panel. The timeline displays your full reasoning chain — click any node to revisit that state.',
-  'instruction.step2_label': 'Edit the grid',
-  'instruction.step2_desc': 'Use the grid editor, paint/flood-fill tools, and palette to produce the expected output.',
+  'instruction.step2_label': 'Use tasks to edit',
+  'instruction.step2_desc': 'Every tool — paint, fill, select, cut, copy, paste — is a task that modifies cells. Using them (instead of editing cell by cell) records each action by name and purpose in the timeline, making your process traceable.',
   'instruction.step3_label': 'Verify & iterate',
   'instruction.step3_desc': 'Submit your solution, analyze what went right or wrong, and retry if needed. Each attempt is recorded in your timeline.',
   'instruction.annotations_title': 'Annotate your thinking',
@@ -810,7 +822,7 @@ const en: Record<string, string> = {
   'instruction.undo_desc': 'Step through your actions with the undo/redo buttons. Click any node in the timeline to jump directly to that state.',
   'instruction.actions_title': 'Actions',
   'instruction.actions_desc': 'Verify to check your solution, Continue later to pause and resume later, Abandon to discard the attempt and start fresh, Reset to start fresh, Select Object to isolate and operate on connected shapes, Copy input to copy the test grid, Resize to change grid dimensions.',
-  'instruction.emphasis': 'There\'s no timer. Your thinking process matters more than your answer — we\'re here to understand how you reason.',
+  'instruction.emphasis': 'Every editing task you use is recorded as a concrete action in the timeline. Using tools lets us understand what you did and why, instead of just seeing changed cells.',
   'instruction.dismiss': 'Got it',
 }
 

@@ -42,6 +42,7 @@ import { DemonstrationPanel } from '../components/DemonstrationPanel'
 import { HypothesisPanel } from '../components/HypothesisPanel'
 import { AhaMomentModal } from '../components/AhaMomentModal'
 import { FailureModal } from '../components/FailureModal'
+import { VerifyHypothesisModal } from '../components/VerifyHypothesisModal'
 import { TestInputPanel } from '../components/TestInputPanel'
 import { OutputEditor } from '../components/OutputEditor'
 import { Toast } from '../components/Toast'
@@ -1069,6 +1070,7 @@ export function ArcLabPage() {
   const [ahaOpen, setAhaOpen] = useState(false)
   const [pendingFailureAnalysis, setPendingFailureAnalysis] = useState(false)
   const [failureModalOpen, setFailureModalOpen] = useState(false)
+  const [verifyHypothesisOpen, setVerifyHypothesisOpen] = useState(false)
 
   const [userId, setUserId] = useState<number | null>(null)
   const [userError, setUserError] = useState(false)
@@ -1378,8 +1380,7 @@ export function ArcLabPage() {
       } else if (isUncertain) {
         setAhaOpen(true)
       } else {
-        const id = setTimeout(() => navigate('/my-tasks'), 1500)
-        return () => clearTimeout(id)
+        setVerifyHypothesisOpen(true)
       }
     }
   }, [state.blockReason, isUncertain, hypothesisText, navigate])
@@ -1475,6 +1476,19 @@ export function ArcLabPage() {
     setFailureModalOpen(false)
     setPendingFailureAnalysis(false)
     dispatch({ type: 'DISMISS_MESSAGE' })
+  }
+
+  const handleVerifyConfirm = () => {
+    setVerifyHypothesisOpen(false)
+    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'correct_analysis', text: hypothesisText ?? '' })
+    navigate('/my-tasks')
+  }
+
+  const handleVerifyChange = (text: string) => {
+    setVerifyHypothesisOpen(false)
+    dispatch({ type: 'ADD_COGNITIVE_NODE', intent: 'hypothesis_revision', text })
+    dispatch({ type: 'SUBMIT_REFLECTION', intent: 'correct_analysis', text })
+    navigate('/my-tasks')
   }
 
   const handleAbandonConfirm = () => {
@@ -1766,6 +1780,13 @@ export function ArcLabPage() {
         open={failureModalOpen}
         onHypothesisWrong={handleFailureHypothesisWrong}
         onPaintMistake={handleFailurePaintMistake}
+      />
+
+      <VerifyHypothesisModal
+        open={verifyHypothesisOpen}
+        currentHypothesis={hypothesisText ?? ''}
+        onConfirm={handleVerifyConfirm}
+        onChange={handleVerifyChange}
       />
       </>
       )}
