@@ -25,9 +25,40 @@ def _compute_status(trigger: dict[str, Any]) -> str | None:
             return "completed"
         if trigger.get("details", {}).get("correct") is False:
             return "failed"
-    if action == "abandon":
+    if action == "give_up":
         return "abandoned"
+    if action == "resume":
+        return "in_progress"
     return None
+
+
+STATUS_PRIORITY: dict[str, int] = {
+    "completed": 3,
+    "failed": 2,
+    "abandoned": 1,
+    "in_progress": 0,
+}
+
+_STATUS_ORDER = ["completed", "failed", "abandoned", "in_progress"]
+
+
+def compute_attempt_status(events: list[Any]) -> dict[int, str]:
+    """Compute attempt status from events in temporal order.
+    `resume` after `abandon` overrides to `in_progress`.
+    """
+    status_map: dict[int, str] = {}
+    for ev in sorted(events, key=lambda e: e.timestamp if e.timestamp else 0):
+        aid = ev.attempt_id
+        if aid is None:
+            continue
+        s = _compute_status(ev.trigger)
+        if s is None:
+            continue
+        current = status_map.get(aid)
+        new_score = STATUS_PRIORITY.get(s, 0)
+        if current is None or new_score >= STATUS_PRIORITY.get(current, 0):
+            status_map[aid] = s
+    return status_map
 
 
 class AttemptService(
@@ -48,22 +79,7 @@ class AttemptService(
             all_events = await event_repo.get_by_user_and_task(
                 user_id, task_id
             )
-            status_score: dict[str, int] = {
-                "completed": 3, "failed": 2, "abandoned": 1,
-            }
-            status_map: dict[int, str] = {}
-            for ev in all_events:
-                aid = ev.attempt_id
-                if aid is None:
-                    continue
-                trigger = ev.trigger
-                s = _compute_status(trigger)
-                if s is None:
-                    continue
-                current = status_map.get(aid)
-                new_score = status_score.get(s, 0)
-                if current is None or new_score > status_score.get(current, 0):
-                    status_map[aid] = s
+            status_map = compute_attempt_status(all_events)
         else:
             status_map = {}
 
@@ -74,6 +90,27 @@ class AttemptService(
                 dto.status = status_map[inst.id]
             result.append(dto)
         return result
+
+    async def get_resumable_attempt(
+        self, user_id: int, task_id: str
+    ) -> AttemptRead | None:
+        """Return the most recent attempt that can be resumed.
+        Only non-terminal attempts that have reached the solver phase
+        (have non-pre-solver events) are resumable.
+        """
+        attempts = await self.get_by_user_and_task(user_id, task_id)
+        resumable: list[AttemptRead] = []
+        event_repo = EventRepository(db_session=self.repository.db_session)
+        for a in attempts:
+            if a.status not in ("in_progress", "failed", None):
+                continue
+            if a.id is None:
+                continue
+            if await event_repo.has_solver_events(a.id):
+                resumable.append(a)
+        if not resumable:
+            return None
+        return max(resumable, key=lambda a: a.updated_at or a.created_at or a.id)
 
     async def get_user_tasks(
         self, user_id: int

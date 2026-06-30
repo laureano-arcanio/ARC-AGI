@@ -6,6 +6,7 @@ import {
   type MechanicalAction,
 } from '../types/arc-graph'
 import {
+  Ban,
   CircleCheck,
   CircleHelp,
   ClipboardPaste,
@@ -13,6 +14,7 @@ import {
   FileText,
   Flag,
   Lightbulb,
+  LogIn,
   LogOut,
   MoveDiagonal,
   PaintBucket,
@@ -125,6 +127,10 @@ export function getTimelineNodeMeta(trigger: GraphTrigger): {
         : { icon: <X size={18} />, color: 'error' }
     case 'abandon':
       return { icon: <LogOut size={18} />, color: 'neutral' }
+    case 'resume':
+      return { icon: <LogIn size={18} />, color: 'active' }
+    case 'give_up':
+      return { icon: <Ban size={18} />, color: 'error' }
     case 'select_object':
       return { icon: <Scan size={18} />, color: 'neutral' }
     case 'select_area':

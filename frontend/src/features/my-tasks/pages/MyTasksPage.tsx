@@ -3,6 +3,7 @@ import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useMyBatches, useMyTaskSummaries } from '../queries'
 import { usePendingReviews } from '../../reviews/queries'
+import { fetchResumableAttempt } from '../api'
 import type { UserTaskSummary } from '../types'
 
 function taskStatus(summary: UserTaskSummary | undefined): {
@@ -13,7 +14,38 @@ function taskStatus(summary: UserTaskSummary | undefined): {
     return { label: 'my_tasks.status_pending', className: 'text-gray-500' }
   if (summary.solved)
     return { label: 'my_tasks.status_verified', className: 'text-green-400' }
+  if (summary.abandoned)
+    return { label: 'my_tasks.status_abandoned', className: 'text-red-400' }
   return { label: 'my_tasks.status_retry', className: 'text-amber-400' }
+}
+
+function buttonConfig(summary: UserTaskSummary | undefined): {
+  label: string | null
+  className: string
+  disabled: boolean
+} {
+  if (!summary || summary.attemptCount === 0) {
+    return {
+      label: 'my_tasks.start',
+      className: 'bg-green-600 hover:bg-green-700 text-white',
+      disabled: false,
+    }
+  }
+  if (summary.solved) {
+    return { label: null, className: '', disabled: true }
+  }
+  if (summary.abandoned) {
+    return {
+      label: 'my_tasks.retry',
+      className: 'bg-amber-600 hover:bg-amber-700 text-white',
+      disabled: false,
+    }
+  }
+  return {
+    label: 'my_tasks.continue',
+    className: 'bg-blue-600 hover:bg-blue-700 text-white',
+    disabled: false,
+  }
 }
 
 export function MyTasksPage() {
@@ -52,8 +84,14 @@ export function MyTasksPage() {
     (taskSummaries ?? []).map((s) => [s.taskId, s]),
   )
 
-  const handleTaskClick = (taskId: string) => {
-    navigate(`/hypothesize/${userId}/${taskId}`)
+  const handleTaskClick = async (taskId: string) => {
+    if (!userId) return
+    const resumable = await fetchResumableAttempt(userId, taskId).catch(() => null)
+    if (resumable) {
+      navigate(`/solve/${userId}/${taskId}?attemptId=${resumable.id}`)
+    } else {
+      navigate(`/hypothesize/${userId}/${taskId}`)
+    }
   }
 
   return (
@@ -91,11 +129,17 @@ export function MyTasksPage() {
                 {batch.taskIds.map((taskId) => {
                   const summary = summaryMap.get(taskId)
                   const status = taskStatus(summary)
+                  const btn = buttonConfig(summary)
                   return (
                     <button
                       key={taskId}
-                      onClick={() => handleTaskClick(taskId)}
-                      className="flex w-full items-center justify-between p-4 text-left transition hover:bg-gray-800/50"
+                      onClick={() => { if (!btn.disabled) handleTaskClick(taskId) }}
+                      disabled={btn.disabled}
+                      className={`flex w-full items-center justify-between p-4 text-left transition ${
+                        btn.disabled
+                          ? 'cursor-default opacity-60'
+                          : 'hover:bg-gray-800/50'
+                      }`}
                     >
                       <div className="flex items-center gap-4">
                         <span className="font-mono text-sm text-blue-400">
@@ -112,9 +156,11 @@ export function MyTasksPage() {
                           {t(status.label)}
                         </span>
                       </div>
-                      <span className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-green-700">
-                        {t('my_tasks.start')}
-                      </span>
+                      {btn.label && (
+                        <span className={`w-28 text-center rounded-lg px-3 py-1.5 text-sm font-semibold transition ${btn.className}`}>
+                          {t(btn.label)}
+                        </span>
+                      )}
                     </button>
                   )
                 })}

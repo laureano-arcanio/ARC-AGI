@@ -50,6 +50,20 @@ async def get_by_user_and_task(
     return await service.get_by_user_and_task(user_id, task_id)
 
 
+@router.get(
+    "/users/{user_id}/tasks/{task_id}/resumable",
+    response_model=AttemptRead | None,
+)
+async def get_resumable(
+    user_id: int,
+    task_id: str,
+    service: AttemptService = Depends(get_service),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
+) -> AttemptRead | None:
+    require_owner_or_admin(user_id, current_user)
+    return await service.get_resumable_attempt(user_id, task_id)
+
+
 @router.delete("/{attempt_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete(
     attempt_id: int,

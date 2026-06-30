@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -431,9 +431,16 @@ class TestAttemptServiceGetByUserAndTask:
         assert result == []
         attempt_mock_repo.get_by_user_and_task.assert_awaited_with(1, "abc")
 
+    @patch("app.services.attempt.EventRepository")
     async def test_returns_list_of_schemas(
-        self, attempt_service: AttemptService, attempt_mock_repo: AsyncMock
+        self,
+        mock_event_repo_cls: AsyncMock,
+        attempt_service: AttemptService,
+        attempt_mock_repo: AsyncMock,
     ) -> None:
+        mock_event_repo = AsyncMock()
+        mock_event_repo.get_by_user_and_task.return_value = []
+        mock_event_repo_cls.return_value = mock_event_repo
         attempt_mock_repo.get_by_user_and_task.return_value = [
             Attempt(id=2, user_id=1, task_id="abc"),
             Attempt(id=1, user_id=1, task_id="abc"),

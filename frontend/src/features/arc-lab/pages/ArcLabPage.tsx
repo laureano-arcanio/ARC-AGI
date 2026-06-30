@@ -81,10 +81,12 @@ type Action =
   | { type: 'RESET_OUTPUT' }
   | { type: 'SUBMIT'; correct: boolean }
   | { type: 'ABANDON' }
+  | { type: 'GIVE_UP' }
   | { type: 'CELL_CLICK'; x: number; y: number }
   | { type: 'SELECTION_CHANGE'; cells: Set<string> }
   | { type: 'FILL_SELECTED' }
   | { type: 'COPY_SELECTION' }
+  | { type: 'CUT_SELECTION' }
   | { type: 'PASTE_SELECTION' }
   | { type: 'SET_MESSAGE'; message: ToastMessage | null }
   | { type: 'DISMISS_MESSAGE' }
@@ -95,7 +97,9 @@ type Action =
   | { type: 'NAVIGATE_PREV' }
   | { type: 'NAVIGATE_NEXT' }
   | { type: 'LOAD_PRE_SOLVER_EVENTS'; nodes: GraphNode[] }
+  | { type: 'RESTORE_STATE'; eventsByTest: Record<number, GraphNode[]>; correctPairs: Record<number, boolean> }
   | { type: 'ADD_BRANCH_PIVOT'; text: string; parentNodeId: string }
+  | { type: 'ADD_RESUME_NODE' }
 
 function makeNodeId(n: number): string {
   return `node_${String(n).padStart(3, '0')}`
@@ -446,6 +450,37 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxAbandon]!, true) }
     }
 
+    case 'GIVE_UP': {
+      const idxGiveUp = state.currentTestIndex
+      const graph = addNode(
+        state,
+        { kind: 'mechanical', action: 'give_up' },
+      )
+      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxGiveUp]!, true) }
+    }
+
+    case 'ADD_RESUME_NODE': {
+      const idx = state.currentTestIndex
+      const nodes = state.graphNodesByTest[idx] ?? []
+      const nextId = state.nextNodeIdByTest[idx] ?? 0
+      const id = makeNodeId(nextId)
+      const resumeNode: GraphNode = {
+        id,
+        trigger: { kind: 'mechanical', action: 'resume' },
+        stateSnapshot: cloneGrid(state.outputGrid),
+        parentId: state.activeNodeIdByTest[idx] ?? null,
+        timestamp: Date.now(),
+        testPairIndex: idx,
+      }
+      return {
+        ...state,
+        graphNodesByTest: { ...state.graphNodesByTest, [idx]: [...nodes, resumeNode] },
+        activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: id },
+        nextNodeIdByTest: { ...state.nextNodeIdByTest, [idx]: nextId + 1 },
+        ...updateHistory(state, id, true),
+      }
+    }
+
     case 'CELL_CLICK': {
       if (state.toolMode === 'edit') {
         const outputGrid = cloneGrid(state.outputGrid)
@@ -568,6 +603,38 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { kind: 'mechanical', action: 'copy_selection', details: { width: w, height: h, cellCount: state.selectedCells.size } },
       )
       return { ...state, clipboard, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCopySel]!, true) }
+    }
+
+    case 'CUT_SELECTION': {
+      if (state.selectedCells.size === 0) return state
+      const keys = Array.from(state.selectedCells).map(parseCellKey)
+      const xs = keys.map((k) => k.x)
+      const ys = keys.map((k) => k.y)
+      const minX = Math.min(...xs)
+      const maxX = Math.max(...xs)
+      const minY = Math.min(...ys)
+      const maxY = Math.max(...ys)
+      const h = maxX - minX + 1
+      const w = maxY - minY + 1
+      const clipboard: GridData = Array.from({ length: h }, (_, i) =>
+        Array.from({ length: w }, (_, j) => {
+          const key = cellKey(minX + i, minY + j)
+          return state.selectedCells.has(key) ? state.outputGrid[minX + i]?.[minY + j] ?? 0 : 0
+        }),
+      )
+      const outputGrid = cloneGrid(state.outputGrid)
+      for (const key of state.selectedCells) {
+        const { x, y } = parseCellKey(key)
+        if (x >= 0 && x < outputGrid.length && y >= 0 && y < outputGrid[x].length) {
+          outputGrid[x][y] = 0
+        }
+      }
+      const idxCutSel = state.currentTestIndex
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'cut_selection', details: { width: w, height: h, cellCount: state.selectedCells.size } },
+      )
+      return { ...state, outputGrid, clipboard, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCutSel]!, true) }
     }
 
     case 'PASTE_SELECTION': {
@@ -770,6 +837,48 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       }
     }
 
+    case 'RESTORE_STATE': {
+      const { eventsByTest, correctPairs } = action
+      const graphNodesByTest: Record<number, GraphNode[]> = {}
+      const activeNodeIdByTest: Record<number, string | null> = {}
+      const nextNodeIdByTest: Record<number, number> = {}
+      const navigationHistoryByTest: Record<number, string[]> = {}
+      const navigationIndexByTest: Record<number, number> = {}
+      const outputGrids: Record<number, GridData> = {}
+      const allTestIndices = Object.keys(eventsByTest).map(Number).sort((a, b) => a - b)
+
+      for (const idx of allTestIndices) {
+        const nodes = eventsByTest[idx]
+        graphNodesByTest[idx] = nodes
+        const lastNode = nodes.length > 0 ? nodes[nodes.length - 1] : null
+        if (lastNode) {
+          activeNodeIdByTest[idx] = lastNode.id
+          outputGrids[idx] = cloneGrid(lastNode.stateSnapshot)
+        }
+        nextNodeIdByTest[idx] = nextNodeIdFor(nodes)
+        navigationHistoryByTest[idx] = nodes.map((n) => n.id)
+        navigationIndexByTest[idx] = Math.max(0, nodes.length - 1)
+      }
+
+      const curIdx = state.currentTestIndex
+      const outputGrid = outputGrids[curIdx] ?? state.outputGrid
+      const allPairsCorrect = allTestIndices.every((idx) => correctPairs[idx])
+      const blockReason: BlockReason = allPairsCorrect ? 'correct_analysis' : null
+
+      return {
+        ...state,
+        graphNodesByTest,
+        activeNodeIdByTest,
+        nextNodeIdByTest,
+        navigationHistoryByTest,
+        navigationIndexByTest,
+        outputGrids,
+        outputGrid,
+        correctPairs,
+        blockReason,
+      }
+    }
+
     default:
       return state
   }
@@ -825,6 +934,10 @@ function getNodeLabel(trigger: GraphTrigger): string {
     case 'paste_selection':
       return 'Paste'
     case 'abandon':
+      return 'Pause'
+    case 'resume':
+      return 'Resume'
+    case 'give_up':
       return 'Abandon'
     case 'submit': {
       const d = trigger.details ?? {}
@@ -885,6 +998,7 @@ export function ArcLabPage() {
   const { t } = useTranslation()
   const [state, dispatch] = useReducer(reducer, initialState)
   const [abandonOpen, setAbandonOpen] = useState(false)
+  const [giveUpOpen, setGiveUpOpen] = useState(false)
   const [ahaOpen, setAhaOpen] = useState(false)
   const [pendingFailureAnalysis, setPendingFailureAnalysis] = useState(false)
   const [failureModalOpen, setFailureModalOpen] = useState(false)
@@ -1012,7 +1126,12 @@ export function ArcLabPage() {
         const hash = `${testIdx}:${ev.nodeId}:${JSON.stringify(ev.trigger)}`
         sentHashes.current.add(hash)
       }
-      const preSolverNodes: GraphNode[] = events
+
+      const testCount = state.test.length
+      const eventsByTest: Record<number, GraphNode[]> = {}
+      const correctPairs: Record<number, boolean> = {}
+
+      const allPreNodes: GraphNode[] = events
         .filter((ev) => ev.nodeId.startsWith('pre_node_'))
         .map((ev) => ({
           id: ev.nodeId,
@@ -1021,9 +1140,79 @@ export function ArcLabPage() {
           parentId: ev.parentNodeId,
           timestamp: ev.timestamp,
         }))
-      if (preSolverNodes.length > 0) {
-        dispatch({ type: 'LOAD_PRE_SOLVER_EVENTS', nodes: preSolverNodes })
+        .sort((a, b) => a.timestamp - b.timestamp)
+
+      const solverByTest: Record<number, GraphNode[]> = {}
+      for (const ev of events) {
+        if (ev.nodeId.startsWith('pre_node_')) continue
+        const testIdx = ev.testPairIndex ?? 0
+        if (!solverByTest[testIdx]) solverByTest[testIdx] = []
+        solverByTest[testIdx].push({
+          id: ev.nodeId,
+          trigger: ev.trigger as unknown as GraphTrigger,
+          stateSnapshot: ev.stateSnapshot,
+          parentId: ev.parentNodeId,
+          timestamp: ev.timestamp,
+          testPairIndex: testIdx,
+        })
       }
+      for (const idx of Object.keys(solverByTest)) {
+        solverByTest[Number(idx)].sort((a, b) => a.timestamp - b.timestamp)
+      }
+
+      for (let idx = 0; idx < testCount; idx++) {
+        const nodes: GraphNode[] = []
+
+        const existingNode000 = solverByTest[idx]?.find((n) => n.id === 'node_000')
+        nodes.push(
+          existingNode000 ?? {
+            id: 'node_000',
+            trigger: { kind: 'mechanical', action: 'load_task' },
+            stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
+            parentId: null,
+            timestamp: allPreNodes.length > 0 ? allPreNodes[0].timestamp - 1 : Date.now(),
+          },
+        )
+
+        nodes.push(...allPreNodes)
+
+        if (allPreNodes.length > 0) {
+          const { text, isUncertain } = getFinalHypothesis(allPreNodes)
+          nodes.push({
+            id: 'hypothesis_final',
+            parentId: 'node_000',
+            trigger: {
+              kind: 'cognitive',
+              intent: 'hypothesis',
+              text: text ?? '',
+              details: {
+                isPreSolverFinal: true,
+                ...(isUncertain ? { revisionType: 'uncertain' } : {}),
+              },
+            },
+            stateSnapshot: createGrid(1, 1),
+            timestamp: Date.now(),
+          })
+        }
+
+        const testNodes = solverByTest[idx] ?? []
+        for (const n of testNodes) {
+          if (n.id === 'node_000') continue
+          nodes.push(n)
+          if (
+            n.trigger.kind === 'mechanical' &&
+            n.trigger.action === 'submit' &&
+            n.trigger.details?.correct === true
+          ) {
+            correctPairs[idx] = true
+          }
+        }
+
+        eventsByTest[idx] = nodes
+      }
+
+      dispatch({ type: 'RESTORE_STATE', eventsByTest, correctPairs })
+      dispatch({ type: 'ADD_RESUME_NODE' })
     }).catch(() => {})
   }, [userId, taskId, urlAttemptId, state.train.length])
 
@@ -1232,6 +1421,16 @@ export function ArcLabPage() {
     setAbandonOpen(false)
   }
 
+  const handleGiveUpConfirm = () => {
+    setGiveUpOpen(false)
+    dispatch({ type: 'GIVE_UP' })
+    navigate('/my-tasks')
+  }
+
+  const handleGiveUpCancel = () => {
+    setGiveUpOpen(false)
+  }
+
   const handleReset = () => {
     if (interceptFailureAnalysis()) return
     if (!shouldDispatchEvent(`reset_output:${++resetCounterRef.current}`)) return
@@ -1251,6 +1450,7 @@ export function ArcLabPage() {
   }
 
   const copyCounterRef = useRef(0)
+  const cutCounterRef = useRef(0)
   const pasteCounterRef = useRef(0)
   const resetCounterRef = useRef(0)
 
@@ -1258,6 +1458,12 @@ export function ArcLabPage() {
     if (interceptFailureAnalysis()) return
     if (!shouldDispatchEvent(`copy_selection:${++copyCounterRef.current}`)) return
     dispatch({ type: 'COPY_SELECTION' })
+  }
+
+  const handleCutSelection = () => {
+    if (interceptFailureAnalysis()) return
+    if (!shouldDispatchEvent(`cut_selection:${++cutCounterRef.current}`)) return
+    dispatch({ type: 'CUT_SELECTION' })
   }
 
   const handlePasteSelection = () => {
@@ -1338,9 +1544,18 @@ export function ArcLabPage() {
               onClick={() => setAbandonOpen(true)}
               data-testid="abandon-btn"
               title={t('button.abandon')}
-              className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-orange-700"
+              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
             >
               {t('button.abandon')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setGiveUpOpen(true)}
+              data-testid="give-up-btn"
+              title={t('button.give_up')}
+              className="rounded-md bg-red-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-800"
+            >
+              {t('button.give_up')}
             </button>
             <button
               type="button"
@@ -1414,6 +1629,7 @@ export function ArcLabPage() {
               onToolModeChange={(mode) => dispatch({ type: 'SET_TOOL_MODE', mode })}
               onSymbolSelect={handleSymbolSelect}
               onCopySelection={handleCopySelection}
+              onCutSelection={handleCutSelection}
               onPasteSelection={handlePasteSelection}
               onReset={handleReset}
               onPrev={() => dispatch({ type: 'NAVIGATE_PREV' })}
@@ -1434,13 +1650,24 @@ export function ArcLabPage() {
 
       <ConfirmDialog
         open={abandonOpen}
-        variant="danger"
+        variant="default"
         title={t('dialog.abandon.title')}
         message={t('dialog.abandon.message')}
         confirmLabel={t('dialog.confirm')}
         cancelLabel={t('dialog.cancel')}
         onConfirm={handleAbandonConfirm}
         onCancel={handleAbandonCancel}
+      />
+
+      <ConfirmDialog
+        open={giveUpOpen}
+        variant="danger"
+        title={t('dialog.give_up.title')}
+        message={t('dialog.give_up.message')}
+        confirmLabel={t('dialog.confirm')}
+        cancelLabel={t('dialog.cancel')}
+        onConfirm={handleGiveUpConfirm}
+        onCancel={handleGiveUpCancel}
       />
 
       <InstructionModal

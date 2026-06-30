@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTaskById } from '../queries'
-import { createAttempt, postEventWithRetry } from '../api'
+import { createAttempt, postEventWithRetry, fetchResumableAttempt } from '../api'
 import { createGrid } from '../utils'
 import { PreSolverWizard } from '../components/PreSolverWizard'
 import { useTranslation } from '../../../lib/i18n'
@@ -41,6 +41,17 @@ export function HypothesizePage() {
     }).catch(() => {})
     return () => { cancelled = true }
   }, [userId, taskId, attemptId])
+
+  useEffect(() => {
+    if (userId === null || !taskId || taskId === 'random') return
+    if (!taskFetched || !specificTask) return
+    let cancelled = false
+    fetchResumableAttempt(userId, taskId).then((attempt) => {
+      if (cancelled || !attempt) return
+      navigate(`/solve/${routeUserId ?? userId}/${taskId}?attemptId=${attempt.id}`, { replace: true })
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [userId, taskId, taskFetched, specificTask, navigate, routeUserId])
 
   const ready = userId !== null && taskFetched && specificTask && attemptId !== null
 

@@ -31,6 +31,7 @@ const baseProps = {
   onToolModeChange: vi.fn(),
   onSymbolSelect: vi.fn(),
   onCopySelection: vi.fn(),
+  onCutSelection: vi.fn(),
   onPasteSelection: vi.fn(),
   onPrev: vi.fn(),
   onNext: vi.fn(),

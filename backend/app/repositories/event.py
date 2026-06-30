@@ -56,3 +56,18 @@ class EventRepository(BaseRepository[Event]):
         query = query.order_by(self.model.timestamp)
         result = await self.db_session.execute(query)
         return list(result.scalars().all())
+
+    async def has_solver_events(
+        self, attempt_id: int
+    ) -> bool:
+        """Check if an attempt has at least one non-pre-solver event."""
+        query = (
+            select(self.model.id)
+            .where(
+                self.model.attempt_id == attempt_id,
+                self.model.node_id.notlike("pre_node_%"),
+            )
+            .limit(1)
+        )
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none() is not None

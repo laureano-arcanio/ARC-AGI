@@ -19,11 +19,14 @@ export type MechanicalAction =
   | 'reset_output'
   | 'submit'
   | 'abandon'
+  | 'resume'
+  | 'give_up'
   | 'load_task'
   | 'select_object'
   | 'select_area'
   | 'copy_selection'
   | 'paste_selection'
+  | 'cut_selection'
 
 export type GraphTrigger =
   | { kind: 'mechanical'; action: MechanicalAction; details?: Record<string, unknown> }

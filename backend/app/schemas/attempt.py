@@ -25,6 +25,7 @@ class UserTaskSummary(BaseAPISchema):
     task_id: str
     attempt_count: int
     solved: bool
+    abandoned: bool = False
 
 
 class TaskWithStatus(BaseAPISchema):

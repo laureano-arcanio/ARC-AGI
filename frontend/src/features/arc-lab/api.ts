@@ -94,3 +94,19 @@ export function fetchEventsByAttempt(
     { params: { attemptId: String(attemptId) } },
   )
 }
+
+export type ResumableAttemptRead = {
+  id: number
+  userId: number
+  taskId: string
+  status: string | null
+}
+
+export function fetchResumableAttempt(
+  userId: number,
+  taskId: string,
+): Promise<ResumableAttemptRead | null> {
+  return http.get<ResumableAttemptRead | null>(
+    `/v1/attempts/users/${userId}/tasks/${encodeURIComponent(taskId)}/resumable`,
+  )
+}

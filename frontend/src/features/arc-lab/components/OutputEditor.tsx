@@ -1,5 +1,5 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, Copy, MoveDiagonal, RectangleHorizontal, RotateCcw, Scan } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, Copy, MoveDiagonal, RectangleHorizontal, RotateCcw, Scan, Scissors } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { EditableGrid } from './EditableGrid'
 import { SymbolPicker } from './SymbolPicker'
@@ -24,6 +24,7 @@ type OutputEditorProps = {
   onToolModeChange: (mode: ToolMode) => void
   onSymbolSelect: (symbol: number) => void
   onCopySelection: () => void
+  onCutSelection: () => void
   onPasteSelection: () => void
   onReset: () => void
   onPrev: () => void
@@ -69,6 +70,7 @@ export function OutputEditor({
   onToolModeChange,
   onSymbolSelect,
   onCopySelection,
+  onCutSelection,
   onPasteSelection,
   onReset,
   onPrev,
@@ -195,32 +197,39 @@ export function OutputEditor({
               <RectangleHorizontal size={14} />
             </button>
           </Tip>
-          {selectedCells.size > 0 && (
-            <Tip label={t('button.copy')} desc={t('tooltip.copy')}>
-              <button
-                type="button"
-                onClick={onCopySelection}
-                disabled={readOnly}
-                data-testid="copy-selection-btn"
-                className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
-              >
-                <Copy size={14} />
-              </button>
-            </Tip>
-          )}
-          {clipboard && (
-            <Tip label={t('button.paste')} desc={t('tooltip.paste')}>
-              <button
-                type="button"
-                onClick={onPasteSelection}
-                disabled={readOnly}
-                data-testid="paste-selection-btn"
-                className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
-              >
-                <ClipboardPaste size={14} />
-              </button>
-            </Tip>
-          )}
+          <Tip label={t('button.copy')} desc={t('tooltip.copy')}>
+            <button
+              type="button"
+              onClick={onCopySelection}
+              disabled={readOnly || selectedCells.size === 0}
+              data-testid="copy-selection-btn"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Copy size={14} />
+            </button>
+          </Tip>
+          <Tip label={t('button.cut')} desc={t('tooltip.cut')}>
+            <button
+              type="button"
+              onClick={onCutSelection}
+              disabled={readOnly || selectedCells.size === 0}
+              data-testid="cut-selection-btn"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Scissors size={14} />
+            </button>
+          </Tip>
+          <Tip label={t('button.paste')} desc={t('tooltip.paste')}>
+            <button
+              type="button"
+              onClick={onPasteSelection}
+              disabled={readOnly || !clipboard}
+              data-testid="paste-selection-btn"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ClipboardPaste size={14} />
+            </button>
+          </Tip>
           <span className="mx-1 h-5 w-px bg-gray-700" />
           <Tip label={t('button.reset')} desc={t('tooltip.reset')}>
             <button

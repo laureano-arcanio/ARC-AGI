@@ -56,8 +56,25 @@ class AttemptRepository(BaseRepository[Attempt]):
         solved_result = await self.db_session.execute(solved_query)
         solved_tasks = {row[0] for row in solved_result.all()}
 
+        abandoned_query = (
+            select(Event.task_id)
+            .where(
+                Event.user_id == user_id,
+                func.json_extract_path_text(
+                    Event.trigger, 'action'
+                ) == 'give_up',
+            )
+            .distinct()
+        )
+        abandoned_result = await self.db_session.execute(abandoned_query)
+        abandoned_tasks = {row[0] for row in abandoned_result.all()}
+
         return [
-            {**data, "solved": data["task_id"] in solved_tasks}
+            {
+                **data,
+                "solved": data["task_id"] in solved_tasks,
+                "abandoned": data["task_id"] in abandoned_tasks,
+            }
             for data in task_map.values()
         ]
 
