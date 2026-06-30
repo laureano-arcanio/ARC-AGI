@@ -1448,7 +1448,7 @@ export function ArcLabPage() {
 
   const handleCellClick = (x: number, y: number) => {
     if (interceptFailureAnalysis()) return
-    const key = `${state.toolMode}:${x}:${y}`
+    const key = `${state.toolMode}:${state.selectedSymbol}:${x}:${y}`
     if (!shouldDispatchEvent(key)) return
     dispatch({ type: 'CELL_CLICK', x, y })
   }
