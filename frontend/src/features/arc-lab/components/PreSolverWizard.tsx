@@ -151,7 +151,7 @@ export function PreSolverWizard({
     setError('')
 
     if (key === 'confirmed' || key === 'uncertain') {
-      onAddCognitiveNode('hypothesis_revision', '', {
+      onAddCognitiveNode('hypothesis_revision', lastHypothesisRef.current, {
         revisionType: key,
         visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
       })
@@ -230,7 +230,7 @@ export function PreSolverWizard({
   // end-to-end even when no hypothesis has been written yet.
   const handleExploringUncertain = useCallback(() => {
     setError('')
-    onAddCognitiveNode('hypothesis_revision', '', {
+    onAddCognitiveNode('hypothesis_revision', lastHypothesisRef.current, {
       revisionType: 'uncertain',
       ...(isTestStep
         ? { testIndex }
@@ -248,7 +248,7 @@ export function PreSolverWizard({
     setError('')
 
     if (key === 'confirmed' || key === 'uncertain') {
-      onAddCognitiveNode('hypothesis_revision', '', {
+      onAddCognitiveNode('hypothesis_revision', lastHypothesisRef.current, {
         revisionType: key,
         visibleTrainPairIndexes: Array.from({ length: visibleTrainPairCount }, (_, i) => i),
         testIndex,

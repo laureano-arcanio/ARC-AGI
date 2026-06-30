@@ -14,6 +14,7 @@ class EventCreate(BaseAPISchema):
     trigger: dict[str, Any]
     state_snapshot: list[list[int]]
     timestamp: int
+    sequence_index: int | None = None
 
 
 class EventSubmitCreate(BaseAPISchema):
@@ -28,6 +29,7 @@ class EventSubmitCreate(BaseAPISchema):
     grids: dict[int, list[list[int]]]
     state_snapshot: list[list[int]]
     timestamp: int
+    sequence_index: int | None = None
 
 
 class EventUpdate(BaseAPISchema):
@@ -45,6 +47,7 @@ class EventRead(BaseAPISchema):
     trigger: dict[str, Any]
     state_snapshot: list[list[int]]
     timestamp: int
+    sequence_index: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -59,5 +62,6 @@ class EventCrossRead(BaseAPISchema):
     trigger: dict[str, Any]
     state_snapshot: list[list[int]]
     timestamp: int
+    sequence_index: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None

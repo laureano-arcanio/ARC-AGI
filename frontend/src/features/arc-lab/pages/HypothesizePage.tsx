@@ -21,6 +21,7 @@ export function HypothesizePage() {
   const [visibleTrainPairCount, setVisibleTrainPairCount] = useState(1)
   const [attemptId, setAttemptId] = useState<number | null>(null)
   const nodeIdCounter = useRef(0)
+  const sequenceCounter = useRef(0)
 
   useEffect(() => {
     if (routeUserId) {
@@ -68,7 +69,12 @@ export function HypothesizePage() {
       ? makePreNodeId(nodeIdCounter.current - 1)
       : null
     nodeIdCounter.current += 1
-    const snapshot: GridData = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
+    const seq = sequenceCounter.current
+    sequenceCounter.current += 1
+    const trainInput = specificTask?.train?.[0]?.input
+    const h = trainInput?.length ?? DEFAULT_GRID_HEIGHT
+    const w = trainInput?.[0]?.length ?? DEFAULT_GRID_WIDTH
+    const snapshot: GridData = createGrid(h, w)
     postEventWithRetry({
       userId,
       taskId,
@@ -84,10 +90,11 @@ export function HypothesizePage() {
       stateSnapshot: snapshot,
       timestamp: Date.now(),
       testPairIndex: 0,
+      sequenceIndex: seq,
     })
       .then(() => setSaveError(false))
       .catch(() => setSaveError(true))
-  }, [attemptId, userId, taskId])
+  }, [attemptId, userId, taskId, specificTask])
 
   const handleComplete = useCallback(() => {
     const base = routeUserId ? `/solve/${routeUserId}/${taskId}` : `/solve/${taskId}`

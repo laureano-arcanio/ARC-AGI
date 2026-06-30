@@ -66,6 +66,7 @@ export type EventPayload = {
   stateSnapshot: GridData
   timestamp: number
   testPairIndex?: number
+  sequenceIndex?: number
 }
 
 export type AttemptRead = {

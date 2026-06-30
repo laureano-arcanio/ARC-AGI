@@ -10,6 +10,7 @@ const rootNode: GraphNode = {
   stateSnapshot: [[0]],
   parentId: null,
   timestamp: 0,
+  sequenceIndex: 0,
 }
 
 function makeNode(
@@ -23,6 +24,7 @@ function makeNode(
     stateSnapshot: [[0]],
     parentId,
     timestamp: 0,
+    sequenceIndex: 0,
   }
 }
 
@@ -37,6 +39,7 @@ function makeSubmitNode(
     stateSnapshot: [[0]],
     parentId,
     timestamp: 0,
+    sequenceIndex: 0,
   }
 }
 
@@ -115,6 +118,7 @@ describe('CognitiveTimeline', () => {
         stateSnapshot: [[0]],
         parentId: 'node_000',
         timestamp: 0,
+        sequenceIndex: 0,
       },
       {
         // colliding id — same as the root, but parented under hypothesis_final
@@ -123,6 +127,7 @@ describe('CognitiveTimeline', () => {
         stateSnapshot: [[0]],
         parentId: 'hypothesis_final',
         timestamp: 0,
+        sequenceIndex: 0,
       },
     ]
 

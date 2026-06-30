@@ -41,6 +41,8 @@ def _event_read(trigger: dict) -> EventRead:
 def mocks() -> dict:
     service = AsyncMock(spec=EventService)
     service.create.side_effect = lambda data: _event_read(data.trigger)
+    service.repository = AsyncMock()
+    service.repository.parent_node_exists.return_value = True
 
     batch_repo = AsyncMock(spec=BatchRepository)
     batch_repo.user_has_access.return_value = True

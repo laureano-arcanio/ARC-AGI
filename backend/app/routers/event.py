@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -16,6 +17,7 @@ from app.schemas.event import (
 )
 from app.services.arc_task import ArcTaskService
 from app.services.event import EventService
+from app.services.event_validator import warn_fill_mismatch, warn_if_read_only_mutated
 
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
 
@@ -68,7 +70,49 @@ async def create(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Attempt does not belong to this user and task",
             )
-    return await service.create(data)
+        # Validate parentNodeId references an existing node in the same attempt,
+        # unless this is the root (parent_node_id is null).
+        if data.parent_node_id is not None:
+            parent_exists = await service.repository.parent_node_exists(
+                data.attempt_id,
+                data.parent_node_id,
+                data.test_pair_index,
+            )
+            if not parent_exists:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        f"parentNodeId '{data.parent_node_id}' "
+                        f"not found in attempt {data.attempt_id}"
+                    ),
+                )
+    result = await service.create(data)
+    if data.attempt_id is not None:
+        action = data.trigger.get("action", "")
+        asyncio.create_task(
+            warn_if_read_only_mutated(
+                service.repository,
+                data.attempt_id,
+                data.node_id,
+                data.parent_node_id,
+                data.test_pair_index,
+                action,
+                data.state_snapshot,
+            )
+        )
+        asyncio.create_task(
+            warn_fill_mismatch(
+                service.repository,
+                data.attempt_id,
+                data.node_id,
+                data.parent_node_id,
+                data.test_pair_index,
+                action,
+                data.trigger.get("details"),
+                data.state_snapshot,
+            )
+        )
+    return result
 
 
 @router.post(
@@ -112,6 +156,7 @@ async def submit(
         },
         state_snapshot=data.state_snapshot,
         timestamp=data.timestamp or int(time.time() * 1000),
+        sequence_index=data.sequence_index,
     )
     return await service.create(event)
 

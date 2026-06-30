@@ -60,6 +60,7 @@ export type SubmitPayload = {
   grids: Record<number, number[][]>
   stateSnapshot: number[][]
   timestamp: number
+  sequenceIndex?: number
 }
 
 // The server validates the submitted grids against the stored solutions and is
@@ -82,6 +83,7 @@ export type PreSolverEventRead = {
   trigger: Record<string, unknown>
   stateSnapshot: number[][]
   timestamp: number
+  sequenceIndex?: number
 }
 
 export function fetchEventsByAttempt(

@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, ForeignKey
+from sqlalchemy import JSON, BigInteger, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import AbstractBase
@@ -20,3 +20,4 @@ class Event(AbstractBase):
     trigger: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     state_snapshot: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     timestamp: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sequence_index: Mapped[int | None] = mapped_column(Integer, nullable=True)

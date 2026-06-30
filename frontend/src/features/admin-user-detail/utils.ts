@@ -15,6 +15,7 @@ export function eventsToGraphNodes(events: EventRead[]): GraphNode[] {
       parentId: ev.parentNodeId ?? null,
       timestamp: ev.timestamp,
       testPairIndex: ev.testPairIndex ?? undefined,
+      sequenceIndex: ev.sequenceIndex ?? 0,
     })
   }
   return [...latest.values()]
@@ -61,6 +62,7 @@ export function synthesizeGraphNodes(nodes: GraphNode[]): GraphNode[] {
         },
         stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
         timestamp,
+        sequenceIndex: 0,
       })
     }
   }

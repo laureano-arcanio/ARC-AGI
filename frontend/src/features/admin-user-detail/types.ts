@@ -43,6 +43,7 @@ export type EventRead = {
   trigger: Record<string, unknown>
   stateSnapshot: number[][]
   timestamp: number
+  sequenceIndex?: number
   createdAt: string | null
   updatedAt: string | null
 }

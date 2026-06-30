@@ -37,6 +37,8 @@ class EventRepository(BaseRepository[Event]):
             existing.timestamp = data.get("timestamp", existing.timestamp)
             if "parent_node_id" in data:
                 existing.parent_node_id = data["parent_node_id"]
+            if "sequence_index" in data:
+                existing.sequence_index = data["sequence_index"]
             await self.db_session.flush()
             await self.db_session.refresh(existing)
             return existing
@@ -53,7 +55,7 @@ class EventRepository(BaseRepository[Event]):
         )
         if attempt_id is not None:
             query = query.where(self.model.attempt_id == attempt_id)
-        query = query.order_by(self.model.timestamp)
+        query = query.order_by(self.model.sequence_index, self.model.timestamp)
         result = await self.db_session.execute(query)
         return list(result.scalars().all())
 
@@ -71,3 +73,35 @@ class EventRepository(BaseRepository[Event]):
         )
         result = await self.db_session.execute(query)
         return result.scalar_one_or_none() is not None
+
+    async def parent_node_exists(
+        self, attempt_id: int, node_id: str, test_pair_index: int | None
+    ) -> bool:
+        query = select(self.model.id).where(
+            self.model.attempt_id == attempt_id,
+            self.model.node_id == node_id,
+        )
+        if test_pair_index is not None:
+            query = query.where(self.model.test_pair_index == test_pair_index)
+        else:
+            query = query.where(self.model.test_pair_index.is_(None))
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none() is not None
+
+    async def get_snapshot_by_node(
+        self,
+        attempt_id: int,
+        node_id: str,
+        test_pair_index: int | None,
+    ) -> list[Any] | None:
+        query = select(self.model.state_snapshot).where(
+            self.model.attempt_id == attempt_id,
+            self.model.node_id == node_id,
+        )
+        if test_pair_index is not None:
+            query = query.where(self.model.test_pair_index == test_pair_index)
+        else:
+            query = query.where(self.model.test_pair_index.is_(None))
+        result = await self.db_session.execute(query)
+        row = result.one_or_none()
+        return row[0] if row else None

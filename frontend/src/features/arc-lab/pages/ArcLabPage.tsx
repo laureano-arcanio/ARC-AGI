@@ -69,6 +69,7 @@ type ArcLabState = {
   navigationIndexByTest: Record<number, number>
   blockReason: BlockReason
   correctPairs: Record<number, boolean>
+  sequenceCounter: number
 }
 
 type Action =
@@ -136,11 +137,13 @@ function addNode(
     parentId: activeId,
     timestamp: Date.now(),
     testPairIndex: idx,
+    sequenceIndex: state.sequenceCounter,
   }
   return {
     graphNodesByTest: { ...state.graphNodesByTest, [idx]: [...nodes, node] },
     activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: id },
     nextNodeIdByTest: { ...state.nextNodeIdByTest, [idx]: nextId + 1 },
+    sequenceCounter: state.sequenceCounter + 1,
   }
 }
 
@@ -195,6 +198,7 @@ const initialState: ArcLabState = {
   navigationIndexByTest: {},
   blockReason: null,
   correctPairs: {},
+  sequenceCounter: 0,
 }
 
 // Seed the per-test graph state for `idx` if it has never been visited, mirroring
@@ -207,23 +211,26 @@ function ensureTestGraphInit(
   outputGrid: GridData,
 ): Partial<ArcLabState> {
   if (state.graphNodesByTest[idx] !== undefined) return {}
-  const root = makeRootNode(outputGrid)
+  const seq = state.sequenceCounter
+  const root = makeRootNode(outputGrid, seq)
   return {
     graphNodesByTest: { ...state.graphNodesByTest, [idx]: [root] },
     activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: root.id },
     nextNodeIdByTest: { ...state.nextNodeIdByTest, [idx]: nextNodeIdFor([root]) },
     navigationHistoryByTest: { ...state.navigationHistoryByTest, [idx]: [root.id] },
     navigationIndexByTest: { ...state.navigationIndexByTest, [idx]: 0 },
+    sequenceCounter: seq + 1,
   }
 }
 
-function makeRootNode(outputGrid: GridData): GraphNode {
+function makeRootNode(outputGrid: GridData, sequenceIndex = 0): GraphNode {
   return {
     id: 'node_000',
     trigger: { kind: 'mechanical', action: 'load_task' },
     stateSnapshot: cloneGrid(outputGrid),
     parentId: null,
     timestamp: Date.now(),
+    sequenceIndex,
   }
 }
 
@@ -251,6 +258,7 @@ function withTask(state: ArcLabState, task: ArcTask): ArcLabState {
     navigationIndexByTest: { 0: 0 },
     blockReason: null,
     correctPairs: {},
+    sequenceCounter: 1,
   }
 }
 
@@ -372,6 +380,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           parentId: anchorNode.id,
           timestamp: Date.now(),
           testPairIndex: idx,
+          sequenceIndex: state.sequenceCounter,
         }
         const graph = {
           graphNodesByTest: { ...state.graphNodesByTest, [idx]: [...nodes, node] },
@@ -387,6 +396,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           ...updateHistory(state, graph.activeNodeIdByTest![idx]!, true),
           blockReason: null,
           message: { kind: 'info', text: 'timeline.branch_discarded' },
+          sequenceCounter: state.sequenceCounter + 1,
         }
       }
 
@@ -509,6 +519,9 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           return { ...state, toolMode: 'edit', selectedCells: new Set() }
         }
         const symbol = state.outputGrid[action.x]?.[action.y] ?? 0
+        if (symbol === 9) {
+          return { ...state, toolMode: 'edit', selectedCells: new Set() }
+        }
         const graph = addNode(
           { ...state },
           {
@@ -535,6 +548,10 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           return { ...state, toolMode: 'edit', selectedCells: new Set() }
         }
         const symbol = state.outputGrid[action.x]?.[action.y] ?? 0
+        if (symbol === 9) {
+          return { ...state, toolMode: 'edit', selectedCells: new Set() }
+        }
+        const snapshotBeforeFill = cloneGrid(state.outputGrid)
         const outputGrid = cloneGrid(state.outputGrid)
         for (const key of cells) {
           const { x, y } = parseCellKey(key)
@@ -544,7 +561,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         }
         const idxFillObj = state.currentTestIndex
         const graph1 = addNode(
-          { ...state, outputGrid },
+          { ...state, outputGrid: snapshotBeforeFill },
           {
             kind: 'mechanical',
             action: 'select_object',
@@ -659,6 +676,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
 
     case 'MOVE_SELECTION': {
       if (state.selectedCells.size === 0) return state
+      if (action.dx === 0 && action.dy === 0) return state
       const outputGrid = cloneGrid(state.outputGrid)
       const cells = Array.from(state.selectedCells).map(parseCellKey)
       const cellValues: Array<{ x: number; y: number; symbol: number }> = []
@@ -768,6 +786,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         parentId: action.parentNodeId,
         timestamp: Date.now(),
         testPairIndex: idxBp,
+        sequenceIndex: state.sequenceCounter,
       }
       return {
         ...state,
@@ -776,6 +795,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         nextNodeIdByTest: { ...state.nextNodeIdByTest, [idxBp]: nextId + 1 },
         ...updateHistory(state, id, true),
         blockReason: null,
+        sequenceCounter: state.sequenceCounter + 1,
       }
     }
 
@@ -842,6 +862,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       let hasNewNodes = false
       const { nodes: preNodes } = action
       const { text, isUncertain } = getFinalHypothesis(preNodes)
+      let seq = state.sequenceCounter
 
       for (let idx = 0; idx < testCount; idx++) {
         const existingIds = new Set(graphNodesByTest[idx]?.map((n) => n.id) ?? [])
@@ -852,13 +873,16 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         hasNewNodes = true
         let nodes = graphNodesByTest[idx] ?? []
         if (!nodes.find((n) => n.id === 'node_000')) {
+          const lastPreNodeId = preNodes.length > 0 ? preNodes[preNodes.length - 1].id : null
           const root: GraphNode = {
             id: 'node_000',
             trigger: { kind: 'mechanical', action: 'load_task' },
             stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
-            parentId: null,
+            parentId: lastPreNodeId,
             timestamp: Date.now(),
+            sequenceIndex: seq,
           }
+          seq++
           nodes = [root, ...nodes]
         }
         const combined = [...nodes, ...newNodes]
@@ -876,7 +900,9 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           },
           stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
           timestamp: Date.now(),
+          sequenceIndex: seq,
         }
+        seq++
         graphNodesByTest[idx] = [...combined, hypothesisFinal]
         activeNodeIdByTest[idx] = hypothesisFinal.id
         // Keep the per-test counter ahead of every node now assigned to this
@@ -895,6 +921,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         nextNodeIdByTest,
         navigationHistoryByTest,
         navigationIndexByTest,
+        sequenceCounter: seq,
       }
     }
 
@@ -926,6 +953,13 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       const allPairsCorrect = allTestIndices.every((idx) => correctPairs[idx])
       const blockReason: BlockReason = allPairsCorrect ? 'correct_analysis' : null
 
+      let maxSeq = 0
+      for (const nodes of Object.values(eventsByTest)) {
+        for (const n of nodes) {
+          if ((n.sequenceIndex ?? 0) > maxSeq) maxSeq = n.sequenceIndex ?? 0
+        }
+      }
+
       return {
         ...state,
         graphNodesByTest,
@@ -937,6 +971,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         outputGrid,
         correctPairs,
         blockReason,
+        sequenceCounter: maxSeq + 1,
       }
     }
 
@@ -1208,8 +1243,9 @@ export function ArcLabPage() {
           stateSnapshot: ev.stateSnapshot,
           parentId: ev.parentNodeId,
           timestamp: ev.timestamp,
+          sequenceIndex: ev.sequenceIndex ?? 0,
         }))
-        .sort((a, b) => a.timestamp - b.timestamp)
+        .sort((a, b) => a.sequenceIndex - b.sequenceIndex)
 
       const solverByTest: Record<number, GraphNode[]> = {}
       for (const ev of events) {
@@ -1223,10 +1259,11 @@ export function ArcLabPage() {
           parentId: ev.parentNodeId,
           timestamp: ev.timestamp,
           testPairIndex: testIdx,
+          sequenceIndex: ev.sequenceIndex ?? 0,
         })
       }
       for (const idx of Object.keys(solverByTest)) {
-        solverByTest[Number(idx)].sort((a, b) => a.timestamp - b.timestamp)
+        solverByTest[Number(idx)].sort((a, b) => a.sequenceIndex - b.sequenceIndex)
       }
 
       for (let idx = 0; idx < testCount; idx++) {
@@ -1238,8 +1275,9 @@ export function ArcLabPage() {
             id: 'node_000',
             trigger: { kind: 'mechanical', action: 'load_task' },
             stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
-            parentId: null,
+            parentId: allPreNodes.length > 0 ? allPreNodes[allPreNodes.length - 1].id : null,
             timestamp: allPreNodes.length > 0 ? allPreNodes[0].timestamp - 1 : Date.now(),
+            sequenceIndex: allPreNodes.length > 0 ? (allPreNodes[0].sequenceIndex ?? 0) - 1 : 0,
           },
         )
 
@@ -1247,6 +1285,7 @@ export function ArcLabPage() {
 
         if (allPreNodes.length > 0) {
           const { text, isUncertain } = getFinalHypothesis(allPreNodes)
+          const lastPreSeq = allPreNodes[allPreNodes.length - 1].sequenceIndex ?? 0
           nodes.push({
             id: 'hypothesis_final',
             parentId: 'node_000',
@@ -1261,6 +1300,7 @@ export function ArcLabPage() {
             },
             stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
             timestamp: Date.now(),
+            sequenceIndex: lastPreSeq + 1,
           })
         }
 
@@ -1292,7 +1332,6 @@ export function ArcLabPage() {
     for (const [testIdxStr, nodes] of Object.entries(state.graphNodesByTest)) {
       for (const node of nodes) {
         if (node.id.startsWith('pre_node_')) continue
-        if (node.id === 'hypothesis_final') continue
         // Submit events are recorded server-side by submitAttempt (the server
         // owns correctness), so never post them through the generic endpoint.
         if (node.trigger.kind === 'mechanical' && node.trigger.action === 'submit') {
@@ -1315,6 +1354,7 @@ export function ArcLabPage() {
           stateSnapshot: node.stateSnapshot,
           timestamp: node.timestamp,
           testPairIndex: Number(testIdxStr),
+          sequenceIndex: node.sequenceIndex,
         })
           .then(() => {
             sentHashes.current.add(hash)
@@ -1439,6 +1479,7 @@ export function ArcLabPage() {
         grids: { [idx]: state.outputGrid },
         stateSnapshot: state.outputGrid,
         timestamp: Date.now(),
+        sequenceIndex: state.sequenceCounter,
       })
       dispatch({ type: 'SUBMIT', correct })
       if (correct && idx < state.test.length - 1) {

@@ -40,6 +40,7 @@ export type GraphNode = {
   parentId: string | null
   timestamp: number
   testPairIndex?: number
+  sequenceIndex: number
 }
 
 export const COLOR_MAP: Record<number, string> = {
