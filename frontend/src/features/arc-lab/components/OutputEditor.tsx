@@ -218,17 +218,6 @@ export function OutputEditor({
               <PaintBucket size={16} />
             </button>
           </Tip>
-          <Tip label={t('button.copy')} desc={t('tooltip.copy')}>
-            <button
-              type="button"
-              onClick={onCopySelection}
-              disabled={readOnly || selectedCells.size === 0}
-              data-testid="copy-selection-btn"
-              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <Copy size={16} />
-            </button>
-          </Tip>
           <Tip label={t('button.cut')} desc={t('tooltip.cut')}>
             <button
               type="button"
@@ -238,6 +227,17 @@ export function OutputEditor({
               className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Scissors size={16} />
+            </button>
+          </Tip>
+          <Tip label={t('button.copy')} desc={t('tooltip.copy')}>
+            <button
+              type="button"
+              onClick={onCopySelection}
+              disabled={readOnly || selectedCells.size === 0}
+              data-testid="copy-selection-btn"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Copy size={16} />
             </button>
           </Tip>
           <Tip label={t('button.paste')} desc={t('tooltip.paste')}>

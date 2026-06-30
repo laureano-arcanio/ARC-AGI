@@ -562,8 +562,8 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         return {
           ...state,
           outputGrid,
-          selectedCells: cells,
-          toolMode: 'select',
+          selectedCells: new Set(),
+          toolMode: 'edit',
           ...graph2,
           ...updateHistory(state, graph2.activeNodeIdByTest![idxFillObj]!, true),
         }
