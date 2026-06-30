@@ -12,6 +12,7 @@ import {
   gridWidth,
   parseCellKey,
   parseSize,
+  selectObject,
   serializeGridToGridObject,
 } from '../utils'
 
@@ -207,6 +208,93 @@ describe('getConnectedComponent', () => {
     const before = grid.map((r) => [...r])
     getConnectedComponent(grid, 0, 0)
     expect(grid).toEqual(before)
+  })
+})
+
+describe('selectObject', () => {
+  it('selects only boundary for an open shape (cross)', () => {
+    const grid = [
+      [0, 0, 1, 0, 0],
+      [0, 0, 1, 0, 0],
+      [1, 1, 1, 1, 1],
+      [0, 0, 1, 0, 0],
+      [0, 0, 1, 0, 0],
+    ]
+    const result = selectObject(grid, 2, 2)
+    const expected = getConnectedComponent(grid, 2, 2)
+    expect(result).toEqual(expected)
+  })
+
+  it('selects boundary + interior for a closed shape (square)', () => {
+    const grid = [
+      [0, 0, 0, 0, 0],
+      [0, 1, 1, 1, 0],
+      [0, 1, 0, 1, 0],
+      [0, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0],
+    ]
+    const result = selectObject(grid, 1, 1)
+    expect(result).toEqual(new Set([
+      '1,1', '1,2', '1,3',
+      '2,1', '2,3',
+      '3,1', '3,2', '3,3',
+      '2,2',
+    ]))
+  })
+
+  it('selects boundary + interior for a closed shape touching grid edge', () => {
+    const grid = [
+      [1, 1, 1, 1, 1],
+      [1, 0, 0, 0, 1],
+      [1, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1],
+    ]
+    const result = selectObject(grid, 0, 0)
+    const allCells = new Set([
+      '0,0', '0,1', '0,2', '0,3', '0,4',
+      '1,0', '1,1', '1,2', '1,3', '1,4',
+      '2,0', '2,1', '2,2', '2,3', '2,4',
+      '3,0', '3,1', '3,2', '3,3', '3,4',
+    ])
+    expect(result).toEqual(allCells)
+  })
+
+  it('selects boundary + interior for a donut shape (ring)', () => {
+    const grid = [
+      [0, 0, 0, 0, 0, 0, 0],
+      [0, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 1, 0],
+      [0, 1, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 0],
+    ]
+    const result = selectObject(grid, 1, 1)
+    const boundary = getConnectedComponent(grid, 1, 1)
+    expect(result.size).toBeGreaterThan(boundary.size)
+    for (const key of boundary) {
+      expect(result.has(key)).toBe(true)
+    }
+    expect(result.has('2,2')).toBe(true)
+    expect(result.has('2,3')).toBe(true)
+    expect(result.has('2,4')).toBe(true)
+    expect(result.has('3,2')).toBe(true)
+    expect(result.has('3,3')).toBe(true)
+    expect(result.has('3,4')).toBe(true)
+  })
+
+  it('returns empty set for out-of-bounds click', () => {
+    const grid = [[1]]
+    expect(selectObject(grid, 5, 5)).toEqual(new Set())
+  })
+
+  it('returns only boundary for a single isolated cell', () => {
+    const grid = [
+      [0, 0, 0],
+      [0, 1, 0],
+      [0, 0, 0],
+    ]
+    const result = selectObject(grid, 1, 1)
+    expect(result).toEqual(new Set(['1,1']))
   })
 })
 

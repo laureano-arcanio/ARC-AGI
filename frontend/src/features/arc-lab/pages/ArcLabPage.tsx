@@ -16,11 +16,11 @@ import {
   createGrid,
   floodfill,
   formatSize,
-  getConnectedComponent,
   gridHeight,
   gridWidth,
   parseCellKey,
   parseSize,
+  selectObject,
   serializeGridToGridObject,
 } from '../utils'
 import {
@@ -523,8 +523,8 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         )
         return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![state.currentTestIndex]!, true) }
       }
-      if (state.toolMode === 'object_select') {
-        const cells = getConnectedComponent(state.outputGrid, action.x, action.y)
+  if (state.toolMode === 'object_select') {
+    const cells = selectObject(state.outputGrid, action.x, action.y)
         if (cells.size === 0) {
           return { ...state, toolMode: 'edit', selectedCells: new Set() }
         }

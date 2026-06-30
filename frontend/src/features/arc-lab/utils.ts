@@ -145,6 +145,62 @@ export function getConnectedComponent(
   return result
 }
 
+export function selectObject(
+  grid: GridData,
+  startX: number,
+  startY: number,
+): Set<string> {
+  const boundary = getConnectedComponent(grid, startX, startY)
+  if (boundary.size === 0) return boundary
+
+  const h = gridHeight(grid)
+  const w = gridWidth(grid)
+
+  const outside = new Set<string>()
+  const stack: Array<[number, number]> = []
+
+  for (let x = 0; x < h; x++) {
+    for (let y = 0; y < w; y++) {
+      if ((x === 0 || x === h - 1 || y === 0 || y === w - 1) && !boundary.has(cellKey(x, y))) {
+        const key = cellKey(x, y)
+        if (!outside.has(key)) {
+          outside.add(key)
+          stack.push([x, y])
+        }
+      }
+    }
+  }
+
+  while (stack.length > 0) {
+    const [x, y] = stack.pop()!
+    for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+      if (nx >= 0 && nx < h && ny >= 0 && ny < w) {
+        const key = cellKey(nx, ny)
+        if (!outside.has(key) && !boundary.has(key)) {
+          outside.add(key)
+          stack.push([nx, ny])
+        }
+      }
+    }
+  }
+
+  const interior = new Set<string>()
+  for (let x = 0; x < h; x++) {
+    for (let y = 0; y < w; y++) {
+      const key = cellKey(x, y)
+      if (!boundary.has(key) && !outside.has(key)) {
+        interior.add(key)
+      }
+    }
+  }
+
+  if (interior.size > 0) {
+    return new Set([...boundary, ...interior])
+  }
+
+  return boundary
+}
+
 export function cellKey(x: number, y: number): string {
   return `${x},${y}`
 }
