@@ -24,7 +24,8 @@ describe('EditableGrid', () => {
     expect(screen.getByTestId('2,2')).toBeInTheDocument()
   })
 
-  it('selects cell on click in edit mode instead of painting', () => {
+  it('paints cell on single click in edit mode', () => {
+    const onCellClick = vi.fn()
     const onSelectionChange = vi.fn()
     const onToolModeChange = vi.fn()
     render(
@@ -33,7 +34,7 @@ describe('EditableGrid', () => {
         toolMode="edit"
         showNumbers={false}
         selectedCells={new Set()}
-        onCellClick={vi.fn()}
+        onCellClick={onCellClick}
         onSelectionChange={onSelectionChange}
         onToolModeChange={onToolModeChange}
       />,
@@ -41,8 +42,9 @@ describe('EditableGrid', () => {
     const cell = screen.getByTestId('1,1')
     fireEvent.mouseDown(cell)
     fireEvent.mouseUp(cell)
-    expect(onSelectionChange).toHaveBeenCalledWith(new Set(['1,1']))
-    expect(onToolModeChange).toHaveBeenCalledWith('select')
+    expect(onCellClick).toHaveBeenCalledWith(1, 1)
+    expect(onSelectionChange).not.toHaveBeenCalled()
+    expect(onToolModeChange).not.toHaveBeenCalled()
   })
 
   it('calls onCellClick in floodfill mode', () => {

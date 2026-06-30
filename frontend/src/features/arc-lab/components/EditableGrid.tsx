@@ -57,8 +57,7 @@ export function EditableGrid({
           onMoveSelection?.(dragOffset.dx, dragOffset.dy)
         } else if (!hasDragRef.current) {
           if (toolModeRef.current === 'edit') {
-            onSelectionChange(new Set([cellKey(dragStartRef.current.x, dragStartRef.current.y)]))
-            onToolModeChange?.('select')
+            onCellClick(dragStartRef.current.x, dragStartRef.current.y)
           } else if (toolModeRef.current === 'select') {
             onSelectionChange(new Set([cellKey(dragStartRef.current.x, dragStartRef.current.y)]))
           } else {
