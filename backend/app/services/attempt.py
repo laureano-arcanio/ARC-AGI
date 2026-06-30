@@ -27,8 +27,6 @@ def _compute_status(trigger: dict[str, Any]) -> str | None:
             return "failed"
     if action == "give_up":
         return "abandoned"
-    if action == "resume":
-        return "in_progress"
     return None
 
 
@@ -43,9 +41,7 @@ _STATUS_ORDER = ["completed", "failed", "abandoned", "in_progress"]
 
 
 def compute_attempt_status(events: list[Any]) -> dict[int, str]:
-    """Compute attempt status from events in temporal order.
-    `resume` after `abandon` overrides to `in_progress`.
-    """
+    """Compute attempt status from events in temporal order."""
     status_map: dict[int, str] = {}
     for ev in sorted(events, key=lambda e: e.timestamp if e.timestamp else 0):
         aid = ev.attempt_id

@@ -12,6 +12,7 @@ import {
   gridWidth,
   parseCellKey,
   parseSize,
+  rotateSelection,
   selectObject,
   serializeGridToGridObject,
 } from '../utils'
@@ -295,6 +296,55 @@ describe('selectObject', () => {
     ]
     const result = selectObject(grid, 1, 1)
     expect(result).toEqual(new Set(['1,1']))
+  })
+})
+
+describe('rotateSelection', () => {
+  it('returns to original after 4 rotations (L-shape)', () => {
+    const grid = [
+      [0, 0, 0, 0],
+      [0, 1, 0, 0],
+      [0, 1, 1, 0],
+      [0, 0, 0, 0],
+    ]
+    const original = cloneGrid(grid)
+    let sel = new Set(['1,1', '2,1', '2,2'])
+    for (let i = 0; i < 4; i++) {
+      const result = rotateSelection(grid, sel)
+      grid.splice(0, grid.length, ...result.outputGrid)
+      sel = result.newSelected
+    }
+    expect(grid).toEqual(original)
+    expect(sel).toEqual(new Set(['1,1', '2,1', '2,2']))
+  })
+
+  it('returns to original after 4 rotations (3x1 vertical line)', () => {
+    const grid = [
+      [0, 0, 0, 0],
+      [0, 1, 0, 0],
+      [0, 1, 0, 0],
+      [0, 1, 0, 0],
+    ]
+    const original = cloneGrid(grid)
+    let sel = new Set(['1,1', '2,1', '3,1'])
+    for (let i = 0; i < 4; i++) {
+      const result = rotateSelection(grid, sel)
+      grid.splice(0, grid.length, ...result.outputGrid)
+      sel = result.newSelected
+    }
+    expect(grid).toEqual(original)
+    expect(sel).toEqual(new Set(['1,1', '2,1', '3,1']))
+  })
+
+  it('single cell returns to itself after rotation', () => {
+    const grid = [
+      [0, 0, 0],
+      [0, 1, 0],
+      [0, 0, 0],
+    ]
+    const result = rotateSelection(grid, new Set(['1,1']))
+    expect(result.outputGrid[1][1]).toBe(1)
+    expect(result.newSelected).toEqual(new Set(['1,1']))
   })
 })
 

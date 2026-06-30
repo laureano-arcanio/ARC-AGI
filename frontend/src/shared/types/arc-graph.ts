@@ -19,7 +19,6 @@ export type MechanicalAction =
   | 'reset_output'
   | 'submit'
   | 'abandon'
-  | 'resume'
   | 'give_up'
   | 'load_task'
   | 'select_object'
@@ -27,6 +26,8 @@ export type MechanicalAction =
   | 'copy_selection'
   | 'paste_selection'
   | 'cut_selection'
+  | 'move_selection'
+  | 'rotate_selection'
 
 export type GraphTrigger =
   | { kind: 'mechanical'; action: MechanicalAction; details?: Record<string, unknown> }

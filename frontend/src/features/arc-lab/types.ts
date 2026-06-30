@@ -28,7 +28,7 @@ export type ArcTaskRead = ArcTask & {
   id: string
 }
 
-export type ToolMode = 'edit' | 'select' | 'floodfill' | 'object_select' | 'area_select'
+export type ToolMode = 'edit' | 'select' | 'floodfill' | 'object_select' | 'area_select' | 'fill_object'
 
 export type CellCoord = {
   x: number
@@ -47,8 +47,8 @@ export const SYMBOL_COUNT = 10
 
 export const MAX_GRID_SIZE = 30
 
-export const DEFAULT_GRID_HEIGHT = 8
-export const DEFAULT_GRID_WIDTH = 8
+export const DEFAULT_GRID_HEIGHT = 3
+export const DEFAULT_GRID_WIDTH = 3
 
 export type BlockReason = 'failure_analysis' | 'branch_pivot' | 'correct_analysis' | null
 

@@ -13,15 +13,18 @@ import {
   Copy,
   FileText,
   Flag,
+  LassoSelect,
   Lightbulb,
-  LogIn,
   LogOut,
+  Move,
   MoveDiagonal,
   PaintBucket,
   Pencil,
   RefreshCcw,
-  RotateCcw,
-  Scan,
+  RotateCw,
+  Scissors,
+  SquareDashed,
+  Undo2,
   X,
 } from 'lucide-react'
 
@@ -120,25 +123,29 @@ export function getTimelineNodeMeta(trigger: GraphTrigger): {
     case 'copy_from_input':
       return { icon: <Copy size={18} />, color: 'neutral' }
     case 'reset_output':
-      return { icon: <RotateCcw size={18} />, color: 'neutral' }
+      return { icon: <Undo2 size={18} />, color: 'neutral' }
     case 'submit':
       return trigger.details?.correct
         ? { icon: <CircleCheck size={18} />, color: 'success' }
         : { icon: <X size={18} />, color: 'error' }
     case 'abandon':
       return { icon: <LogOut size={18} />, color: 'neutral' }
-    case 'resume':
-      return { icon: <LogIn size={18} />, color: 'active' }
     case 'give_up':
       return { icon: <Ban size={18} />, color: 'error' }
     case 'select_object':
-      return { icon: <Scan size={18} />, color: 'neutral' }
+      return { icon: <LassoSelect size={18} />, color: 'neutral' }
     case 'select_area':
-      return { icon: <Scan size={18} />, color: 'neutral' }
+      return { icon: <SquareDashed size={18} />, color: 'neutral' }
     case 'copy_selection':
       return { icon: <Copy size={18} />, color: 'neutral' }
     case 'paste_selection':
       return { icon: <ClipboardPaste size={18} />, color: 'neutral' }
+    case 'cut_selection':
+      return { icon: <Scissors size={18} />, color: 'neutral' }
+    case 'move_selection':
+      return { icon: <Move size={18} />, color: 'neutral' }
+    case 'rotate_selection':
+      return { icon: <RotateCw size={18} />, color: 'neutral' }
     default:
       return { icon: <span className="text-[10px] font-bold">?</span>, color: 'neutral' }
   }

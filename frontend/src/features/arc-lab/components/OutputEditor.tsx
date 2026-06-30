@@ -1,5 +1,5 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, Copy, MoveDiagonal, RectangleHorizontal, RotateCcw, Scan, Scissors } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, Copy, LassoSelect, MoveDiagonal, PaintBucket, RotateCw, Scissors, SquareDashed, Undo2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { EditableGrid } from './EditableGrid'
 import { SymbolPicker } from './SymbolPicker'
@@ -26,6 +26,8 @@ type OutputEditorProps = {
   onCopySelection: () => void
   onCutSelection: () => void
   onPasteSelection: () => void
+  onRotateSelection?: () => void
+  onMoveSelection?: (dx: number, dy: number) => void
   onReset: () => void
   onPrev: () => void
   onNext: () => void
@@ -72,6 +74,8 @@ export function OutputEditor({
   onCopySelection,
   onCutSelection,
   onPasteSelection,
+  onRotateSelection,
+  onMoveSelection,
   onReset,
   onPrev,
   onNext,
@@ -94,7 +98,7 @@ export function OutputEditor({
             onClick={onPrev}
             disabled={!canGoPrev}
             data-testid="prev-btn"
-            className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30"
+            className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30"
           >
             <ChevronLeft size={16} />
           </button>
@@ -110,6 +114,7 @@ export function OutputEditor({
               onCellClick={onCellClick}
               onSelectionChange={onSelectionChange}
               onToolModeChange={onToolModeChange}
+              onMoveSelection={onMoveSelection}
             />
           </div>
 
@@ -119,7 +124,7 @@ export function OutputEditor({
             onClick={onNext}
             disabled={!canGoNext}
             data-testid="next-btn"
-            className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30"
+            className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30"
           >
             <ChevronRight size={16} />
           </button>
@@ -140,7 +145,7 @@ export function OutputEditor({
             onKeyDown={handleSizeKeyDown}
             disabled={readOnly}
             data-testid="output-grid-size"
-            className="w-14 rounded-md border border-gray-700 bg-gray-800 px-2 py-1.5 text-center text-xs text-gray-200 placeholder-gray-500 focus:border-blue-500 focus:outline-none disabled:opacity-40"
+            className="w-14 rounded-md border border-gray-700 bg-gray-800 px-2 py-2.5 text-center text-xs text-gray-200 placeholder-gray-500 focus:border-blue-500 focus:outline-none disabled:opacity-40"
             placeholder="3x3"
           />
           <Tip label={t('button.resize')} desc={t('tooltip.resize')}>
@@ -149,9 +154,9 @@ export function OutputEditor({
               onClick={onResize}
               disabled={readOnly}
               data-testid="resize-btn"
-              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
             >
-              <MoveDiagonal size={14} />
+              <MoveDiagonal size={16} />
             </button>
           </Tip>
           <Tip label={t('button.copy_input')} desc={t('tooltip.copy_input')}>
@@ -160,9 +165,9 @@ export function OutputEditor({
               onClick={onCopyFromInput}
               disabled={readOnly}
               data-testid="copy-from-input"
-              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
             >
-              <ClipboardCopy size={14} />
+              <ClipboardCopy size={16} />
             </button>
           </Tip>
           <Tip label={t('button.select_object')} desc={t('tooltip.select_object')}>
@@ -172,13 +177,13 @@ export function OutputEditor({
               disabled={readOnly}
               aria-pressed={toolMode === 'object_select'}
               data-testid="select-object-btn"
-              className={`shrink-0 rounded-md border p-2 transition disabled:opacity-40 ${
+              className={`shrink-0 rounded-md border p-2.5 transition disabled:opacity-40 ${
                 toolMode === 'object_select'
                   ? 'border-blue-500 bg-blue-600 text-white'
                   : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
             >
-              <Scan size={14} />
+              <LassoSelect size={16} />
             </button>
           </Tip>
           <Tip label={t('button.select_area')} desc={t('tooltip.select_area')}>
@@ -188,13 +193,29 @@ export function OutputEditor({
               disabled={readOnly}
               aria-pressed={toolMode === 'area_select'}
               data-testid="select-area-btn"
-              className={`shrink-0 rounded-md border p-2 transition disabled:opacity-40 ${
+              className={`shrink-0 rounded-md border p-2.5 transition disabled:opacity-40 ${
                 toolMode === 'area_select'
                   ? 'border-blue-500 bg-blue-600 text-white'
                   : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
             >
-              <RectangleHorizontal size={14} />
+              <SquareDashed size={16} />
+            </button>
+          </Tip>
+          <Tip label={t('button.fill_object')} desc={t('tooltip.fill_object')}>
+            <button
+              type="button"
+              onClick={() => onToolModeChange('fill_object')}
+              disabled={readOnly}
+              aria-pressed={toolMode === 'fill_object'}
+              data-testid="fill-object-btn"
+              className={`shrink-0 rounded-md border p-2.5 transition disabled:opacity-40 ${
+                toolMode === 'fill_object'
+                  ? 'border-blue-500 bg-blue-600 text-white'
+                  : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
+              }`}
+            >
+              <PaintBucket size={16} />
             </button>
           </Tip>
           <Tip label={t('button.copy')} desc={t('tooltip.copy')}>
@@ -203,9 +224,9 @@ export function OutputEditor({
               onClick={onCopySelection}
               disabled={readOnly || selectedCells.size === 0}
               data-testid="copy-selection-btn"
-              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <Copy size={14} />
+              <Copy size={16} />
             </button>
           </Tip>
           <Tip label={t('button.cut')} desc={t('tooltip.cut')}>
@@ -214,9 +235,9 @@ export function OutputEditor({
               onClick={onCutSelection}
               disabled={readOnly || selectedCells.size === 0}
               data-testid="cut-selection-btn"
-              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <Scissors size={14} />
+              <Scissors size={16} />
             </button>
           </Tip>
           <Tip label={t('button.paste')} desc={t('tooltip.paste')}>
@@ -225,9 +246,20 @@ export function OutputEditor({
               onClick={onPasteSelection}
               disabled={readOnly || !clipboard}
               data-testid="paste-selection-btn"
-              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <ClipboardPaste size={14} />
+              <ClipboardPaste size={16} />
+            </button>
+          </Tip>
+          <Tip label={t('button.rotate')} desc={t('tooltip.rotate')}>
+            <button
+              type="button"
+              onClick={onRotateSelection}
+              disabled={readOnly || selectedCells.size === 0}
+              data-testid="rotate-selection-btn"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <RotateCw size={16} />
             </button>
           </Tip>
           <span className="mx-1 h-5 w-px bg-gray-700" />
@@ -237,9 +269,9 @@ export function OutputEditor({
               onClick={onReset}
               disabled={readOnly}
               data-testid="reset-btn"
-              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
+              className="shrink-0 rounded-md border border-gray-700 bg-gray-800 p-2.5 text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:opacity-40"
             >
-              <RotateCcw size={14} />
+              <Undo2 size={16} />
             </button>
           </Tip>
         </div>

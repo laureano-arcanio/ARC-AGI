@@ -6,6 +6,7 @@ import { createGrid } from '../utils'
 import { PreSolverWizard } from '../components/PreSolverWizard'
 import { useTranslation } from '../../../lib/i18n'
 import type { CognitiveIntent, GridData } from '../types'
+import { DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH } from '../types'
 
 function makePreNodeId(n: number): string {
   return `pre_node_${String(n).padStart(3, '0')}`
@@ -67,7 +68,7 @@ export function HypothesizePage() {
       ? makePreNodeId(nodeIdCounter.current - 1)
       : null
     nodeIdCounter.current += 1
-    const snapshot: GridData = createGrid(1, 1)
+    const snapshot: GridData = createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH)
     postEventWithRetry({
       userId,
       taskId,

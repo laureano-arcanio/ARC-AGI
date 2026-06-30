@@ -8,6 +8,8 @@ type GridCellProps = {
   size: number
   showNumber?: boolean
   selected?: boolean
+  isGhost?: boolean
+  isMovingAway?: boolean
   onClick?: (x: number, y: number) => void
   onMouseDown?: (x: number, y: number) => void
   onMouseEnter?: (x: number, y: number) => void
@@ -20,6 +22,8 @@ export function GridCell({
   size,
   showNumber = false,
   selected = false,
+  isGhost = false,
+  isMovingAway = false,
   onClick,
   onMouseDown,
   onMouseEnter,
@@ -29,6 +33,23 @@ export function GridCell({
   const handleClick = onClick ? () => onClick(x, y) : undefined
   const handleMouseDown = onMouseDown ? () => onMouseDown(x, y) : undefined
   const handleMouseEnter = onMouseEnter ? () => onMouseEnter(x, y) : undefined
+
+  let outlineStyle = 'none'
+  let outlineOffset = '-2px'
+  let opacity = 1
+
+  if (isGhost) {
+    outlineStyle = `2px solid ${background}`
+    outlineOffset = '-2px'
+    opacity = 0.4
+  } else if (selected) {
+    outlineStyle = '2px solid #f97316'
+    outlineOffset = '-2px'
+  }
+
+  if (isMovingAway) {
+    opacity = 0.3
+  }
 
   return (
     <div
@@ -49,8 +70,9 @@ export function GridCell({
         lineHeight: `${size}px`,
         userSelect: 'none',
         cursor: onClick || onMouseDown ? 'pointer' : 'default',
-        outline: selected ? '2px solid #f97316' : 'none',
-        outlineOffset: '-2px',
+        outline: outlineStyle,
+        outlineOffset: outlineOffset,
+        opacity: opacity,
       }}
     >
       {showNumber ? symbol : ''}

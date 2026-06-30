@@ -255,7 +255,7 @@ describe('ArcLabPage', () => {
     // Reset directly — no confirm dialog
     fireEvent.click(screen.getByTestId('reset-btn'))
     expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
-    expect(sizeInput.value).toBe('8x8')
+    expect(sizeInput.value).toBe('3x3')
     // Hypothesis input is shown again (at root)
     expect(screen.getByTestId('hypothesis-submit')).toBeInTheDocument()
   })
@@ -369,22 +369,14 @@ describe('ArcLabPage', () => {
     expect(navigate).not.toHaveBeenCalled()
   })
 
-  it('abandons: logs a timeline event and navigates home on confirm', async () => {
+  it('abandons: navigates home on confirm without creating a timeline event', async () => {
     const { navigate } = renderPage()
     await waitForTask()
-    // Submit hypothesis first so timeline has extra node
-    fireEvent.change(screen.getByTestId('hypothesis-textarea'), {
-      target: { value: 'one two three four five' },
-    })
-    fireEvent.click(screen.getByTestId('hypothesis-submit'))
-
     const initialNodes = screen.getAllByTestId(/timeline-node-/).length
     fireEvent.click(screen.getByTestId('abandon-btn'))
     fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
     expect(navigate).toHaveBeenCalledWith('/my-tasks')
-    const nodes = screen.getAllByTestId(/timeline-node-/)
-    expect(nodes.length).toBe(initialNodes + 1)
-    expect(nodes[nodes.length - 1].parentElement!.textContent).toContain('Abandon')
+    expect(screen.getAllByTestId(/timeline-node-/).length).toBe(initialNodes)
   })
 
   it('shows pivot overlay on first action after resume and lets action go through after reflection', async () => {

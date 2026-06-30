@@ -210,4 +210,38 @@ export function parseCellKey(key: string): { x: number; y: number } {
   return { x, y }
 }
 
+export function rotateSelection(
+  grid: GridData,
+  selectedCells: Set<string>,
+): { outputGrid: GridData; newSelected: Set<string> } {
+  const keys = Array.from(selectedCells).map(parseCellKey)
+  const xs = keys.map((k) => k.x)
+  const ys = keys.map((k) => k.y)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const h = maxX - minX + 1
+  const outputGrid = cloneGrid(grid)
+  const cellSymbols: Record<string, number> = {}
+  for (const key of selectedCells) {
+    const { x, y } = parseCellKey(key)
+    cellSymbols[key] = outputGrid[x]?.[y] ?? 0
+    outputGrid[x][y] = 0
+  }
+  const newSelected = new Set<string>()
+  for (const { x, y } of keys) {
+    const i = x - minX
+    const j = y - minY
+    const newI = j
+    const newJ = h - 1 - i
+    const nx = minX + newI
+    const ny = minY + newJ
+    if (nx >= 0 && nx < outputGrid.length && ny >= 0 && ny < outputGrid[nx].length) {
+      outputGrid[nx][ny] = cellSymbols[cellKey(x, y)]
+      newSelected.add(cellKey(nx, ny))
+    }
+  }
+  return { outputGrid, newSelected }
+}
+
 

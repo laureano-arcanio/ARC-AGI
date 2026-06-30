@@ -1,5 +1,7 @@
 import type { GraphNode, GraphTrigger } from '../../shared/types/arc-graph'
 import type { EventRead } from './types'
+import { createGrid } from '../arc-lab/utils'
+import { DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH } from '../arc-lab/types'
 
 export function eventsToGraphNodes(events: EventRead[]): GraphNode[] {
   const latest = new Map<string, GraphNode>()
@@ -57,7 +59,7 @@ export function synthesizeGraphNodes(nodes: GraphNode[]): GraphNode[] {
           text: hypothesisText,
           details: { isPreSolverFinal: true },
         },
-        stateSnapshot: [[0]],
+        stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
         timestamp,
       })
     }

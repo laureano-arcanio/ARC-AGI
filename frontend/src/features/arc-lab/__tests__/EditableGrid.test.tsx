@@ -97,7 +97,7 @@ describe('EditableGrid', () => {
     expect(onSelectionChange).toHaveBeenCalledWith(new Set(['1,2']))
   })
 
-  it('grows selection on mouseenter while dragging', () => {
+  it('does not grow selection on mouseenter when dragging from a selected cell (starts move)', () => {
     const onSelectionChange = vi.fn()
     const selected = new Set(['0,0'])
     render(
@@ -113,10 +113,48 @@ describe('EditableGrid', () => {
     const cell00 = screen.getByTestId('0,0')
     fireEvent.mouseDown(cell00)
     fireEvent.mouseEnter(screen.getByTestId('0,1'))
-    expect(onSelectionChange).toHaveBeenLastCalledWith(new Set(['0,0', '0,1']))
+    // Dragging from a selected cell starts a move — no selection change
+    expect(onSelectionChange).not.toHaveBeenCalledWith(new Set(['0,0', '0,1']))
   })
 
-  it('marks selected cells with outline', () => {
+  it('grows selection on mouseenter when dragging from an unselected cell', () => {
+    const onSelectionChange = vi.fn()
+    render(
+      <EditableGrid
+        grid={grid3}
+        toolMode="select"
+        showNumbers={false}
+        selectedCells={new Set()}
+        onCellClick={vi.fn()}
+        onSelectionChange={onSelectionChange}
+      />,
+    )
+    fireEvent.mouseDown(screen.getByTestId('1,1'))
+    fireEvent.mouseEnter(screen.getByTestId('1,2'))
+    expect(onSelectionChange).toHaveBeenLastCalledWith(new Set(['1,1', '1,2']))
+  })
+
+  it('calls onMoveSelection when dragging from a selected cell', () => {
+    const onMoveSelection = vi.fn()
+    const selected = new Set(['0,0', '0,1'])
+    render(
+      <EditableGrid
+        grid={grid3}
+        toolMode="select"
+        showNumbers={false}
+        selectedCells={selected}
+        onCellClick={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onMoveSelection={onMoveSelection}
+      />,
+    )
+    fireEvent.mouseDown(screen.getByTestId('0,0'))
+    fireEvent.mouseEnter(screen.getByTestId('1,2'))
+    fireEvent.mouseUp(window)
+    expect(onMoveSelection).toHaveBeenCalledWith(1, 2)
+  })
+
+  it('selects single cell on click in select mode (no drag)', () => {
     render(
       <EditableGrid
         grid={grid3}

@@ -20,6 +20,7 @@ import {
   gridWidth,
   parseCellKey,
   parseSize,
+  rotateSelection,
   selectObject,
   serializeGridToGridObject,
 } from '../utils'
@@ -87,6 +88,8 @@ type Action =
   | { type: 'FILL_SELECTED' }
   | { type: 'COPY_SELECTION' }
   | { type: 'CUT_SELECTION' }
+  | { type: 'MOVE_SELECTION'; dx: number; dy: number }
+  | { type: 'ROTATE_SELECTION' }
   | { type: 'PASTE_SELECTION' }
   | { type: 'SET_MESSAGE'; message: ToastMessage | null }
   | { type: 'DISMISS_MESSAGE' }
@@ -99,9 +102,7 @@ type Action =
   | { type: 'LOAD_PRE_SOLVER_EVENTS'; nodes: GraphNode[] }
   | { type: 'RESTORE_STATE'; eventsByTest: Record<number, GraphNode[]>; correctPairs: Record<number, boolean> }
   | { type: 'ADD_BRANCH_PIVOT'; text: string; parentNodeId: string }
-  | { type: 'ADD_RESUME_NODE' }
-
-function makeNodeId(n: number): string {
+  function makeNodeId(n: number): string {
   return `node_${String(n).padStart(3, '0')}`
 }
 
@@ -459,28 +460,6 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxGiveUp]!, true) }
     }
 
-    case 'ADD_RESUME_NODE': {
-      const idx = state.currentTestIndex
-      const nodes = state.graphNodesByTest[idx] ?? []
-      const nextId = state.nextNodeIdByTest[idx] ?? 0
-      const id = makeNodeId(nextId)
-      const resumeNode: GraphNode = {
-        id,
-        trigger: { kind: 'mechanical', action: 'resume' },
-        stateSnapshot: cloneGrid(state.outputGrid),
-        parentId: state.activeNodeIdByTest[idx] ?? null,
-        timestamp: Date.now(),
-        testPairIndex: idx,
-      }
-      return {
-        ...state,
-        graphNodesByTest: { ...state.graphNodesByTest, [idx]: [...nodes, resumeNode] },
-        activeNodeIdByTest: { ...state.activeNodeIdByTest, [idx]: id },
-        nextNodeIdByTest: { ...state.nextNodeIdByTest, [idx]: nextId + 1 },
-        ...updateHistory(state, id, true),
-      }
-    }
-
     case 'CELL_CLICK': {
       if (state.toolMode === 'edit') {
         const outputGrid = cloneGrid(state.outputGrid)
@@ -547,6 +526,46 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           toolMode: 'select',
           ...graph,
           ...updateHistory(state, graph.activeNodeIdByTest![state.currentTestIndex]!, true),
+        }
+      }
+      if (state.toolMode === 'fill_object') {
+        const cells = selectObject(state.outputGrid, action.x, action.y)
+        if (cells.size === 0) {
+          return { ...state, toolMode: 'edit', selectedCells: new Set() }
+        }
+        const symbol = state.outputGrid[action.x]?.[action.y] ?? 0
+        const outputGrid = cloneGrid(state.outputGrid)
+        for (const key of cells) {
+          const { x, y } = parseCellKey(key)
+          if (x >= 0 && x < outputGrid.length && y >= 0 && y < outputGrid[x].length) {
+            outputGrid[x][y] = state.selectedSymbol
+          }
+        }
+        const idxFillObj = state.currentTestIndex
+        const graph1 = addNode(
+          { ...state, outputGrid },
+          {
+            kind: 'mechanical',
+            action: 'select_object',
+            details: {
+              cells: Array.from(cells).map(parseCellKey),
+              symbol,
+              count: cells.size,
+            },
+          },
+        )
+        const stateAfterSelect: ArcLabState = { ...state, ...graph1 } as ArcLabState
+        const graph2 = addNode(
+          { ...stateAfterSelect, outputGrid },
+          { kind: 'mechanical', action: 'fill_selected', details: { count: cells.size, symbol: state.selectedSymbol } },
+        )
+        return {
+          ...state,
+          outputGrid,
+          selectedCells: cells,
+          toolMode: 'select',
+          ...graph2,
+          ...updateHistory(state, graph2.activeNodeIdByTest![idxFillObj]!, true),
         }
       }
       if (state.toolMode === 'area_select') {
@@ -635,6 +654,47 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { kind: 'mechanical', action: 'cut_selection', details: { width: w, height: h, cellCount: state.selectedCells.size } },
       )
       return { ...state, outputGrid, clipboard, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxCutSel]!, true) }
+    }
+
+    case 'MOVE_SELECTION': {
+      if (state.selectedCells.size === 0) return state
+      const outputGrid = cloneGrid(state.outputGrid)
+      const cells = Array.from(state.selectedCells).map(parseCellKey)
+      const cellValues: Array<{ x: number; y: number; symbol: number }> = []
+      for (const { x, y } of cells) {
+        cellValues.push({ x, y, symbol: outputGrid[x]?.[y] ?? 0 })
+      }
+      for (const { x, y } of cells) {
+        if (x >= 0 && x < outputGrid.length && y >= 0 && y < outputGrid[x].length) {
+          outputGrid[x][y] = 0
+        }
+      }
+      const newSelected = new Set<string>()
+      for (const { x, y, symbol } of cellValues) {
+        const tx = x + action.dx
+        const ty = y + action.dy
+        if (tx >= 0 && tx < outputGrid.length && ty >= 0 && ty < outputGrid[tx].length) {
+          outputGrid[tx][ty] = symbol
+          newSelected.add(cellKey(tx, ty))
+        }
+      }
+      const idxMove = state.currentTestIndex
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'move_selection', details: { dx: action.dx, dy: action.dy, cellCount: cellValues.length } },
+      )
+      return { ...state, outputGrid, selectedCells: newSelected, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxMove]!, true) }
+    }
+
+    case 'ROTATE_SELECTION': {
+      if (state.selectedCells.size === 0) return state
+      const { outputGrid, newSelected } = rotateSelection(state.outputGrid, state.selectedCells)
+      const idxRotate = state.currentTestIndex
+      const graph = addNode(
+        { ...state, outputGrid },
+        { kind: 'mechanical', action: 'rotate_selection', details: { cellCount: state.selectedCells.size } },
+      )
+      return { ...state, outputGrid, selectedCells: newSelected, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxRotate]!, true) }
     }
 
     case 'PASTE_SELECTION': {
@@ -794,7 +854,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           const root: GraphNode = {
             id: 'node_000',
             trigger: { kind: 'mechanical', action: 'load_task' },
-            stateSnapshot: createGrid(3, 3),
+            stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
             parentId: null,
             timestamp: Date.now(),
           }
@@ -813,7 +873,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
               ...(isUncertain ? { revisionType: 'uncertain' } : {}),
             },
           },
-          stateSnapshot: [[0]],
+          stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
           timestamp: Date.now(),
         }
         graphNodesByTest[idx] = [...combined, hypothesisFinal]
@@ -931,12 +991,19 @@ function getNodeLabel(trigger: GraphTrigger): string {
     }
     case 'copy_selection':
       return 'Copy sel'
+    case 'cut_selection':
+      return 'Cut sel'
     case 'paste_selection':
       return 'Paste'
+    case 'move_selection': {
+      const dx = Number(trigger.details?.dx ?? 0)
+      const dy = Number(trigger.details?.dy ?? 0)
+      return `Move (${dx},${dy})`
+    }
+    case 'rotate_selection':
+      return 'Rotate 90°'
     case 'abandon':
       return 'Pause'
-    case 'resume':
-      return 'Resume'
     case 'give_up':
       return 'Abandon'
     case 'submit': {
@@ -1190,7 +1257,7 @@ export function ArcLabPage() {
                 ...(isUncertain ? { revisionType: 'uncertain' } : {}),
               },
             },
-            stateSnapshot: createGrid(1, 1),
+            stateSnapshot: createGrid(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH),
             timestamp: Date.now(),
           })
         }
@@ -1212,7 +1279,6 @@ export function ArcLabPage() {
       }
 
       dispatch({ type: 'RESTORE_STATE', eventsByTest, correctPairs })
-      dispatch({ type: 'ADD_RESUME_NODE' })
     }).catch(() => {})
   }, [userId, taskId, urlAttemptId, state.train.length])
 
@@ -1413,7 +1479,6 @@ export function ArcLabPage() {
 
   const handleAbandonConfirm = () => {
     setAbandonOpen(false)
-    dispatch({ type: 'ABANDON' })
     navigate('/my-tasks')
   }
 
@@ -1452,6 +1517,8 @@ export function ArcLabPage() {
   const copyCounterRef = useRef(0)
   const cutCounterRef = useRef(0)
   const pasteCounterRef = useRef(0)
+  const moveCounterRef = useRef(0)
+  const rotateCounterRef = useRef(0)
   const resetCounterRef = useRef(0)
 
   const handleCopySelection = () => {
@@ -1470,6 +1537,18 @@ export function ArcLabPage() {
     if (interceptFailureAnalysis()) return
     if (!shouldDispatchEvent(`paste_selection:${++pasteCounterRef.current}`)) return
     dispatch({ type: 'PASTE_SELECTION' })
+  }
+
+  const handleRotateSelection = () => {
+    if (interceptFailureAnalysis()) return
+    if (!shouldDispatchEvent(`rotate_selection:${++rotateCounterRef.current}`)) return
+    dispatch({ type: 'ROTATE_SELECTION' })
+  }
+
+  const handleMoveSelection = (dx: number, dy: number) => {
+    if (interceptFailureAnalysis()) return
+    if (!shouldDispatchEvent(`move_selection:${++moveCounterRef.current}:${dx}:${dy}`)) return
+    dispatch({ type: 'MOVE_SELECTION', dx, dy })
   }
 
   const accessDenied =
@@ -1631,6 +1710,8 @@ export function ArcLabPage() {
               onCopySelection={handleCopySelection}
               onCutSelection={handleCutSelection}
               onPasteSelection={handlePasteSelection}
+              onRotateSelection={handleRotateSelection}
+              onMoveSelection={handleMoveSelection}
               onReset={handleReset}
               onPrev={() => dispatch({ type: 'NAVIGATE_PREV' })}
               onNext={() => dispatch({ type: 'NAVIGATE_NEXT' })}
