@@ -486,11 +486,12 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           lastNode.trigger.action === 'cell_paint'
         ) {
           const prevCells = (lastNode.trigger.details?.cells as Array<{ x: number; y: number; symbol: number }>) ?? []
+          const newCells = [...prevCells, cellEntry]
           const updatedNode: GraphNode = {
             ...lastNode,
             trigger: {
               ...lastNode.trigger,
-              details: { cells: [...prevCells, cellEntry] },
+              details: { cells: newCells, count: newCells.length },
             },
             stateSnapshot: cloneGrid(outputGrid),
             timestamp: Date.now(),
@@ -500,7 +501,7 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         }
         const graph = addNode(
           { ...state, outputGrid },
-          { kind: 'mechanical', action: 'cell_paint', details: { cells: [cellEntry] } },
+          { kind: 'mechanical', action: 'cell_paint', details: { cells: [cellEntry], count: 1 } },
         )
         return { ...state, outputGrid, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idx]!, true) }
       }
@@ -862,7 +863,8 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
       let hasNewNodes = false
       const { nodes: preNodes } = action
       const { text, isUncertain } = getFinalHypothesis(preNodes)
-      let seq = state.sequenceCounter
+      const maxPreSeq = preNodes.reduce((m, n) => Math.max(m, n.sequenceIndex ?? 0), 0)
+      let seq = Math.max(state.sequenceCounter, maxPreSeq + 1)
 
       for (let idx = 0; idx < testCount; idx++) {
         const existingIds = new Set(graphNodesByTest[idx]?.map((n) => n.id) ?? [])
@@ -884,6 +886,14 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
           }
           seq++
           nodes = [root, ...nodes]
+        } else if (preNodes.length > 0) {
+          const existing = nodes.find((n) => n.id === 'node_000')!
+          if (existing.sequenceIndex <= maxPreSeq) {
+            nodes = nodes.map((n) =>
+              n.id === 'node_000' ? { ...n, sequenceIndex: maxPreSeq + 1 } : n,
+            )
+            seq = maxPreSeq + 2
+          }
         }
         const combined = [...nodes, ...newNodes]
         const hypothesisFinal: GraphNode = {
