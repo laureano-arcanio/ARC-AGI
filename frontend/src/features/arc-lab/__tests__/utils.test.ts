@@ -158,12 +158,12 @@ describe('getConnectedComponent', () => {
     expect(getConnectedComponent(grid, 0, 1)).toEqual(new Set(['0,1']))
   })
 
-  it('ignores diagonal neighbor of different selection (4-dir only)', () => {
+  it('includes diagonal neighbor of same color (8-dir connectivity)', () => {
     const grid = [
       [1, 0],
       [0, 1],
     ]
-    expect(getConnectedComponent(grid, 0, 0)).toEqual(new Set(['0,0']))
+    expect(getConnectedComponent(grid, 0, 0)).toEqual(new Set(['0,0', '1,1']))
   })
 
   it('includes diagonal cell only if connected via 4-dir path', () => {

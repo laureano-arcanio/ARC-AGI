@@ -57,6 +57,10 @@ export function floodfill(
         flow(i + 1, j)
         flow(i, j - 1)
         flow(i, j + 1)
+        flow(i - 1, j - 1)
+        flow(i - 1, j + 1)
+        flow(i + 1, j - 1)
+        flow(i + 1, j + 1)
       }
     }
   }
@@ -139,7 +143,10 @@ export function getConnectedComponent(
     visited.add(key)
     if (grid[x][y] !== target) continue
     result.add(key)
-    stack.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1])
+    stack.push(
+      [x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1],
+      [x - 1, y - 1], [x - 1, y + 1], [x + 1, y - 1], [x + 1, y + 1],
+    )
   }
 
   return result
@@ -173,7 +180,10 @@ export function selectObject(
 
   while (stack.length > 0) {
     const [x, y] = stack.pop()!
-    for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+    for (const [nx, ny] of [
+      [x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1],
+      [x - 1, y - 1], [x - 1, y + 1], [x + 1, y - 1], [x + 1, y + 1],
+    ]) {
       if (nx >= 0 && nx < h && ny >= 0 && ny < w) {
         const key = cellKey(nx, ny)
         if (!outside.has(key) && !boundary.has(key)) {
