@@ -1,6 +1,7 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, Copy, LassoSelect, MoveDiagonal, PaintBucket, RotateCw, Scissors, SquareDashed, Undo2 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useEffect } from 'react'
 import { EditableGrid } from './EditableGrid'
 import { SymbolPicker } from './SymbolPicker'
 import { formatSize } from '../utils'
@@ -35,7 +36,7 @@ type OutputEditorProps = {
   canGoNext: boolean
 }
 
-function Tip({ label, desc, children }: { label: string; desc: string; children: ReactNode }) {
+function Tip({ label, desc, shortcut, children }: { label: string; desc: string; shortcut?: string; children: ReactNode }) {
   return (
     <Tooltip.Root delayDuration={0}>
       <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
@@ -49,6 +50,13 @@ function Tip({ label, desc, children }: { label: string; desc: string; children:
         >
           <p className="text-xs font-medium text-gray-200">{label}</p>
           <p className="text-[10px] text-gray-400">{desc}</p>
+          {shortcut && (
+            <p className="mt-1 text-[10px] leading-none text-gray-500">
+              <kbd className="rounded border border-gray-600 bg-gray-700 px-1 py-0.5 font-mono text-gray-300">
+                {shortcut}
+              </kbd>
+            </p>
+          )}
         </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>
@@ -88,11 +96,56 @@ export function OutputEditor({
     if (e.key === 'Enter') onResize()
   }
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (readOnly) return
+
+      const isMod = e.ctrlKey || e.metaKey
+      if (!isMod) return
+
+      switch (e.key.toLowerCase()) {
+        case 'z': {
+          e.preventDefault()
+          if (e.shiftKey) {
+            onNext()
+          } else {
+            onPrev()
+          }
+          break
+        }
+        case 'y': {
+          e.preventDefault()
+          onNext()
+          break
+        }
+        case 'c': {
+          e.preventDefault()
+          onCopySelection()
+          break
+        }
+        case 'v': {
+          e.preventDefault()
+          onPasteSelection()
+          break
+        }
+        case 'x': {
+          e.preventDefault()
+          onCutSelection()
+          break
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [readOnly, onPrev, onNext, onCopySelection, onPasteSelection, onCutSelection])
+
   return (
     <Tooltip.Provider delayDuration={0}>
     <div data-testid="output-editor" className="p-4">
       <div className="flex items-center justify-center gap-2">
-        <Tip label={t('button.prev')} desc={t('tooltip.prev')}>
+        <Tip label={t('button.prev')} desc={t('tooltip.prev')} shortcut="Ctrl+Z">
           <button
             type="button"
             onClick={onPrev}
@@ -118,7 +171,7 @@ export function OutputEditor({
             />
           </div>
 
-        <Tip label={t('button.next')} desc={t('tooltip.next')}>
+        <Tip label={t('button.next')} desc={t('tooltip.next')} shortcut="Ctrl+Y">
           <button
             type="button"
             onClick={onNext}
@@ -218,7 +271,7 @@ export function OutputEditor({
               <PaintBucket size={16} />
             </button>
           </Tip>
-          <Tip label={t('button.cut')} desc={t('tooltip.cut')}>
+          <Tip label={t('button.cut')} desc={t('tooltip.cut')} shortcut="Ctrl+X">
             <button
               type="button"
               onClick={onCutSelection}
@@ -229,7 +282,7 @@ export function OutputEditor({
               <Scissors size={16} />
             </button>
           </Tip>
-          <Tip label={t('button.copy')} desc={t('tooltip.copy')}>
+          <Tip label={t('button.copy')} desc={t('tooltip.copy')} shortcut="Ctrl+C">
             <button
               type="button"
               onClick={onCopySelection}
@@ -240,7 +293,7 @@ export function OutputEditor({
               <Copy size={16} />
             </button>
           </Tip>
-          <Tip label={t('button.paste')} desc={t('tooltip.paste')}>
+          <Tip label={t('button.paste')} desc={t('tooltip.paste')} shortcut="Ctrl+V">
             <button
               type="button"
               onClick={onPasteSelection}
