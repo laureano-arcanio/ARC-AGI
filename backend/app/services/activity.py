@@ -31,6 +31,7 @@ class ActivityService:
         summary = [
             EventTypeSummary(type=r.type, count=r.count)
             for r in summary_rows
+            if r.type is not None
         ]
 
         total = sum(b.count for b in timeline)

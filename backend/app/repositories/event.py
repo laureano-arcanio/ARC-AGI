@@ -149,7 +149,7 @@ class EventRepository(BaseRepository[Event]):
         action_expr = Event.trigger["action"].as_string()
         query = (
             select(action_expr.label("type"), func.count().label("count"))
-            .where(Event.timestamp >= since)
+            .where(Event.timestamp >= since, action_expr.isnot(None))
             .group_by(action_expr)
             .order_by(func.count().desc())
         )
