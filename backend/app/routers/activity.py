@@ -3,7 +3,10 @@ from fastapi import APIRouter, Depends, Query
 from app.dependencies.auth import AdminDep
 from app.dependencies.database import DatabaseSession
 from app.repositories.event import EventRepository
-from app.schemas.activity import ActivityStats
+from app.schemas.activity import (
+    ActivityBatchBreakdown,
+    ActivityStats,
+)
 from app.services.activity import ActivityService
 
 router = APIRouter(prefix="/api/v1/activity", tags=["activity"])
@@ -26,3 +29,11 @@ async def get_activity_stats(
     if event_types:
         parsed = [t.strip() for t in event_types.split(",") if t.strip()]
     return await service.get_stats(event_types=parsed)
+
+
+@router.get("/batch-breakdown", response_model=ActivityBatchBreakdown)
+async def get_batch_breakdown(
+    service: ActivityService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
+) -> ActivityBatchBreakdown:
+    return await service.get_batch_breakdown()
