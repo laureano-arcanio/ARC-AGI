@@ -20,7 +20,8 @@ export function ActivityPage() {
   const { t } = useTranslation()
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
 
-  const { data, isLoading, error } = useActivityStats()
+  const activeFilters = selectedTypes.size > 0 ? Array.from(selectedTypes) : undefined
+  const { data, isLoading, error } = useActivityStats(activeFilters)
 
   const toggleType = (type: string) => {
     setSelectedTypes((prev) => {

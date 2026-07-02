@@ -1,5 +1,4 @@
 from collections import defaultdict
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,18 +8,6 @@ from app.models.batch import Batch, BatchAssignment
 from app.models.event import Event
 from app.models.user import User
 from app.schemas.batch import BatchLeaderboardEntry
-
-
-def _compute_attempt_status(trigger: dict[str, Any]) -> str | None:
-    action = trigger.get("action", "")
-    details = trigger.get("details", {})
-    if action == "submit":
-        return "completed" if details.get("correct") else "failed"
-    if action == "abandon":
-        return "abandoned"
-    if action == "give_up":
-        return "abandoned"
-    return None
 
 
 class LeaderboardService:
@@ -61,9 +48,6 @@ class LeaderboardService:
         attempts_result = await self.db_session.execute(attempts_query)
         attempts = list(attempts_result.scalars().all())
 
-        if not attempts:
-            return []
-
         attempt_ids = [a.id for a in attempts]
         events_query = (
             select(Event)
@@ -80,16 +64,8 @@ class LeaderboardService:
             events_by_attempt[e.attempt_id].append(e)
 
         attempt_task: dict[int, tuple[int, str]] = {}
-        attempt_status: dict[int, str | None] = {}
         for a in attempts:
             attempt_task[a.id] = (a.user_id, a.task_id)
-            attempt_evts = events_by_attempt.get(a.id, [])
-            if attempt_evts:
-                attempt_status[a.id] = _compute_attempt_status(
-                    attempt_evts[-1].trigger
-                )
-            else:
-                attempt_status[a.id] = None
 
         user_completed: dict[int, set[str]] = defaultdict(set)
         user_abandoned: dict[int, set[str]] = defaultdict(set)
@@ -97,26 +73,32 @@ class LeaderboardService:
         user_total_time: dict[int, int] = defaultdict(int)
         user_total_actions: dict[int, int] = defaultdict(int)
 
-        for aid, status in attempt_status.items():
-            uid, tid = attempt_task[aid]
+        for aid, (uid, tid) in attempt_task.items():
             evts = events_by_attempt.get(aid, [])
-            if evts:
-                first_ts = evts[0].timestamp
-                last_ts = evts[-1].timestamp
-                user_total_time[uid] += max(0, last_ts - first_ts)
-                user_total_actions[uid] += len(evts)
+            if not evts:
+                continue
 
-            if status == "completed":
+            first_ts = evts[0].timestamp
+            last_ts = evts[-1].timestamp
+            user_total_time[uid] += max(0, last_ts - first_ts)
+            user_total_actions[uid] += len(evts)
+
+            has_correct_submit = False
+            has_abandon = False
+            for e in evts:
+                action = e.trigger.get("action", "")
+                details = e.trigger.get("details", {})
+                if action == "submit" and details.get("correct") is True:
+                    has_correct_submit = True
+                elif action in ("abandon", "give_up"):
+                    has_abandon = True
+
+            if has_correct_submit:
                 user_completed[uid].add(tid)
-            elif status == "abandoned":
-                if tid not in user_completed[uid]:
-                    user_abandoned[uid].add(tid)
+            elif has_abandon:
+                user_abandoned[uid].add(tid)
             else:
-                if (
-                    tid not in user_completed[uid]
-                    and tid not in user_abandoned[uid]
-                ):
-                    user_incomplete[uid].add(tid)
+                user_incomplete[uid].add(tid)
 
         result: list[BatchLeaderboardEntry] = []
         for uid, email in users.items():
