@@ -1,3 +1,4 @@
+import unittest
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,6 +25,7 @@ from app.schemas.user import (
     UserPasswordUpdate,
     UserRead,
 )
+from app.services.activity import ActivityService
 from app.services.attempt import AttemptService
 from app.services.event import EventService
 from app.services.example_table import ExampleTableService
@@ -406,6 +408,63 @@ def attempt_service(attempt_mock_repo: AsyncMock) -> AttemptService:
     svc = AttemptService(repository=attempt_mock_repo)
     svc.read_schema = AttemptRead
     return svc
+
+
+# ---- Activity Service Tests ----
+
+
+@pytest.fixture
+def activity_mock_repo() -> AsyncMock:
+    from datetime import datetime
+    from types import SimpleNamespace
+
+    repo = AsyncMock()
+    repo.get_timeline.return_value = [
+        SimpleNamespace(bucket=datetime(2024, 1, 1, 10, 0, 0), count=5),
+        SimpleNamespace(bucket=datetime(2024, 1, 1, 11, 0, 0), count=3),
+    ]
+    repo.get_last_event_timestamp.return_value = 1704067200000
+    repo.get_active_users_count.return_value = 3
+    repo.get_event_type_summary.return_value = [
+        SimpleNamespace(type="cell_paint", count=8),
+    ]
+    return repo
+
+
+@pytest.fixture
+def activity_service(activity_mock_repo: AsyncMock) -> ActivityService:
+    return ActivityService(event_repo=activity_mock_repo)
+
+
+class TestActivityServiceGetStats:
+    async def test_returns_stats(
+        self, activity_service: ActivityService, activity_mock_repo: AsyncMock
+    ) -> None:
+        from app.schemas.activity import ActivityStats
+
+        result = await activity_service.get_stats()
+        assert isinstance(result, ActivityStats)
+        assert len(result.timeline) == 2
+        assert result.timeline[0].bucket == "2024-01-01T10:00:00"
+        assert result.last_event_timestamp == 1704067200000
+        assert result.active_users == 3
+        assert len(result.event_type_summary) == 1
+        assert result.total_events == 8
+        activity_mock_repo.get_timeline.assert_awaited_once()
+        activity_mock_repo.get_last_event_timestamp.assert_awaited_once()
+        activity_mock_repo.get_active_users_count.assert_awaited_once()
+        activity_mock_repo.get_event_type_summary.assert_awaited_once()
+
+    async def test_filters_by_event_types(
+        self, activity_service: ActivityService, activity_mock_repo: AsyncMock
+    ) -> None:
+        await activity_service.get_stats(event_types=["cell_paint"])
+        activity_mock_repo.get_timeline.assert_awaited_with(
+            ["cell_paint"], unittest.mock.ANY
+        )
+        activity_mock_repo.get_event_type_summary.assert_awaited_with(
+            ["cell_paint"], unittest.mock.ANY
+        )
 
 
 class TestAttemptServiceCreate:

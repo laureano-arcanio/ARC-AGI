@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Float, cast, func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.models.event import Event
@@ -105,3 +105,55 @@ class EventRepository(BaseRepository[Event]):
         result = await self.db_session.execute(query)
         row = result.one_or_none()
         return row[0] if row else None
+
+    async def get_timeline(
+        self,
+        event_types: list[str] | None,
+        since: int,
+    ) -> list[Any]:
+        bucket = func.date_trunc(
+            "hour",
+            func.to_timestamp(cast(Event.timestamp, Float) / 1000),
+        )
+        query = (
+            select(bucket.label("bucket"), func.count().label("count"))
+            .where(Event.timestamp >= since)
+            .group_by(bucket)
+            .order_by(bucket)
+        )
+        if event_types:
+            query = query.where(
+                Event.trigger["action"].as_string().in_(event_types)
+            )
+        result = await self.db_session.execute(query)
+        return list(result.all())
+
+    async def get_last_event_timestamp(self) -> int | None:
+        query = select(func.max(Event.timestamp))
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_active_users_count(self, since: int) -> int:
+        query = (
+            select(func.count(func.distinct(Event.user_id)))
+            .where(Event.timestamp >= since)
+        )
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none() or 0
+
+    async def get_event_type_summary(
+        self,
+        event_types: list[str] | None,
+        since: int,
+    ) -> list[Any]:
+        action_expr = Event.trigger["action"].as_string()
+        query = (
+            select(action_expr.label("type"), func.count().label("count"))
+            .where(Event.timestamp >= since)
+            .group_by(action_expr)
+            .order_by(func.count().desc())
+        )
+        if event_types:
+            query = query.where(action_expr.in_(event_types))
+        result = await self.db_session.execute(query)
+        return list(result.all())

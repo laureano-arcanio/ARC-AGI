@@ -269,6 +269,113 @@ def attempt_repo(db_session: MockAsyncSession) -> AttemptRepository:
     return AttemptRepository(db_session=db_session)
 
 
+class TestEventRepositoryGetTimeline:
+    async def test_returns_empty_list(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalars_all_result=[]))
+        result = await event_repo.get_timeline(None, 0)
+        assert result == []
+
+    async def test_returns_buckets(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        from datetime import datetime
+        from types import SimpleNamespace
+
+        dt = datetime(2024, 1, 1, 10, 0, 0)
+        db_session.set_execute_result(
+            MockResult(
+                scalars_all_result=[
+                    SimpleNamespace(bucket=dt, count=5),
+                    SimpleNamespace(bucket=datetime(2024, 1, 1, 11, 0, 0), count=3),
+                ]
+            )
+        )
+        result = await event_repo.get_timeline(None, 1704063600000)
+        assert len(result) == 2
+        assert result[0].bucket == dt
+        assert result[0].count == 5
+
+    async def test_filters_by_event_types(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalars_all_result=[]))
+        result = await event_repo.get_timeline(["cell_paint", "submit"], 0)
+        assert result == []
+
+
+class TestEventRepositoryGetLastEventTimestamp:
+    async def test_returns_timestamp_when_exists(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(
+            MockResult(scalar_one_or_none_result=1704067200000)
+        )
+        result = await event_repo.get_last_event_timestamp()
+        assert result == 1704067200000
+
+    async def test_returns_none_when_no_events(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
+        result = await event_repo.get_last_event_timestamp()
+        assert result is None
+
+
+class TestEventRepositoryGetActiveUsersCount:
+    async def test_returns_count(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=5))
+        result = await event_repo.get_active_users_count(1704063600000)
+        assert result == 5
+
+    async def test_returns_zero_when_none(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
+        result = await event_repo.get_active_users_count(1704063600000)
+        assert result == 0
+
+
+class TestEventRepositoryGetEventTypeSummary:
+    async def test_returns_summary(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        from types import SimpleNamespace
+
+        db_session.set_execute_result(
+            MockResult(
+                scalars_all_result=[
+                    SimpleNamespace(type="cell_paint", count=10),
+                    SimpleNamespace(type="submit", count=3),
+                ]
+            )
+        )
+        result = await event_repo.get_event_type_summary(None, 0)
+        assert len(result) == 2
+        assert result[0].type == "cell_paint"
+        assert result[0].count == 10
+        assert result[1].type == "submit"
+
+    async def test_returns_empty_when_no_events(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalars_all_result=[]))
+        result = await event_repo.get_event_type_summary(None, 0)
+        assert result == []
+
+    async def test_filters_by_event_types(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalars_all_result=[]))
+        result = await event_repo.get_event_type_summary(
+            ["cell_paint"], 1704063600000
+        )
+        assert result == []
+
+
 class TestAttemptRepositoryCreate:
     async def test_creates_instance(
         self, attempt_repo: AttemptRepository, db_session: MockAsyncSession

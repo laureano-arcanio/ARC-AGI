@@ -68,7 +68,9 @@ class LeaderboardService:
         total_tasks = len(task_ids)
         result: list[BatchLeaderboardEntry] = []
         for uid, email in users.items():
-            stats = user_stats.get(uid, {"total_time_ms": 0, "total_actions": 0})
+            stats = user_stats.get(uid)
+            if stats is None:
+                continue
             result.append(
                 BatchLeaderboardEntry(
                     email=email,

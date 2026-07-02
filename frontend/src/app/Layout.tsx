@@ -39,6 +39,9 @@ export function Layout({ children }: LayoutProps) {
                 <Link to="/admin/leaderboard" className="text-amber-400 transition hover:text-amber-300">
                   {t('nav.admin_leaderboard')}
                 </Link>
+                <Link to="/admin/activity" className="text-amber-400 transition hover:text-amber-300">
+                  {t('nav.admin_activity')}
+                </Link>
               </>
             )}
             {!isAdmin && userId && (

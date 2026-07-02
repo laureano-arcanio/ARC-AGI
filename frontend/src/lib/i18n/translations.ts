@@ -149,6 +149,18 @@ const es = {
   'dashboard.password_placeholder': 'Contraseña',
   'dashboard.fields_required': 'Ingresa email y contraseña.',
   'dashboard.invalid_credentials': 'Email o contraseña incorrectos.',
+  'activity.title': 'Actividad',
+  'activity.loading': 'Cargando actividad...',
+  'activity.error': 'Error al cargar actividad.',
+  'activity.last_event': 'Último evento',
+  'activity.active_users': 'Usuarios activos (5 min)',
+  'activity.total_events': 'Eventos (24h)',
+  'activity.no_events': 'Sin eventos',
+  'activity.filter_types': 'Filtrar por tipo de evento',
+  'activity.clear_filter': 'Limpiar filtro',
+  'activity.no_chart_data': 'Sin datos para mostrar',
+  'activity.events': 'Eventos',
+
   'dashboard.back': 'Volver al panel',
 
   'nav.admin': 'Usuarios',
@@ -156,6 +168,7 @@ const es = {
   'nav.admin_batches': 'Lotes',
   'nav.admin_review_pairs': 'Pares de Revisión',
   'nav.admin_leaderboard': 'Leaderboard',
+  'nav.admin_activity': 'Actividad',
   'nav.my_tasks': 'Mis Tareas',
   'nav.logout': 'Cerrar sesión',
 
@@ -562,6 +575,18 @@ const en: Record<string, string> = {
   'dashboard.password_placeholder': 'Password',
   'dashboard.fields_required': 'Enter email and password.',
   'dashboard.invalid_credentials': 'Invalid email or password.',
+  'activity.title': 'Activity',
+  'activity.loading': 'Loading activity...',
+  'activity.error': 'Error loading activity.',
+  'activity.last_event': 'Last Event',
+  'activity.active_users': 'Active Users (5 min)',
+  'activity.total_events': 'Events (24h)',
+  'activity.no_events': 'No events',
+  'activity.filter_types': 'Filter by event type',
+  'activity.clear_filter': 'Clear filter',
+  'activity.no_chart_data': 'No data to display',
+  'activity.events': 'Events',
+
   'dashboard.back': 'Back to dashboard',
 
   'nav.admin': 'Users',
@@ -569,6 +594,7 @@ const en: Record<string, string> = {
   'nav.admin_batches': 'Batches',
   'nav.admin_review_pairs': 'Review Pairs',
   'nav.admin_leaderboard': 'Leaderboard',
+  'nav.admin_activity': 'Activity',
   'nav.my_tasks': 'My Tasks',
   'nav.logout': 'Log out',
 
