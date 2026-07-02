@@ -155,6 +155,7 @@ const es = {
   'nav.admin_users': 'Usuarios',
   'nav.admin_batches': 'Lotes',
   'nav.admin_review_pairs': 'Pares de Revisión',
+  'nav.admin_leaderboard': 'Leaderboard',
   'nav.my_tasks': 'Mis Tareas',
   'nav.logout': 'Cerrar sesión',
 
@@ -567,6 +568,7 @@ const en: Record<string, string> = {
   'nav.admin_users': 'Users',
   'nav.admin_batches': 'Batches',
   'nav.admin_review_pairs': 'Review Pairs',
+  'nav.admin_leaderboard': 'Leaderboard',
   'nav.my_tasks': 'My Tasks',
   'nav.logout': 'Log out',
 

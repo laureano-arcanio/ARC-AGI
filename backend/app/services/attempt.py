@@ -154,6 +154,7 @@ class AttemptService(
                         attempt_count=summary.attempt_count,
                         solved=summary.solved,
                         status="completed" if summary.solved else "started",
+                        abandoned=summary.abandoned,
                         reviewed=len(reviewer_emails) > 0,
                         reviewer_emails=reviewer_emails,
                     ))

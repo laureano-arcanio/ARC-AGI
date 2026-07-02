@@ -36,6 +36,9 @@ export function Layout({ children }: LayoutProps) {
                 <Link to="/admin/review-pairs" className="text-amber-400 transition hover:text-amber-300">
                   {t('nav.admin_review_pairs')}
                 </Link>
+                <Link to="/admin/leaderboard" className="text-amber-400 transition hover:text-amber-300">
+                  {t('nav.admin_leaderboard')}
+                </Link>
               </>
             )}
             {!isAdmin && userId && (

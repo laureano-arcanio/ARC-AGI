@@ -29,21 +29,35 @@ export function useUsersBatchCompletion(userIds: number[]) {
     combine: (results) => {
       const completedByUser = new Map<number, Set<number>>()
       const inProgressByUser = new Map<number, Set<number>>()
+      const abandonedByUser = new Map<number, Set<number>>()
+      const completionByUser = new Map<number, Map<number, string>>()
       results.forEach((result, i) => {
         const userId = userIds[i]
         const data: BatchWithTasks[] | undefined = result.data
         const completed = new Set<number>()
         const inProgress = new Set<number>()
+        const abandoned = new Set<number>()
+        const pct = new Map<number, string>()
         if (data) {
           data.forEach((batch) => {
-            const allCompleted = batch.tasks.length > 0 && batch.tasks.every(
-              (t) => t.status === 'completed',
-            )
+            const total = batch.tasks.length
+            if (total === 0) return
+            const completedCount = batch.tasks.filter((t) => t.solved).length
+            const abandonedCount = batch.tasks.filter(
+              (t) => t.abandoned && !t.solved,
+            ).length
+            const allCompleted = completedCount === total
             const anyStarted = batch.tasks.some(
               (t) => t.status === 'started' || t.status === 'completed',
             )
+            pct.set(
+              batch.batchId,
+              `${Math.round((completedCount / total) * 100)}%`,
+            )
             if (allCompleted) {
               completed.add(batch.batchId)
+            } else if (abandonedCount > 0) {
+              abandoned.add(batch.batchId)
             } else if (anyStarted) {
               inProgress.add(batch.batchId)
             }
@@ -51,8 +65,10 @@ export function useUsersBatchCompletion(userIds: number[]) {
         }
         completedByUser.set(userId, completed)
         inProgressByUser.set(userId, inProgress)
+        abandonedByUser.set(userId, abandoned)
+        completionByUser.set(userId, pct)
       })
-      return { completedByUser, inProgressByUser }
+      return { completedByUser, inProgressByUser, abandonedByUser, completionByUser }
     },
   })
 }
