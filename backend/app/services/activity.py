@@ -157,6 +157,8 @@ class ActivityService:
                     )
                 )
 
+            tasks_data.sort(key=lambda t: t.avg_time_ms, reverse=True)
+
             if tasks_data:
                 batches_data.append(
                     BatchSolveBreakdown(
