@@ -29,3 +29,8 @@ class BatchLeaderboardEntry(BaseAPISchema):
     avg_time_ms: float
     total_actions: int
     avg_actions: float
+    completed_tasks: int = 0
+    abandoned_tasks: int = 0
+    incomplete_tasks: int = 0
+    not_started_tasks: int = 0
+    total_tasks: int = 0

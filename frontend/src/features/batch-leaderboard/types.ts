@@ -5,4 +5,9 @@ export type LeaderboardEntry = {
   avgTimeMs: number
   totalActions: number
   avgActions: number
+  completedTasks: number
+  abandonedTasks: number
+  incompleteTasks: number
+  notStartedTasks: number
+  totalTasks: number
 }

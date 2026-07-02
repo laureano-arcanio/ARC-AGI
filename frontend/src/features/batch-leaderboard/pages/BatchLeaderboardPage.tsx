@@ -1,8 +1,7 @@
-import { useState } from 'react'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useBatches } from '../../batches/queries'
-import { useBatchLeaderboard } from '../queries'
+import { useAllBatchLeaderboards } from '../queries'
+import type { LeaderboardEntry } from '../types'
 
 function formatMs(ms: number): string {
   if (ms < 1000) return `${ms}ms`
@@ -22,14 +21,90 @@ function formatAvg(ms: number): string {
   return `${minutes}m ${secs.toFixed(0)}s`
 }
 
+function rankLabel(i: number): string {
+  if (i === 0) return '🥇'
+  if (i === 1) return '🥈'
+  if (i === 2) return '🥉'
+  return `${i + 1}`
+}
+
+function LeaderboardTable({
+  batchName,
+  entries,
+  isLoading,
+}: {
+  batchName: string
+  entries: LeaderboardEntry[] | undefined
+  isLoading: boolean
+}) {
+  return (
+    <div>
+      <h2 className="mb-3 text-xl font-semibold text-gray-100">{batchName}</h2>
+      {isLoading && (
+        <div className="flex items-center gap-3 text-gray-400">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-blue-400" />
+          Loading...
+        </div>
+      )}
+      {entries && entries.length === 0 && (
+        <p className="text-gray-500">No data for this batch.</p>
+      )}
+      {entries && entries.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-gray-800">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
+              <tr>
+                <th className="px-4 py-3 font-medium">#</th>
+                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Completed</th>
+                <th className="px-4 py-3 font-medium">Abandoned</th>
+                <th className="px-4 py-3 font-medium">Incomplete</th>
+                <th className="px-4 py-3 font-medium">Not started</th>
+                <th className="px-4 py-3 font-medium">Total time</th>
+                <th className="px-4 py-3 font-medium">Avg time</th>
+                <th className="px-4 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {entries.map((entry, i) => (
+                <tr key={entry.userId} className="transition hover:bg-gray-900/50">
+                  <td className="px-4 py-3 text-gray-500">{rankLabel(i)}</td>
+                  <td className="px-4 py-3 text-gray-200">{entry.email}</td>
+                  <td className="px-4 py-3 text-green-400">
+                    {entry.completedTasks}/{entry.totalTasks}
+                  </td>
+                  <td className="px-4 py-3 text-yellow-400">
+                    {entry.abandonedTasks}
+                  </td>
+                  <td className="px-4 py-3 text-orange-400">
+                    {entry.incompleteTasks}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">
+                    {entry.notStartedTasks}
+                  </td>
+                  <td className="px-4 py-3 text-gray-300">
+                    {formatMs(entry.totalTimeMs)}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-gray-100">
+                    {formatAvg(entry.avgTimeMs)}
+                  </td>
+                  <td className="px-4 py-3 text-gray-300">
+                    {entry.totalActions}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function BatchLeaderboardPage() {
   const { t } = useTranslation()
   const { isAdmin, isLoading: authLoading } = useAuth()
-  const { data: batches, isLoading: batchesLoading } = useBatches()
-  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null)
-  const { data: leaderboard, isLoading: leaderboardLoading } = useBatchLeaderboard(selectedBatchId)
-
-  const selectedBatch = batches?.find((b) => b.id === selectedBatchId)
+  const { batches, batchesLoading, leaderboards } = useAllBatchLeaderboards()
 
   if (authLoading) {
     return (
@@ -48,74 +123,35 @@ export function BatchLeaderboardPage() {
     )
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold">Leaderboard</h1>
-
-      <div className="flex items-center gap-3">
-        <label className="text-sm text-gray-400">Batch:</label>
-        <select
-          value={selectedBatchId ?? ''}
-          onChange={(e) => setSelectedBatchId(e.target.value ? Number(e.target.value) : null)}
-          className="rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
-        >
-          <option value="">{batchesLoading ? '...' : t('admin.batches_placeholder')}</option>
-          {batches?.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-        {selectedBatch && (
-          <span className="text-xs text-gray-500">
-            {selectedBatch.taskIds.length} tasks
-          </span>
-        )}
+  if (batchesLoading) {
+    return (
+      <div className="flex items-center gap-3 text-gray-400">
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-blue-400" />
+        Loading...
       </div>
+    )
+  }
 
-      {leaderboardLoading && selectedBatchId !== null && (
-        <div className="flex items-center gap-3 text-gray-400">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-blue-400" />
-          Loading...
-        </div>
-      )}
+  if (batches.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <h1 className="text-3xl font-bold">Leaderboard</h1>
+        <p className="text-gray-500">No batches found.</p>
+      </div>
+    )
+  }
 
-      {leaderboard && leaderboard.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-gray-800">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
-              <tr>
-                <th className="px-4 py-3 font-medium">#</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Total time</th>
-                <th className="px-4 py-3 font-medium">Avg time</th>
-                <th className="px-4 py-3 font-medium">Total actions</th>
-                <th className="px-4 py-3 font-medium">Avg actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {leaderboard.map((entry, i) => (
-                <tr key={entry.userId} className="transition hover:bg-gray-900/50">
-                  <td className="px-4 py-3 text-gray-500">{i + 1}</td>
-                  <td className="px-4 py-3 text-gray-200">{entry.email}</td>
-                  <td className="px-4 py-3 text-gray-300">{formatMs(entry.totalTimeMs)}</td>
-                  <td className="px-4 py-3 font-medium text-gray-100">
-                    {formatAvg(entry.avgTimeMs)}
-                  </td>
-                  <td className="px-4 py-3 text-gray-300">{entry.totalActions}</td>
-                  <td className="px-4 py-3 text-gray-300">
-                    {entry.avgActions.toFixed(1)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {leaderboard && leaderboard.length === 0 && selectedBatchId !== null && (
-        <p className="text-gray-500">No data for this batch.</p>
-      )}
+  return (
+    <div className="flex flex-col gap-10">
+      <h1 className="text-3xl font-bold">Leaderboard</h1>
+      {batches.map((batch, index) => (
+        <LeaderboardTable
+          key={batch.id}
+          batchName={batch.name}
+          entries={leaderboards[index]?.data}
+          isLoading={leaderboards[index]?.isLoading ?? false}
+        />
+      ))}
     </div>
   )
 }
