@@ -3,14 +3,13 @@ import { getActivityStats } from './api'
 
 export const activityQueryKeys = {
   all: ['activity'] as const,
-  stats: (eventTypes?: string[]) =>
-    [...activityQueryKeys.all, 'stats', eventTypes] as const,
+  stats: () => [...activityQueryKeys.all, 'stats'] as const,
 }
 
-export function useActivityStats(eventTypes?: string[]) {
+export function useActivityStats() {
   return useQuery({
-    queryKey: activityQueryKeys.stats(eventTypes),
-    queryFn: () => getActivityStats(eventTypes),
+    queryKey: activityQueryKeys.stats(),
+    queryFn: getActivityStats,
     refetchInterval: 30_000,
   })
 }
