@@ -1293,8 +1293,7 @@ export function ArcLabPage() {
 
         nodes.push(...allPreNodes)
 
-        const existingHypothesisFinal = solverByTest[idx]?.find((n) => n.id === 'hypothesis_final')
-        if (allPreNodes.length > 0 && !existingHypothesisFinal) {
+        if (allPreNodes.length > 0) {
           const { text, isUncertain } = getFinalHypothesis(allPreNodes)
           const lastPreSeq = allPreNodes[allPreNodes.length - 1].sequenceIndex ?? 0
           nodes.push({
@@ -1340,56 +1339,46 @@ export function ArcLabPage() {
     if (userId === null) return
     const attemptId = attemptIdRef.current
     if (attemptId === null) return
-
-    let cancelled = false
-    void (async () => {
-      for (const [testIdxStr, nodes] of Object.entries(state.graphNodesByTest)) {
-        const candidates = nodes
-          .filter((node) => !node.id.startsWith('pre_node_'))
-          .filter(
-            (node) =>
-              !(node.trigger.kind === 'mechanical' && node.trigger.action === 'submit'),
-          )
-          .filter((node) => {
-            const hash = `${testIdxStr}:${node.id}:${JSON.stringify(node.trigger)}`
-            return !sentHashes.current.has(hash) && !inFlightHashes.current.has(hash)
-          })
-          .slice()
-          .sort((a, b) => (a.sequenceIndex ?? 0) - (b.sequenceIndex ?? 0))
-
-        for (const node of candidates) {
-          if (cancelled) return
-          const hash = `${testIdxStr}:${node.id}:${JSON.stringify(node.trigger)}`
-          inFlightHashes.current.add(hash)
-          try {
-            await postEventWithRetry({
-              userId,
-              taskId,
-              attemptId,
-              nodeId: node.id,
-              parentNodeId: node.parentId,
-              trigger: node.trigger,
-              stateSnapshot: node.stateSnapshot,
-              timestamp: node.timestamp,
-              testPairIndex: Number(testIdxStr),
-              sequenceIndex: node.sequenceIndex,
-            })
-            sentHashes.current.add(hash)
-          } catch {
-            if (!cancelled) {
-              dispatch({
-                type: 'SET_MESSAGE',
-                message: { kind: 'error', text: 'toast.event_save_failed' },
-              })
-            }
-          } finally {
-            inFlightHashes.current.delete(hash)
-          }
+    for (const [testIdxStr, nodes] of Object.entries(state.graphNodesByTest)) {
+      for (const node of nodes) {
+        if (node.id.startsWith('pre_node_')) continue
+        // Submit events are recorded server-side by submitAttempt (the server
+        // owns correctness), so never post them through the generic endpoint.
+        if (node.trigger.kind === 'mechanical' && node.trigger.action === 'submit') {
+          continue
         }
+        const hash = `${testIdxStr}:${node.id}:${JSON.stringify(node.trigger)}`
+        if (sentHashes.current.has(hash) || inFlightHashes.current.has(hash)) {
+          continue
+        }
+        inFlightHashes.current.add(hash)
+        // Only mark an event as saved once the post actually succeeds; on
+        // permanent failure surface a visible error instead of losing it.
+        postEventWithRetry({
+          userId,
+          taskId,
+          attemptId,
+          nodeId: node.id,
+          parentNodeId: node.parentId,
+          trigger: node.trigger,
+          stateSnapshot: node.stateSnapshot,
+          timestamp: node.timestamp,
+          testPairIndex: Number(testIdxStr),
+          sequenceIndex: node.sequenceIndex,
+        })
+          .then(() => {
+            sentHashes.current.add(hash)
+          })
+          .catch(() => {
+            dispatch({
+              type: 'SET_MESSAGE',
+              message: { kind: 'error', text: 'toast.event_save_failed' },
+            })
+          })
+          .finally(() => {
+            inFlightHashes.current.delete(hash)
+          })
       }
-    })()
-    return () => {
-      cancelled = true
     }
   }, [state.graphNodesByTest, taskId, userId])
 
