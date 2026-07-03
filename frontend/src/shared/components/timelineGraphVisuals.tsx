@@ -19,6 +19,7 @@ import {
   Move,
   MoveDiagonal,
   PaintBucket,
+  Pause,
   Pencil,
   RefreshCcw,
   RotateCw,
@@ -130,6 +131,8 @@ export function getTimelineNodeMeta(trigger: GraphTrigger): {
         : { icon: <X size={18} />, color: 'error' }
     case 'abandon':
       return { icon: <LogOut size={18} />, color: 'neutral' }
+    case 'continue_later':
+      return { icon: <Pause size={18} />, color: 'warning' }
     case 'give_up':
       return { icon: <Ban size={18} />, color: 'error' }
     case 'select_object':

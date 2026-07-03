@@ -139,6 +139,7 @@ const es = {
   'log.reset_output': 'Reinicio desde cero',
   'log.submit': 'Solución enviada',
   'log.abandon': 'Tarea pausada',
+  'log.continue_later': 'Sesión pausada',
   'log.resume': 'Sesión retomada',
   'log.give_up': 'Tarea abandonada',
 
@@ -566,6 +567,7 @@ const en: Record<string, string> = {
   'log.reset_output': 'Reset from scratch',
   'log.submit': 'Solution submitted',
   'log.abandon': 'Task paused',
+  'log.continue_later': 'Session paused',
   'log.resume': 'Session resumed',
   'log.give_up': 'Task abandoned',
 

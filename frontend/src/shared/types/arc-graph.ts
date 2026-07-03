@@ -20,6 +20,7 @@ export type MechanicalAction =
   | 'submit'
   | 'abandon'
   | 'give_up'
+  | 'continue_later'
   | 'load_task'
   | 'select_object'
   | 'select_area'

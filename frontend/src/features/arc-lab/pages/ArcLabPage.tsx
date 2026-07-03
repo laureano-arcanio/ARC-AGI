@@ -84,6 +84,7 @@ type Action =
   | { type: 'RESET_OUTPUT' }
   | { type: 'SUBMIT'; correct: boolean }
   | { type: 'ABANDON' }
+  | { type: 'CONTINUE_LATER' }
   | { type: 'GIVE_UP' }
   | { type: 'CELL_CLICK'; x: number; y: number }
   | { type: 'SELECTION_CHANGE'; cells: Set<string> }
@@ -460,6 +461,15 @@ function reducer(state: ArcLabState, action: Action): ArcLabState {
         { kind: 'mechanical', action: 'abandon' },
       )
       return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxAbandon]!, true) }
+    }
+
+    case 'CONTINUE_LATER': {
+      const idxContinue = state.currentTestIndex
+      const graph = addNode(
+        state,
+        { kind: 'mechanical', action: 'continue_later' },
+      )
+      return { ...state, ...graph, ...updateHistory(state, graph.activeNodeIdByTest![idxContinue]!, true) }
     }
 
     case 'GIVE_UP': {
@@ -1555,6 +1565,7 @@ export function ArcLabPage() {
 
   const handleAbandonConfirm = () => {
     setAbandonOpen(false)
+    dispatch({ type: 'CONTINUE_LATER' })
     navigate('/my-tasks')
   }
 
