@@ -74,6 +74,7 @@ type PreSolverWizardProps = {
   onSetVisibleCount: (count: number) => void
   onAddCognitiveNode: (intent: CognitiveIntent, text: string, details?: Record<string, unknown>) => void
   onComplete: () => void
+  navigating?: boolean
 }
 
 const REVISION_TYPES: { key: RevisionType; labelKey: string }[] = [
@@ -98,6 +99,7 @@ export function PreSolverWizard({
   onSetVisibleCount,
   onAddCognitiveNode,
   onComplete,
+  navigating = false,
 }: PreSolverWizardProps) {
   const { t } = useTranslation()
   const totalSteps = train.length + test.length
@@ -557,15 +559,18 @@ export function PreSolverWizard({
             {revisionType !== null && (
               <div className="flex items-center justify-between">
                 {error && <span className="text-xs text-red-400">{error}</span>}
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-2">
+                  {navigating && (
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-600 border-t-green-400" />
+                  )}
                   <button
                     type="button"
                     onClick={handleTestRevisionContinue}
-                    disabled={revisionType === null}
+                    disabled={revisionType === null || navigating}
                     data-testid="pre-solver-start-solving"
                     className="rounded-md bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-40"
                   >
-                    {isLastTestStep ? t('pre_solver.start_solving') : t('pre_solver.next_test')}
+                    {navigating ? t('pre_solver.saving') : (isLastTestStep ? t('pre_solver.start_solving') : t('pre_solver.next_test'))}
                   </button>
                 </div>
               </div>

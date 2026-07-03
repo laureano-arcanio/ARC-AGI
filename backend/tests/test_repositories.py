@@ -227,6 +227,31 @@ class TestEventRepositoryCreate:
         assert db_session.flushed is True
 
 
+class TestEventRepositoryParentNodeExists:
+    async def test_returns_true_when_parent_exists_with_same_test_pair_index(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=1))
+        result = await event_repo.parent_node_exists(1, "node_003", 0)
+        assert result is True
+
+    async def test_returns_true_when_pre_node_parent_diff_test_index(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        # pre_node_* parents are cross-test — should match regardless of
+        # the child's test_pair_index.
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=1))
+        result = await event_repo.parent_node_exists(1, "pre_node_002", 1)
+        assert result is True
+
+    async def test_returns_false_when_parent_does_not_exist(
+        self, event_repo: EventRepository, db_session: MockAsyncSession
+    ) -> None:
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
+        result = await event_repo.parent_node_exists(1, "node_999", 0)
+        assert result is False
+
+
 class TestEventRepositoryGetByUserAndTask:
     async def test_returns_empty_list_when_no_events(
         self, event_repo: EventRepository, db_session: MockAsyncSession

@@ -81,10 +81,13 @@ class EventRepository(BaseRepository[Event]):
             self.model.attempt_id == attempt_id,
             self.model.node_id == node_id,
         )
-        if test_pair_index is not None:
-            query = query.where(self.model.test_pair_index == test_pair_index)
-        else:
-            query = query.where(self.model.test_pair_index.is_(None))
+        # Pre-solver nodes are logically cross-test, so allow them to
+        # be referenced from any test index without checking the filter.
+        if not node_id.startswith("pre_node_"):
+            if test_pair_index is not None:
+                query = query.where(self.model.test_pair_index == test_pair_index)
+            else:
+                query = query.where(self.model.test_pair_index.is_(None))
         result = await self.db_session.execute(query)
         return result.scalar_one_or_none() is not None
 
@@ -98,10 +101,11 @@ class EventRepository(BaseRepository[Event]):
             self.model.attempt_id == attempt_id,
             self.model.node_id == node_id,
         )
-        if test_pair_index is not None:
-            query = query.where(self.model.test_pair_index == test_pair_index)
-        else:
-            query = query.where(self.model.test_pair_index.is_(None))
+        if not node_id.startswith("pre_node_"):
+            if test_pair_index is not None:
+                query = query.where(self.model.test_pair_index == test_pair_index)
+            else:
+                query = query.where(self.model.test_pair_index.is_(None))
         result = await self.db_session.execute(query)
         row = result.one_or_none()
         return row[0] if row else None
