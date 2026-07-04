@@ -27,6 +27,7 @@ export function AdminUsersPage() {
   const [createSuccess, setCreateSuccess] = useState('')
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [unassignTarget, setUnassignTarget] = useState<{ userId: number; batchId: number } | null>(null)
 
   const userIds = (users ?? []).map((u) => u.id)
   const { completedByUser, inProgressByUser, abandonedByUser, completionByUser } = useUsersBatchCompletion(userIds)
@@ -110,6 +111,14 @@ export function AdminUsersPage() {
     if (deleteTarget !== null) {
       deleteUserMutation.mutate(deleteTarget, {
         onSettled: () => setDeleteTarget(null),
+      })
+    }
+  }
+
+  const confirmUnassign = () => {
+    if (unassignTarget !== null) {
+      unassignMutation.mutate(unassignTarget, {
+        onSettled: () => setUnassignTarget(null),
       })
     }
   }
@@ -217,7 +226,7 @@ export function AdminUsersPage() {
                     allBatches={batches ?? []}
                     userId={user.id}
                     onAssign={(batchId) => assignMutation.mutate({ batchId, userId: user.id })}
-                    onUnassign={(batchId) => unassignMutation.mutate({ batchId, userId: user.id })}
+                    onUnassign={(batchId) => setUnassignTarget({ userId: user.id, batchId })}
                     completedBatchIds={completedByUser.get(user.id) ?? new Set()}
                     inProgressBatchIds={inProgressByUser.get(user.id) ?? new Set()}
                     abandonedBatchIds={abandonedByUser.get(user.id) ?? new Set()}
@@ -261,6 +270,16 @@ export function AdminUsersPage() {
         cancelLabel={t('dialog.cancel')}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
+        variant="danger"
+      />
+      <ConfirmDialog
+        open={unassignTarget !== null}
+        title={t('admin.unassign_title')}
+        message={t('admin.unassign_message')}
+        confirmLabel={t('dialog.confirm')}
+        cancelLabel={t('dialog.cancel')}
+        onConfirm={confirmUnassign}
+        onCancel={() => setUnassignTarget(null)}
         variant="danger"
       />
     </div>
