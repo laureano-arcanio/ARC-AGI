@@ -1,10 +1,13 @@
 import { http } from '../../lib/http'
-import type { ActivityBatchBreakdown, ActivityStats } from './types'
+import type { ActivityBatchBreakdown, ActivityStats, TimeWindowHours } from './types'
 
-export function getActivityStats(eventTypes?: string[]): Promise<ActivityStats> {
+export function getActivityStats(eventTypes?: string[], hours?: TimeWindowHours): Promise<ActivityStats> {
   const params: Record<string, string> = {}
   if (eventTypes && eventTypes.length > 0) {
     params.eventTypes = eventTypes.join(',')
+  }
+  if (hours !== undefined && hours !== 24) {
+    params.hours = String(hours)
   }
   return http.get<ActivityStats>('/v1/activity', { params })
 }

@@ -22,13 +22,16 @@ async def get_activity_stats(
     event_types: str | None = Query(
         None, alias="eventTypes", description="Comma-separated trigger actions"
     ),
+    hours: int = Query(
+        24, alias="hours", description="Time window in hours (4, 8, 12, 24, 48, 72)"
+    ),
     service: ActivityService = Depends(get_service),  # noqa: B008
     _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> ActivityStats:
     parsed: list[str] | None = None
     if event_types:
         parsed = [t.strip() for t in event_types.split(",") if t.strip()]
-    return await service.get_stats(event_types=parsed)
+    return await service.get_stats(event_types=parsed, hours=hours)
 
 
 @router.get("/batch-breakdown", response_model=ActivityBatchBreakdown)

@@ -10,7 +10,8 @@ import {
 } from 'recharts'
 import { useTranslation } from '../../../lib/i18n'
 import { useActivityBatchBreakdown, useActivityStats } from '../queries'
-import type { ActivityBatchBreakdown, TaskSolveStats } from '../types'
+import type { ActivityBatchBreakdown, TaskSolveStats, TimeWindowHours } from '../types'
+import { TIME_WINDOW_OPTIONS } from '../types'
 
 function formatHour(iso: string) {
   const d = new Date(iso)
@@ -29,9 +30,10 @@ function formatMs(ms: number): string {
 export function ActivityPage() {
   const { t } = useTranslation()
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
+  const [hours, setHours] = useState<TimeWindowHours>(24)
 
   const activeFilters = selectedTypes.size > 0 ? Array.from(selectedTypes) : undefined
-  const { data, isLoading, error } = useActivityStats(activeFilters)
+  const { data, isLoading, error } = useActivityStats(activeFilters, hours)
   const { data: breakdown, isLoading: breakdownLoading } = useActivityBatchBreakdown()
 
   const toggleType = (type: string) => {
@@ -65,7 +67,26 @@ export function ActivityPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('activity.title')}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">{t('activity.title')}</h1>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-400">{t('activity.time_window')}</label>
+          <select
+            value={hours}
+            onChange={(e) => {
+              setHours(Number(e.target.value) as TimeWindowHours)
+              setSelectedTypes(new Set())
+            }}
+            className="appearance-none rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 transition hover:border-gray-600 focus:border-amber-500 focus:outline-none"
+          >
+            {TIME_WINDOW_OPTIONS.map((h) => (
+              <option key={h} value={h}>
+                {h}h
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
@@ -81,7 +102,7 @@ export function ActivityPage() {
           value={String(data.activeUsers)}
         />
         <StatCard
-          label={t('activity.total_events')}
+          label={t('activity.total_events', { hours })}
           value={String(data.totalEvents)}
         />
       </div>

@@ -24,13 +24,15 @@ class ActivityService:
         self.repo = event_repo
 
     async def get_stats(
-        self, event_types: list[str] | None = None
+        self,
+        event_types: list[str] | None = None,
+        hours: int = 24,
     ) -> ActivityStats:
         now_ms = int(time.time() * 1000)
-        since_24h = now_ms - 24 * 3600 * 1000
+        since_n = now_ms - hours * 3600 * 1000
         since_5m = now_ms - 5 * 60 * 1000
 
-        rows = await self.repo.get_timeline(event_types, since_24h)
+        rows = await self.repo.get_timeline(event_types, since_n)
         timeline = [
             TimelineBucket(bucket=r.bucket.isoformat(), count=r.count)
             for r in rows
@@ -41,7 +43,7 @@ class ActivityService:
         active = await self.repo.get_active_users_count(since_5m)
 
         summary_rows = await self.repo.get_event_type_summary(
-            event_types, since_24h
+            event_types, since_n
         )
         summary = [
             EventTypeSummary(type=r.type, count=r.count)
