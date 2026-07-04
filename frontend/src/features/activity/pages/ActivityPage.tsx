@@ -105,7 +105,7 @@ export function ActivityPage() {
                       : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600 hover:text-gray-300'
                   }`}
                 >
-                  {et.type}
+                  {t(`activity.event_type.${et.type}`)}
                   <span className="ml-1.5 opacity-60">{et.count}</span>
                 </button>
               )
