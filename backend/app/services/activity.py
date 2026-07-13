@@ -49,6 +49,8 @@ class ActivityService:
 
         active = await self.repo.get_active_users_count(since_5m)
 
+        active_emails = await self.repo.get_active_user_emails(since_5m)
+
         summary_rows = await self.repo.get_event_type_summary(
             event_types, since_n
         )
@@ -64,6 +66,7 @@ class ActivityService:
             timeline=timeline,
             last_event_timestamp=last_ts,
             active_users=active,
+            active_user_emails=active_emails,
             event_type_summary=summary,
             total_events=total,
         )

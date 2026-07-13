@@ -4,6 +4,7 @@ from sqlalchemy import Float, cast, func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.models.event import Event
+from app.models.user import User
 from app.repositories.base_repository import BaseRepository
 
 
@@ -144,6 +145,17 @@ class EventRepository(BaseRepository[Event]):
         )
         result = await self.db_session.execute(query)
         return result.scalar_one_or_none() or 0
+
+    async def get_active_user_emails(self, since: int) -> list[str]:
+        query = (
+            select(User.email)
+            .join(Event, Event.user_id == User.id)
+            .where(Event.timestamp >= since)
+            .distinct()
+            .order_by(User.email)
+        )
+        result = await self.db_session.execute(query)
+        return [row[0] for row in result.all()]
 
     async def get_event_type_summary(
         self,

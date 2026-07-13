@@ -15,6 +15,7 @@ class ActivityStats(BaseAPISchema):
     timeline: list[TimelineBucket]
     last_event_timestamp: int | None = None
     active_users: int = 0
+    active_user_emails: list[str] = []
     event_type_summary: list[EventTypeSummary]
     total_events: int = 0
 

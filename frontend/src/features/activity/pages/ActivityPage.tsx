@@ -118,6 +118,24 @@ export function ActivityPage() {
         />
       </div>
 
+      {data.activeUserEmails.length > 0 && (
+        <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+          <p className="mb-2 text-xs font-medium text-gray-400">
+            {t('activity.active_users_list')}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {data.activeUserEmails.map((email) => (
+              <span
+                key={email}
+                className="rounded-full border border-gray-700 bg-gray-800 px-3 py-1 text-xs text-gray-300"
+              >
+                {email}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <SummarySection summary={summary ?? null} />
 
       {data.eventTypeSummary.length > 0 && (

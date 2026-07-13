@@ -12,6 +12,7 @@ export type ActivityStats = {
   timeline: TimelineBucket[]
   lastEventTimestamp: number | null
   activeUsers: number
+  activeUserEmails: string[]
   eventTypeSummary: EventTypeSummary[]
   totalEvents: number
 }
