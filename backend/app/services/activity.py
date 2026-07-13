@@ -1,7 +1,7 @@
 import time
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.attempt import Attempt
@@ -12,10 +12,12 @@ from app.repositories.event import EventRepository
 from app.schemas.activity import (
     ActivityBatchBreakdown,
     ActivityStats,
+    ActivitySummary,
     BatchSolveBreakdown,
     EventTypeSummary,
     TaskSolveStats,
     TimelineBucket,
+    UserOverlapBucket,
 )
 
 
@@ -59,6 +61,43 @@ class ActivityService:
             active_users=active,
             event_type_summary=summary,
             total_events=total,
+        )
+
+    async def get_summary(self) -> ActivitySummary:
+        db: AsyncSession = self.repo.db_session
+
+        total_result = await db.execute(
+            text("""
+                SELECT COUNT(DISTINCT task_id) AS total
+                FROM event
+                WHERE trigger->>'action' = 'submit'
+                  AND trigger->'details'->>'correct' = 'true'
+            """)
+        )
+        total = total_result.scalar_one_or_none() or 0
+
+        overlap_result = await db.execute(
+            text("""
+                SELECT user_count, COUNT(*) AS task_count
+                FROM (
+                    SELECT task_id, COUNT(DISTINCT user_id) AS user_count
+                    FROM event
+                    WHERE trigger->>'action' = 'submit'
+                      AND trigger->'details'->>'correct' = 'true'
+                    GROUP BY task_id
+                ) sub
+                GROUP BY user_count
+                ORDER BY user_count
+            """)
+        )
+        overlap = [
+            UserOverlapBucket(overlap_count=row[0], task_count=row[1])
+            for row in overlap_result.all()
+        ]
+
+        return ActivitySummary(
+            total_unique_tasks_resolved=total,
+            user_overlap=overlap,
         )
 
     async def get_batch_breakdown(self) -> ActivityBatchBreakdown:

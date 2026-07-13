@@ -34,5 +34,15 @@ class BatchSolveBreakdown(BaseAPISchema):
     tasks: list[TaskSolveStats]
 
 
+class UserOverlapBucket(BaseAPISchema):
+    overlap_count: int
+    task_count: int
+
+
+class ActivitySummary(BaseAPISchema):
+    total_unique_tasks_resolved: int = 0
+    user_overlap: list[UserOverlapBucket]
+
+
 class ActivityBatchBreakdown(BaseAPISchema):
     batches: list[BatchSolveBreakdown]

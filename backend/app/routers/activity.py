@@ -6,6 +6,7 @@ from app.repositories.event import EventRepository
 from app.schemas.activity import (
     ActivityBatchBreakdown,
     ActivityStats,
+    ActivitySummary,
 )
 from app.services.activity import ActivityService
 
@@ -32,6 +33,14 @@ async def get_activity_stats(
     if event_types:
         parsed = [t.strip() for t in event_types.split(",") if t.strip()]
     return await service.get_stats(event_types=parsed, hours=hours)
+
+
+@router.get("/summary", response_model=ActivitySummary)
+async def get_activity_summary(
+    service: ActivityService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
+) -> ActivitySummary:
+    return await service.get_summary()
 
 
 @router.get("/batch-breakdown", response_model=ActivityBatchBreakdown)

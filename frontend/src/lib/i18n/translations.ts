@@ -180,6 +180,11 @@ const es = {
   'activity.event_type.cut_selection': 'Cortar selección',
   'activity.event_type.move_selection': 'Mover selección',
   'activity.event_type.rotate_selection': 'Rotar selección',
+  'activity.summary_title': 'Resumen',
+  'activity.total_tasks_resolved': 'Tareas resueltas (únicas)',
+  'activity.user_overlap': 'Superposición de usuarios',
+  'activity.overlap_count': 'Usuarios',
+  'activity.task_count': 'Tareas',
 
   'dashboard.back': 'Volver al panel',
 

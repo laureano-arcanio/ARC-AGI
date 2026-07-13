@@ -1,5 +1,5 @@
 import { http } from '../../lib/http'
-import type { ActivityBatchBreakdown, ActivityStats, TimeWindowHours } from './types'
+import type { ActivityBatchBreakdown, ActivityStats, ActivitySummary, TimeWindowHours } from './types'
 
 export function getActivityStats(eventTypes?: string[], hours?: TimeWindowHours): Promise<ActivityStats> {
   const params: Record<string, string> = {}
@@ -10,6 +10,10 @@ export function getActivityStats(eventTypes?: string[], hours?: TimeWindowHours)
     params.hours = String(hours)
   }
   return http.get<ActivityStats>('/v1/activity', { params })
+}
+
+export function getActivitySummary(): Promise<ActivitySummary> {
+  return http.get<ActivitySummary>('/v1/activity/summary')
 }
 
 export function getActivityBatchBreakdown(): Promise<ActivityBatchBreakdown> {

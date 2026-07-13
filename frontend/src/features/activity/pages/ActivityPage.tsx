@@ -9,8 +9,8 @@ import {
   YAxis,
 } from 'recharts'
 import { useTranslation } from '../../../lib/i18n'
-import { useActivityBatchBreakdown, useActivityStats } from '../queries'
-import type { ActivityBatchBreakdown, TaskSolveStats, TimeWindowHours } from '../types'
+import { useActivityBatchBreakdown, useActivityStats, useActivitySummary } from '../queries'
+import type { ActivityBatchBreakdown, ActivitySummary, TaskSolveStats, TimeWindowHours } from '../types'
 import { TIME_WINDOW_OPTIONS } from '../types'
 
 function formatHour(iso: string) {
@@ -35,6 +35,7 @@ export function ActivityPage() {
   const activeFilters = selectedTypes.size > 0 ? Array.from(selectedTypes) : undefined
   const { data, isLoading, error } = useActivityStats(activeFilters, hours)
   const { data: breakdown, isLoading: breakdownLoading } = useActivityBatchBreakdown()
+  const { data: summary } = useActivitySummary()
 
   const toggleType = (type: string) => {
     setSelectedTypes((prev) => {
@@ -106,6 +107,8 @@ export function ActivityPage() {
           value={String(data.totalEvents)}
         />
       </div>
+
+      <SummarySection summary={summary ?? null} />
 
       {data.eventTypeSummary.length > 0 && (
         <div>
@@ -211,6 +214,50 @@ export function ActivityPage() {
         breakdown={breakdown ?? null}
         isLoading={breakdownLoading}
       />
+    </div>
+  )
+}
+
+function SummarySection({ summary }: { summary: ActivitySummary | null }) {
+  const { t } = useTranslation()
+  if (!summary) return null
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+      <h2 className="mb-3 text-lg font-semibold text-gray-100">
+        {t('activity.summary_title')}
+      </h2>
+      <div className="mb-3">
+        <span className="text-xs text-gray-500">{t('activity.total_tasks_resolved')}: </span>
+        <span className="text-xl font-bold text-amber-400">{summary.totalUniqueTasksResolved}</span>
+      </div>
+      {summary.userOverlap.length > 0 && (
+        <div>
+          <div className="mb-2">
+            <p className="text-xs font-medium text-gray-400">{t('activity.user_overlap')}</p>
+            <p className="text-sm text-gray-300">
+              {t('activity.total_tasks_resolved')}: {summary.userOverlap.reduce((s, b) => s + b.taskCount, 0)}
+            </p>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-gray-800">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
+                <tr>
+                  <th className="px-4 py-3 font-medium">{t('activity.overlap_count')}</th>
+                  <th className="px-4 py-3 font-medium">{t('activity.task_count')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {summary.userOverlap.map((bucket) => (
+                  <tr key={bucket.overlapCount} className="transition hover:bg-gray-900/50">
+                    <td className="px-4 py-3 text-gray-200">{bucket.overlapCount}</td>
+                    <td className="px-4 py-3 text-gray-200">{bucket.taskCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
