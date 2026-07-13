@@ -185,6 +185,7 @@ const es = {
   'activity.user_overlap': 'Superposición de usuarios',
   'activity.overlap_count': 'Usuarios',
   'activity.task_count': 'Tareas',
+  'activity.export_dataset': 'Exportar dataset',
 
   'dashboard.back': 'Volver al panel',
 
@@ -644,6 +645,7 @@ const en: Record<string, string> = {
   'activity.event_type.cut_selection': 'Cut selection',
   'activity.event_type.move_selection': 'Move selection',
   'activity.event_type.rotate_selection': 'Rotate selection',
+  'activity.export_dataset': 'Export dataset',
 
   'dashboard.back': 'Back to dashboard',
 

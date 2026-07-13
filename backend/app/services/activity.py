@@ -1,5 +1,8 @@
+import json
 import time
 from collections import defaultdict
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.attempt import Attempt
 from app.models.batch import Batch, BatchAssignment
 from app.models.event import Event
+from app.models.review import Review, ReviewTag
 from app.models.user import User
 from app.repositories.event import EventRepository
 from app.schemas.activity import (
@@ -19,6 +23,7 @@ from app.schemas.activity import (
     TimelineBucket,
     UserOverlapBucket,
 )
+from app.services.arc_task import ArcTaskService
 
 
 class ActivityService:
@@ -210,3 +215,165 @@ class ActivityService:
                 )
 
         return ActivityBatchBreakdown(batches=batches_data)
+
+    async def get_export_dataset(
+        self,
+        arc_task_service: ArcTaskService,
+    ) -> AsyncGenerator[str, None]:
+        db: AsyncSession = self.repo.db_session
+
+        excluded = await db.execute(
+            select(User.id).where(
+                User.email.in_(["admin@arc.com", "solver@arc.com"])
+            )
+        )
+        excluded_ids = {row[0] for row in excluded.all()}
+
+        task_rows = await db.execute(
+            select(Event.task_id).distinct().order_by(Event.task_id)
+        )
+        task_ids = [row[0] for row in task_rows.all()]
+
+        for task_id in task_ids:
+            task = await arc_task_service.get_by_id(task_id)
+            if task is None:
+                continue
+
+            task_data: dict[str, Any] = {
+                "task_id": task_id,
+                "train": [
+                    {"input": p.input, "output": p.output}
+                    for p in task.train
+                ],
+                "test": [
+                    {"input": p.input, "output": p.output}
+                    for p in task.test
+                ],
+            }
+
+            user_rows = await db.execute(
+                select(Event.user_id, User.email)
+                .join(User, User.id == Event.user_id)
+                .where(
+                    Event.task_id == task_id,
+                    Event.user_id.notin_(excluded_ids),
+                )
+                .distinct()
+            )
+            task_users = {row[0]: row[1] for row in user_rows.all()}
+
+            if not task_users:
+                continue
+
+            users_data: list[dict[str, Any]] = []
+            for user_id, email in task_users.items():
+                attempts = await db.execute(
+                    select(Attempt)
+                    .where(
+                        Attempt.user_id == user_id,
+                        Attempt.task_id == task_id,
+                    )
+                    .order_by(Attempt.id)
+                )
+                attempt_objs = list(attempts.scalars().all())
+
+                attempts_data: list[dict[str, Any]] = []
+                for attempt in attempt_objs:
+                    events = await db.execute(
+                        select(Event)
+                        .where(Event.attempt_id == attempt.id)
+                        .order_by(Event.sequence_index, Event.timestamp)
+                    )
+                    event_objs = list(events.scalars().all())
+
+                    events_data = [
+                        {
+                            "id": e.id,
+                            "node_id": e.node_id,
+                            "parent_node_id": e.parent_node_id,
+                            "test_pair_index": e.test_pair_index,
+                            "trigger": e.trigger,
+                            "state_snapshot": e.state_snapshot,
+                            "timestamp": e.timestamp,
+                            "sequence_index": e.sequence_index,
+                        }
+                        for e in event_objs
+                    ]
+
+                    attempts_data.append(
+                        {
+                            "attempt_id": attempt.id,
+                            "created_at": (
+                                attempt.created_at.isoformat()
+                                if attempt.created_at
+                                else None
+                            ),
+                            "updated_at": (
+                                attempt.updated_at.isoformat()
+                                if attempt.updated_at
+                                else None
+                            ),
+                            "events": events_data,
+                        }
+                    )
+
+                users_data.append(
+                    {
+                        "user_id": user_id,
+                        "email": email,
+                        "attempts": attempts_data,
+                    }
+                )
+
+            task_data["users"] = users_data
+
+            reviews_query = (
+                select(Review)
+                .where(
+                    Review.task_id == task_id,
+                    Review.reviewer_id.notin_(excluded_ids),
+                    Review.solver_id.notin_(excluded_ids),
+                )
+            )
+            reviews_result = await db.execute(reviews_query)
+            review_objs = list(reviews_result.scalars().all())
+
+            reviews_data: list[dict[str, Any]] = []
+            for review in review_objs:
+                reviewer = await db.execute(
+                    select(User.email).where(User.id == review.reviewer_id)
+                )
+                reviewer_email = reviewer.scalar_one_or_none()
+                solver = await db.execute(
+                    select(User.email).where(User.id == review.solver_id)
+                )
+                solver_email = solver.scalar_one_or_none()
+
+                tags_result = await db.execute(
+                    select(ReviewTag).where(
+                        ReviewTag.review_id == review.id
+                    )
+                )
+                tag_objs = list(tags_result.scalars().all())
+
+                reviews_data.append(
+                    {
+                        "id": review.id,
+                        "reviewer_id": review.reviewer_id,
+                        "reviewer_email": reviewer_email,
+                        "solver_id": review.solver_id,
+                        "solver_email": solver_email,
+                        "status": review.status,
+                        "tags": [
+                            {
+                                "solver_node_id": t.solver_node_id,
+                                "quality": t.quality,
+                            }
+                            for t in tag_objs
+                        ],
+                    }
+                )
+
+            task_data["reviews"] = reviews_data
+
+            yield json.dumps(task_data, ensure_ascii=False) + "\n"

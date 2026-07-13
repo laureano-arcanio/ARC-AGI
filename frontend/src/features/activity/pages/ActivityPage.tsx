@@ -9,6 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useTranslation } from '../../../lib/i18n'
+import { downloadDataset } from '../api'
 import { useActivityBatchBreakdown, useActivityStats, useActivitySummary } from '../queries'
 import type { ActivityBatchBreakdown, ActivitySummary, TaskSolveStats, TimeWindowHours } from '../types'
 import { TIME_WINDOW_OPTIONS } from '../types'
@@ -70,22 +71,31 @@ export function ActivityPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('activity.title')}</h1>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-400">{t('activity.time_window')}</label>
-          <select
-            value={hours}
-            onChange={(e) => {
-              setHours(Number(e.target.value) as TimeWindowHours)
-              setSelectedTypes(new Set())
-            }}
-            className="appearance-none rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 transition hover:border-gray-600 focus:border-amber-500 focus:outline-none"
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => downloadDataset()}
+            className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-300 transition hover:bg-amber-500/20"
           >
-            {TIME_WINDOW_OPTIONS.map((h) => (
-              <option key={h} value={h}>
-                {h}h
-              </option>
-            ))}
-          </select>
+            {t('activity.export_dataset')}
+          </button>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-400">{t('activity.time_window')}</label>
+            <select
+              value={hours}
+              onChange={(e) => {
+                setHours(Number(e.target.value) as TimeWindowHours)
+                setSelectedTypes(new Set())
+              }}
+              className="appearance-none rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 transition hover:border-gray-600 focus:border-amber-500 focus:outline-none"
+            >
+              {TIME_WINDOW_OPTIONS.map((h) => (
+                <option key={h} value={h}>
+                  {h}h
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

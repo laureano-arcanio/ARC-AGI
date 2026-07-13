@@ -1,4 +1,5 @@
 import { http } from '../../lib/http'
+import { env } from '../../lib/env'
 import type { ActivityBatchBreakdown, ActivityStats, ActivitySummary, TimeWindowHours } from './types'
 
 export function getActivityStats(eventTypes?: string[], hours?: TimeWindowHours): Promise<ActivityStats> {
@@ -18,4 +19,26 @@ export function getActivitySummary(): Promise<ActivitySummary> {
 
 export function getActivityBatchBreakdown(): Promise<ActivityBatchBreakdown> {
   return http.get<ActivityBatchBreakdown>('/v1/activity/batch-breakdown')
+}
+
+export async function downloadDataset(): Promise<void> {
+  const token = localStorage.getItem('authToken')
+  const url = new URL(`${env.apiUrl}/v1/activity/export`, window.location.origin)
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  })
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+  }
+  const blob = await response.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = blobUrl
+  a.download = 'arc-tasks-dataset.jsonl'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(blobUrl)
 }
