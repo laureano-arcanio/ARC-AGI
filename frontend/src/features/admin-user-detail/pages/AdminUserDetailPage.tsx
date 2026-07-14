@@ -239,6 +239,7 @@ export function AdminUserDetailPage() {
 
   const allTasks = batches?.flatMap((b) => b.tasks) ?? []
   const totalTaskCount = allTasks.length
+  const solvedTaskCount = allTasks.filter((t) => t.solved).length
 
   function toggleSelect(taskId: string) {
     setSelectedTaskIds((prev) => {
@@ -387,7 +388,9 @@ export function AdminUserDetailPage() {
         <>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-gray-500">
-              {totalTaskCount} tasks
+              {t('admin_detail.total')}: {totalTaskCount}
+              {' | '}
+              {t('admin_detail.total_resolved')}: {solvedTaskCount}
               {selectedTaskIds.size > 0 && (
                 <span className="ml-1 text-blue-400">
                   ({selectedTaskIds.size} selected)
