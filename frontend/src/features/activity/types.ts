@@ -29,6 +29,7 @@ export type TaskSolveStats = {
 export type BatchSolveBreakdown = {
   batchId: number
   batchName: string
+  totalTasks: number
   tasks: TaskSolveStats[]
 }
 

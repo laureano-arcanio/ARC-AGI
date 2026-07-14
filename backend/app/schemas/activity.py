@@ -32,6 +32,7 @@ class TaskSolveStats(BaseAPISchema):
 class BatchSolveBreakdown(BaseAPISchema):
     batch_id: int
     batch_name: str
+    total_tasks: int = 0
     tasks: list[TaskSolveStats]
 
 

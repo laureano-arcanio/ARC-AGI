@@ -187,6 +187,8 @@ const es = {
   'activity.overlap_count': 'Usuarios',
   'activity.task_count': 'Tareas',
   'activity.export_dataset': 'Exportar dataset',
+  'activity.total_unique_tasks': 'Total tareas únicas',
+  'activity.total_solved': 'Total resueltos',
 
   'dashboard.back': 'Volver al panel',
 
@@ -650,6 +652,8 @@ const en: Record<string, string> = {
   'activity.event_type.move_selection': 'Move selection',
   'activity.event_type.rotate_selection': 'Rotate selection',
   'activity.export_dataset': 'Export dataset',
+  'activity.total_unique_tasks': 'Total unique tasks',
+  'activity.total_solved': 'Total solved',
 
   'dashboard.back': 'Back to dashboard',
 
