@@ -19,6 +19,7 @@ COPY pnpm-lock.yaml ./
 
 # Set development environment
 ENV NODE_ENV=development
+ENV CI=true
 
 # Install dependencies using pnpm
 RUN pnpm install
@@ -30,4 +31,4 @@ COPY . .
 EXPOSE 3000
 
 # Command to run the app
-CMD ["sh", "-c", "pnpm install && pnpm run dev"]
+CMD ["sh", "-c", "CI=true pnpm install && pnpm run dev"]

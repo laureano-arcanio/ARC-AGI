@@ -14,7 +14,16 @@ from app.errors import (
     object_not_found_handler,
 )
 from app.models.user import User, UserRole
-from app.routers import arc_task, attempt, batch, event, example_table, review, user
+from app.routers import (
+    activity,
+    arc_task,
+    attempt,
+    batch,
+    event,
+    example_table,
+    review,
+    user,
+)
 from app.services.user import _hash_password
 
 app = FastAPI(
@@ -36,6 +45,7 @@ app.exception_handler(ObjectNotFoundError)(object_not_found_handler)
 app.exception_handler(InvalidCredentialsError)(invalid_credentials_handler)
 app.exception_handler(Exception)(global_exception_handler)
 
+app.include_router(activity.router)
 app.include_router(attempt.router)
 app.include_router(batch.router)
 app.include_router(event.router)

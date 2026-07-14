@@ -11,6 +11,8 @@ import { AdminBatchesPage } from '../features/batches/pages/AdminBatchesPage'
 import { MyTasksPage } from '../features/my-tasks/pages/MyTasksPage'
 import { ReviewTaskPage } from '../features/reviews/pages/ReviewTaskPage'
 import { AdminReviewPairsPage } from '../features/reviews/pages/AdminReviewPairsPage'
+import { BatchLeaderboardPage } from '../features/batch-leaderboard/pages/BatchLeaderboardPage'
+import { ActivityPage } from '../features/activity/pages/ActivityPage'
 
 export function AppRouter() {
   return (
@@ -25,6 +27,8 @@ export function AppRouter() {
         <Route path="/my-tasks" element={<MyTasksPage />} />
         <Route path="/review/:solverId/:taskId" element={<ReviewTaskPage />} />
         <Route path="/admin/review-pairs" element={<AdminReviewPairsPage />} />
+        <Route path="/admin/leaderboard" element={<BatchLeaderboardPage />} />
+        <Route path="/admin/activity" element={<ActivityPage />} />
         <Route path="/hypothesize/:userId/:taskId" element={<HypothesizePage />} />
         <Route path="/hypothesize/:taskId" element={<HypothesizePage />} />
         <Route path="/solve/:userId/:taskId" element={<ArcLabPage />} />

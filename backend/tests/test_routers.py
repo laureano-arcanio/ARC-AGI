@@ -583,6 +583,116 @@ class TestAttemptRouterGetByUserAndTask:
         assert data[0]["id"] == 2
 
 
+# ---- Activity Router Tests ----
+
+
+@pytest.fixture
+def activity_mock_service() -> AsyncMock:
+    from app.schemas.activity import ActivityStats, EventTypeSummary, TimelineBucket
+    from app.services.activity import ActivityService
+
+    svc = AsyncMock(spec=ActivityService)
+    svc.get_stats.return_value = ActivityStats(
+        timeline=[TimelineBucket(bucket="2024-01-01T10:00:00", count=5)],
+        last_event_timestamp=1704067200000,
+        active_users=3,
+        event_type_summary=[EventTypeSummary(type="cell_paint", count=5)],
+        total_events=5,
+    )
+    return svc
+
+
+@pytest.fixture
+def activity_app(activity_mock_service: AsyncMock) -> FastAPI:
+    from app.dependencies.auth import CurrentUser, get_current_user, require_admin
+    from app.routers.activity import get_service, router
+
+    async def mock_admin() -> CurrentUser:
+        return CurrentUser(user_id=1, role="admin")
+
+    async def mock_require_admin() -> CurrentUser:
+        return CurrentUser(user_id=1, role="admin")
+
+    application = FastAPI()
+    application.include_router(router)
+    application.dependency_overrides[get_service] = lambda: activity_mock_service
+    application.dependency_overrides[get_current_user] = mock_admin
+    application.dependency_overrides[require_admin] = mock_require_admin
+    return application
+
+
+@pytest.fixture
+def activity_unauth_app(activity_mock_service: AsyncMock) -> FastAPI:
+    from app.dependencies.auth import CurrentUser, get_current_user, require_admin
+    from app.routers.activity import get_service, router
+
+    async def mock_solver() -> CurrentUser:
+        return CurrentUser(user_id=2, role="solver")
+
+    async def mock_require_admin_fail() -> None:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+
+    application = FastAPI()
+    application.include_router(router)
+    application.dependency_overrides[get_service] = lambda: activity_mock_service
+    application.dependency_overrides[get_current_user] = mock_solver
+    application.dependency_overrides[require_admin] = mock_require_admin_fail
+    return application
+
+
+@pytest.fixture
+async def activity_client(activity_app: FastAPI) -> AsyncIterator[AsyncClient]:
+    from httpx import ASGITransport
+
+    transport = ASGITransport(app=activity_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest.fixture
+async def activity_unauth_client(
+    activity_unauth_app: FastAPI,
+) -> AsyncIterator[AsyncClient]:
+    from httpx import ASGITransport
+
+    transport = ASGITransport(app=activity_unauth_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+class TestActivityRouterGetStats:
+    async def test_returns_stats(
+        self, activity_client: AsyncClient, activity_mock_service: AsyncMock
+    ) -> None:
+        response = await activity_client.get("/api/v1/activity")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["timeline"]) == 1
+        assert data["lastEventTimestamp"] == 1704067200000
+        assert data["activeUsers"] == 3
+        assert data["totalEvents"] == 5
+        activity_mock_service.get_stats.assert_awaited_once_with(event_types=None)
+
+    async def test_filters_by_event_types(
+        self, activity_client: AsyncClient, activity_mock_service: AsyncMock
+    ) -> None:
+        response = await activity_client.get(
+            "/api/v1/activity?eventTypes=cell_paint,submit"
+        )
+        assert response.status_code == 200
+        activity_mock_service.get_stats.assert_awaited_with(
+            event_types=["cell_paint", "submit"]
+        )
+
+    async def test_returns_403_for_non_admin(
+        self, activity_unauth_client: AsyncClient
+    ) -> None:
+        response = await activity_unauth_client.get("/api/v1/activity")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
 # ---- Example Table Auth Tests ----
 
 

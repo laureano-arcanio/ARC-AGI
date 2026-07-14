@@ -3,9 +3,10 @@ from fastapi import APIRouter, Depends, status
 from app.dependencies.auth import AdminDep, CurrentUserDep, require_owner_or_admin
 from app.dependencies.database import DatabaseSession
 from app.repositories.batch import BatchAssignmentRepository, BatchRepository
-from app.schemas.batch import BatchCreate, BatchRead, BatchUpdate
+from app.schemas.batch import BatchCreate, BatchLeaderboardEntry, BatchRead, BatchUpdate
 from app.schemas.batch_assignment import BatchAssignmentCreate, BatchAssignmentRead
 from app.services.batch import BatchAssignmentService, BatchService
+from app.services.leaderboard import LeaderboardService
 
 router = APIRouter(prefix="/api/v1/batches", tags=["batches"])
 
@@ -114,3 +115,16 @@ async def unassign_batch_from_user(
     _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> None:
     await service.unassign(batch_id, user_id)
+
+
+@router.get(
+    "/{id}/leaderboard",
+    response_model=list[BatchLeaderboardEntry],
+)
+async def get_batch_leaderboard(
+    id: int,
+    db_session: DatabaseSession = None,  # type: ignore[assignment]
+    _admin: AdminDep = None,  # type: ignore[assignment]
+) -> list[BatchLeaderboardEntry]:
+    service = LeaderboardService(db_session=db_session)
+    return await service.get_batch_leaderboard(id)

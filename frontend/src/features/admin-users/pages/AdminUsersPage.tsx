@@ -27,9 +27,10 @@ export function AdminUsersPage() {
   const [createSuccess, setCreateSuccess] = useState('')
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [unassignTarget, setUnassignTarget] = useState<{ userId: number; batchId: number } | null>(null)
 
   const userIds = (users ?? []).map((u) => u.id)
-  const { completedByUser, inProgressByUser } = useUsersBatchCompletion(userIds)
+  const { completedByUser, inProgressByUser, abandonedByUser, completionByUser } = useUsersBatchCompletion(userIds)
 
   const getUserBatches = (userId: number): BatchRead[] =>
     (batches ?? []).filter(b => b.assignedUserIds.includes(userId))
@@ -110,6 +111,14 @@ export function AdminUsersPage() {
     if (deleteTarget !== null) {
       deleteUserMutation.mutate(deleteTarget, {
         onSettled: () => setDeleteTarget(null),
+      })
+    }
+  }
+
+  const confirmUnassign = () => {
+    if (unassignTarget !== null) {
+      unassignMutation.mutate(unassignTarget, {
+        onSettled: () => setUnassignTarget(null),
       })
     }
   }
@@ -217,9 +226,11 @@ export function AdminUsersPage() {
                     allBatches={batches ?? []}
                     userId={user.id}
                     onAssign={(batchId) => assignMutation.mutate({ batchId, userId: user.id })}
-                    onUnassign={(batchId) => unassignMutation.mutate({ batchId, userId: user.id })}
+                    onUnassign={(batchId) => setUnassignTarget({ userId: user.id, batchId })}
                     completedBatchIds={completedByUser.get(user.id) ?? new Set()}
                     inProgressBatchIds={inProgressByUser.get(user.id) ?? new Set()}
+                    abandonedBatchIds={abandonedByUser.get(user.id) ?? new Set()}
+                    completionPct={completionByUser.get(user.id) ?? new Map()}
                     disabled={isMutating}
                     batchesLoading={batchesLoading}
                     placeholder={t('admin.batches_placeholder')}
@@ -261,6 +272,16 @@ export function AdminUsersPage() {
         onCancel={() => setDeleteTarget(null)}
         variant="danger"
       />
+      <ConfirmDialog
+        open={unassignTarget !== null}
+        title={t('admin.unassign_title')}
+        message={t('admin.unassign_message')}
+        confirmLabel={t('dialog.confirm')}
+        cancelLabel={t('dialog.cancel')}
+        onConfirm={confirmUnassign}
+        onCancel={() => setUnassignTarget(null)}
+        variant="danger"
+      />
     </div>
   )
 }
@@ -273,17 +294,22 @@ type BatchPillsProps = {
   onUnassign: (batchId: number) => void
   completedBatchIds: Set<number>
   inProgressBatchIds: Set<number>
+  abandonedBatchIds: Set<number>
+  completionPct: Map<number, string>
   disabled: boolean
   batchesLoading: boolean
   placeholder: string
 }
 
-function getBatchPillColor(batchId: number, completed: Set<number>, inProgress: Set<number>) {
+function getBatchPillColor(batchId: number, completed: Set<number>, inProgress: Set<number>, abandoned: Set<number>) {
   if (completed.has(batchId)) {
     return 'bg-green-600/20 text-green-400 border-green-600/30'
   }
+  if (abandoned.has(batchId)) {
+    return 'bg-orange-600/20 text-orange-400 border-orange-600/30'
+  }
   if (inProgress.has(batchId)) {
-    return 'bg-amber-600/20 text-amber-400 border-amber-600/30'
+    return 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30'
   }
   return 'bg-gray-600/20 text-gray-400 border-gray-600/30'
 }
@@ -296,6 +322,8 @@ function BatchPills({
   onUnassign,
   completedBatchIds,
   inProgressBatchIds,
+  abandonedBatchIds,
+  completionPct,
   disabled,
   batchesLoading,
   placeholder,
@@ -349,9 +377,12 @@ function BatchPills({
           disabled={disabled}
           onClick={() => onUnassign(batch.id)}
           title={batch.name}
-          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50 ${getBatchPillColor(batch.id, completedBatchIds, inProgressBatchIds)}`}
+          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50 ${getBatchPillColor(batch.id, completedBatchIds, inProgressBatchIds, abandonedBatchIds)}`}
         >
           {batch.name}
+          {completionPct.has(batch.id) && (
+            <span className="ml-1 opacity-70">{completionPct.get(batch.id)}</span>
+          )}
         </button>
       ))}
       {!batchesLoading && userBatches.length === 0 && (

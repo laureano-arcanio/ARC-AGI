@@ -339,6 +339,51 @@ class TestAttemptCreate:
         assert "taskId" in dumped
 
 
+class TestActivityStats:
+    def test_valid_stats(self) -> None:
+        from app.schemas.activity import ActivityStats, EventTypeSummary, TimelineBucket
+
+        stats = ActivityStats(
+            timeline=[TimelineBucket(bucket="2024-01-01T10:00:00", count=5)],
+            last_event_timestamp=1704067200000,
+            active_users=3,
+            event_type_summary=[EventTypeSummary(type="cell_paint", count=10)],
+            total_events=100,
+        )
+        assert len(stats.timeline) == 1
+        assert stats.timeline[0].bucket == "2024-01-01T10:00:00"
+        assert stats.last_event_timestamp == 1704067200000
+        assert stats.active_users == 3
+        assert stats.event_type_summary[0].type == "cell_paint"
+        assert stats.total_events == 100
+
+    def test_defaults(self) -> None:
+        from app.schemas.activity import ActivityStats
+
+        stats = ActivityStats(timeline=[], event_type_summary=[])
+        assert stats.last_event_timestamp is None
+        assert stats.active_users == 0
+        assert stats.total_events == 0
+        assert stats.timeline == []
+        assert stats.event_type_summary == []
+
+    def test_camelcase_alias(self) -> None:
+        from app.schemas.activity import ActivityStats, EventTypeSummary, TimelineBucket
+
+        stats = ActivityStats(
+            timeline=[TimelineBucket(bucket="2024-01-01T10:00:00", count=5)],
+            last_event_timestamp=1704067200000,
+            active_users=3,
+            event_type_summary=[EventTypeSummary(type="cell_paint", count=10)],
+            total_events=100,
+        )
+        dumped = stats.model_dump(by_alias=True)
+        assert "lastEventTimestamp" in dumped
+        assert "activeUsers" in dumped
+        assert "totalEvents" in dumped
+        assert "eventTypeSummary" in dumped
+
+
 class TestAttemptRead:
     def test_full_read_schema(self) -> None:
         now = datetime.now(UTC)

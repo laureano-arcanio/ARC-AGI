@@ -43,12 +43,30 @@ export function synthesizeGraphNodes(nodes: GraphNode[]): GraphNode[] {
 
   if (missingParentIds.size === 0) return nodes
 
-  const result = [...nodes]
+  const result = nodes.map((n) => {
+    if (
+      n.id === 'node_000' &&
+      n.parentId &&
+      n.parentId.startsWith('pre_node_') &&
+      !existingIds.has(n.parentId)
+    ) {
+      return { ...n, parentId: null }
+    }
+    return n
+  })
 
-  for (const missingId of missingParentIds) {
+  const updatedIds = new Set(result.map((n) => n.id))
+  const stillMissing = new Set<string>()
+  for (const node of result) {
+    if (node.parentId && !updatedIds.has(node.parentId)) {
+      stillMissing.add(node.parentId)
+    }
+  }
+
+  for (const missingId of stillMissing) {
     if (missingId === 'hypothesis_final') {
       const hypothesisText = getLastHypothesisText(nodes)
-      const rootNode = nodes.find((n) => n.id === 'node_000')
+      const rootNode = result.find((n) => n.id === 'node_000')
       const timestamp = rootNode ? rootNode.timestamp + 1 : Date.now()
 
       result.push({

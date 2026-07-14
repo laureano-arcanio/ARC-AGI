@@ -369,14 +369,14 @@ describe('ArcLabPage', () => {
     expect(navigate).not.toHaveBeenCalled()
   })
 
-  it('abandons: navigates home on confirm without creating a timeline event', async () => {
+  it('abandons: navigates home on confirm and creates a continue_later timeline event', async () => {
     const { navigate } = renderPage()
     await waitForTask()
     const initialNodes = screen.getAllByTestId(/timeline-node-/).length
     fireEvent.click(screen.getByTestId('abandon-btn'))
     fireEvent.click(screen.getByTestId('confirm-dialog-confirm'))
     expect(navigate).toHaveBeenCalledWith('/my-tasks')
-    expect(screen.getAllByTestId(/timeline-node-/).length).toBe(initialNodes)
+    expect(screen.getAllByTestId(/timeline-node-/).length).toBe(initialNodes + 1)
   })
 
   it('shows pivot overlay on first action after resume and lets action go through after reflection', async () => {

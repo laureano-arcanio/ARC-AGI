@@ -33,6 +33,7 @@ class TaskWithStatus(BaseAPISchema):
     attempt_count: int
     solved: bool
     status: str  # "not_started" | "started" | "completed"
+    abandoned: bool = False
     reviewed: bool = False
     reviewer_emails: list[str] = []
 

@@ -15,6 +15,7 @@ _READ_ONLY_ACTIONS = frozenset(
         "load_task",
         "copy_from_input",
         "abandon",
+        "continue_later",
         "give_up",
     }
 )

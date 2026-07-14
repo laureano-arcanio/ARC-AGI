@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
@@ -57,6 +58,8 @@ export function MyTasksPage() {
   const { data: taskSummaries } = useMyTaskSummaries(userId ?? 0)
   const { data: pendingReviews } = usePendingReviews(userId ?? 0)
 
+  const [expandedBatches, setExpandedBatches] = useState<Set<number>>(new Set())
+
   if (authLoading || batchesLoading) {
     return (
       <div className="flex items-center gap-3 text-gray-400">
@@ -94,11 +97,98 @@ export function MyTasksPage() {
     }
   }
 
+  const toggleBatch = (id: number) => {
+    setExpandedBatches((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const allTaskIds = batches?.flatMap((b) => b.taskIds) ?? []
+
+  const pendingCount = allTaskIds.filter(
+    (id) => !summaryMap.get(id) || summaryMap.get(id)!.attemptCount === 0,
+  ).length
+
+  const verifiedCount = allTaskIds.filter(
+    (id) => summaryMap.get(id)?.solved,
+  ).length
+
+  const abandonedCount = allTaskIds.filter(
+    (id) => summaryMap.get(id)?.abandoned,
+  ).length
+
+  const inProgressCount = allTaskIds.filter(
+    (id) => {
+      const s = summaryMap.get(id)
+      return s && s.attemptCount > 0 && !s.solved && !s.abandoned
+    },
+  ).length
+
+  const completedBatches = batches?.filter((batch) =>
+    batch.taskIds.every((id) => summaryMap.get(id)?.solved),
+  ).length ?? 0
+
+  const overallCompletion = allTaskIds.length > 0
+    ? Math.round((verifiedCount / allTaskIds.length) * 100)
+    : 0
+
+  function batchCompletion(batch: { taskIds: string[] }): {
+    done: number
+    total: number
+    percent: number
+  } {
+    const done = batch.taskIds.filter((id) => summaryMap.get(id)?.solved).length
+    const total = batch.taskIds.length
+    const percent = total > 0 ? Math.round((done / total) * 100) : 0
+    return { done, total, percent }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t('my_tasks.title')}</h1>
       </div>
+
+      {/* Stats Summary Bar */}
+      {(batches?.length ?? 0) > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+            <p className="text-xs text-gray-500">{t('my_tasks.stats_batches')}</p>
+            <p className="mt-1 text-xl font-semibold text-white">{batches?.length ?? 0}</p>
+          </div>
+          <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+            <p className="text-xs text-gray-500">{t('my_tasks.stats_completed_batches')}</p>
+            <p className="mt-1 text-xl font-semibold text-green-400">{completedBatches}</p>
+          </div>
+          <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+            <p className="text-xs text-gray-500">{t('my_tasks.stats_progress')}</p>
+            <p className="mt-1 text-xl font-semibold text-blue-400">{overallCompletion}%</p>
+          </div>
+          <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+            <p className="text-xs text-gray-500">{t('my_tasks.stats_pending')}</p>
+            <p className="mt-1 text-xl font-semibold text-gray-400">{pendingCount}</p>
+          </div>
+          <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+            <p className="text-xs text-gray-500">{t('my_tasks.stats_in_progress')}</p>
+            <p className="mt-1 text-xl font-semibold text-amber-400">{inProgressCount}</p>
+          </div>
+          <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+            <p className="text-xs text-gray-500">
+              <span className="text-green-400">{t('my_tasks.stats_verified')}</span>
+              {' / '}
+              <span className="text-red-400">{t('my_tasks.stats_abandoned')}</span>
+            </p>
+            <p className="mt-1 text-xl font-semibold">
+              <span className="text-green-400">{verifiedCount}</span>
+              <span className="text-gray-600"> / </span>
+              <span className="text-red-400">{abandonedCount}</span>
+            </p>
+          </div>
+        </div>
+      )}
 
       {(batches?.length ?? 0) === 0 && (
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
@@ -108,66 +198,89 @@ export function MyTasksPage() {
       )}
 
       <div className="flex flex-col gap-4">
-        {batches?.map((batch) => (
-          <div
-            key={batch.id}
-            className="rounded-lg border border-gray-800 bg-gray-900"
-          >
-            <div className="flex items-center gap-2 border-b border-gray-800 p-4">
-              <h3 className="font-semibold text-white">{batch.name}</h3>
-              <span className="text-xs text-gray-500">
-                {batch.taskIds.length} {t('my_tasks.tasks_count')}
-              </span>
-            </div>
+        {batches?.map((batch) => {
+          const isExpanded = expandedBatches.has(batch.id)
+          const { done, total, percent } = batchCompletion(batch)
+          return (
+            <div
+              key={batch.id}
+              className="rounded-lg border border-gray-800 bg-gray-900"
+            >
+              <button
+                onClick={() => toggleBatch(batch.id)}
+                className="flex w-full items-center gap-2 p-4 text-left transition hover:bg-gray-800/30"
+                aria-expanded={isExpanded}
+                aria-label={isExpanded ? t('my_tasks.collapse') : t('my_tasks.expand')}
+              >
+                <span className="text-sm text-gray-500 transition-transform duration-200">
+                  {isExpanded ? '▲' : '▼'}
+                </span>
+                <h3 className="font-semibold text-white">{batch.name}</h3>
+                <span className="text-xs text-gray-500">
+                  {total} {t('my_tasks.tasks_count')}
+                </span>
+                {total > 0 && (
+                  <span className="ml-auto text-xs font-medium tabular-nums">
+                    <span className={percent === 100 ? 'text-green-400' : 'text-blue-400'}>
+                      {t('my_tasks.batch_completion', { done, total, percent })}
+                    </span>
+                  </span>
+                )}
+              </button>
 
-            {batch.taskIds.length === 0 ? (
-              <p className="p-4 text-sm text-gray-500">
-                {t('my_tasks.no_tasks_in_batch')}
-              </p>
-            ) : (
-              <div className="divide-y divide-gray-800">
-                {batch.taskIds.map((taskId) => {
-                  const summary = summaryMap.get(taskId)
-                  const status = taskStatus(summary)
-                  const btn = buttonConfig(summary)
-                  return (
-                    <button
-                      key={taskId}
-                      onClick={() => { if (!btn.disabled) handleTaskClick(taskId) }}
-                      disabled={btn.disabled}
-                      className={`flex w-full items-center justify-between p-4 text-left transition ${
-                        btn.disabled
-                          ? 'cursor-default opacity-60'
-                          : 'hover:bg-gray-800/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <span className="font-mono text-sm text-blue-400">
-                          {taskId}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {summary
-                            ? t('my_tasks.attempts', { count: summary.attemptCount })
-                            : t('my_tasks.no_attempts')}
-                        </span>
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${status.className} border-current`}
-                        >
-                          {t(status.label)}
-                        </span>
-                      </div>
-                      {btn.label && (
-                        <span className={`w-28 text-center rounded-lg px-3 py-1.5 text-sm font-semibold transition ${btn.className}`}>
-                          {t(btn.label)}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        ))}
+              {isExpanded && (
+                <>
+                  {batch.taskIds.length === 0 ? (
+                    <p className="border-t border-gray-800 p-4 text-sm text-gray-500">
+                      {t('my_tasks.no_tasks_in_batch')}
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-gray-800 border-t border-gray-800">
+                      {batch.taskIds.map((taskId) => {
+                        const summary = summaryMap.get(taskId)
+                        const status = taskStatus(summary)
+                        const btn = buttonConfig(summary)
+                        return (
+                          <button
+                            key={taskId}
+                            onClick={() => { if (!btn.disabled) handleTaskClick(taskId) }}
+                            disabled={btn.disabled}
+                            className={`flex w-full items-center justify-between p-4 text-left transition ${
+                              btn.disabled
+                                ? 'cursor-default opacity-60'
+                                : 'hover:bg-gray-800/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <span className="font-mono text-sm text-blue-400">
+                                {taskId}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {summary
+                                  ? t('my_tasks.attempts', { count: summary.attemptCount })
+                                  : t('my_tasks.no_attempts')}
+                              </span>
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-xs font-medium ${status.className} border-current`}
+                              >
+                                {t(status.label)}
+                              </span>
+                            </div>
+                            {btn.label && (
+                              <span className={`w-28 text-center rounded-lg px-3 py-1.5 text-sm font-semibold transition ${btn.className}`}>
+                                {t(btn.label)}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* Pending Reviews Section */}

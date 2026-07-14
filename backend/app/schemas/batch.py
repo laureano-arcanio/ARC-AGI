@@ -20,3 +20,17 @@ class BatchRead(BaseAPISchema):
     assigned_user_ids: list[int] = []
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class BatchLeaderboardEntry(BaseAPISchema):
+    email: str
+    user_id: int
+    total_time_ms: int
+    avg_time_ms: float
+    total_actions: int
+    avg_actions: float
+    completed_tasks: int = 0
+    abandoned_tasks: int = 0
+    incomplete_tasks: int = 0
+    not_started_tasks: int = 0
+    total_tasks: int = 0

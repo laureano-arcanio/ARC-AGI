@@ -53,7 +53,8 @@ Shape:
 | `copy_selection` | `details.width`, `details.height`, `details.cellCount`: dimensions and count of the copied bounding box. Stores the subgrid in the frontend `clipboard` state. |
 | `paste_selection` | `details.x`, `details.y`, `details.width`, `details.height`: position and dimensions of the paste operation. Reads from `clipboard` state. |
 | `submit` | `details.correct`: boolean computed only by the backend submit endpoint. Drives attempt status. |
-| `abandon` | Marks the attempt as abandoned. No details. |
+| `abandon` | Legacy — kept for backward compatibility. Current solver emits `continue_later` instead. |
+| `continue_later` | Pause checkpoint when the user clicks "Continue later". No details. Creates a timestamped event for tracking real time taken. |
 
 Attempt status is derived from event triggers: correct submit -> `completed`, wrong submit -> `failed`, abandon -> `abandoned`. Completed has priority over failed and abandoned.
 

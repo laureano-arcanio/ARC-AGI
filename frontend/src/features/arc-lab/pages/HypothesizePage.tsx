@@ -20,8 +20,10 @@ export function HypothesizePage() {
   const [saveError, setSaveError] = useState(false)
   const [visibleTrainPairCount, setVisibleTrainPairCount] = useState(1)
   const [attemptId, setAttemptId] = useState<number | null>(null)
+  const [navigating, setNavigating] = useState(false)
   const nodeIdCounter = useRef(0)
   const sequenceCounter = useRef(0)
+  const pendingSavesRef = useRef<Set<Promise<void>>>(new Set())
 
   useEffect(() => {
     if (routeUserId) {
@@ -75,7 +77,7 @@ export function HypothesizePage() {
     const h = trainInput?.length ?? DEFAULT_GRID_HEIGHT
     const w = trainInput?.[0]?.length ?? DEFAULT_GRID_WIDTH
     const snapshot: GridData = createGrid(h, w)
-    postEventWithRetry({
+    const promise = postEventWithRetry({
       userId,
       taskId,
       attemptId,
@@ -94,9 +96,13 @@ export function HypothesizePage() {
     })
       .then(() => setSaveError(false))
       .catch(() => setSaveError(true))
+    pendingSavesRef.current.add(promise)
+    promise.finally(() => pendingSavesRef.current.delete(promise))
   }, [attemptId, userId, taskId, specificTask])
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback(async () => {
+    setNavigating(true)
+    await Promise.allSettled(Array.from(pendingSavesRef.current))
     const base = routeUserId ? `/solve/${routeUserId}/${taskId}` : `/solve/${taskId}`
     const params = new URLSearchParams()
     if (attemptId !== null) params.set('attemptId', String(attemptId))
@@ -128,6 +134,7 @@ export function HypothesizePage() {
         onSetVisibleCount={setVisibleTrainPairCount}
         onAddCognitiveNode={handleAddCognitiveNode}
         onComplete={handleComplete}
+        navigating={navigating}
       />
     </>
   )
