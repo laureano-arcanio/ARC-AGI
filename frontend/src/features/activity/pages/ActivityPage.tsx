@@ -358,6 +358,14 @@ function BatchBreakdownSection({
   breakdown: ActivityBatchBreakdown | null
   isLoading: boolean
 }) {
+  const totalUniqueTasks =
+    breakdown?.batches.reduce((sum, b) => sum + b.tasks.length, 0) ?? 0
+  const totalSolved =
+    breakdown?.batches.reduce(
+      (sum, b) => sum + b.tasks.reduce((s, t) => s + t.completedCount, 0),
+      0,
+    ) ?? 0
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-100">Batch Breakdown</h2>
@@ -372,6 +380,18 @@ function BatchBreakdownSection({
       )}
       {!isLoading && breakdown && breakdown.batches.length === 0 && (
         <p className="text-gray-500">No batches found.</p>
+      )}
+      {breakdown && breakdown.batches.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+            <p className="text-xs text-gray-500">Total Unique Tasks</p>
+            <p className="mt-1 text-2xl font-bold text-amber-400">{totalUniqueTasks}</p>
+          </div>
+          <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+            <p className="text-xs text-gray-500">Total Solved</p>
+            <p className="mt-1 text-2xl font-bold text-emerald-400">{totalSolved}</p>
+          </div>
+        </div>
       )}
       {breakdown?.batches.map((b) => (
         <SolveTimeTable
