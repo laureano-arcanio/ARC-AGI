@@ -141,16 +141,13 @@ export function ActivityPage() {
           <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
             <p className="text-xs text-gray-500">{t('activity.total_unique_tasks')}</p>
             <p className="mt-1 text-2xl font-bold text-amber-400">
-              {breakdown.batches.reduce((sum, b) => sum + b.totalTasks, 0)}
+              {breakdown.totalUniqueTasks}
             </p>
           </div>
           <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
             <p className="text-xs text-gray-500">{t('activity.total_solved')}</p>
             <p className="mt-1 text-2xl font-bold text-emerald-400">
-              {breakdown.batches.reduce(
-                (sum, b) => sum + b.tasks.reduce((s, t) => s + t.completedCount, 0),
-                0,
-              )}
+              {breakdown.totalSolvedTasks}
             </p>
           </div>
         </div>

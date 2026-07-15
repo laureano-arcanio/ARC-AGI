@@ -115,9 +115,12 @@ class ActivityService:
         batches_result = await db.execute(batches_query)
         batches = list(batches_result.scalars().all())
 
+        all_task_ids: set[str] = set()
+        solved_task_ids: set[str] = set()
         batches_data: list[BatchSolveBreakdown] = []
         for batch in batches:
             task_ids = list(batch.task_ids)
+            all_task_ids.update(task_ids)
             if not task_ids:
                 continue
 
@@ -186,6 +189,7 @@ class ActivityService:
                         times = task_solve_times.get(tid)
                         if not times:
                             continue
+                        solved_task_ids.add(tid)
                         times.sort()
                         n = len(times)
                         avg = sum(times) / n
@@ -216,7 +220,11 @@ class ActivityService:
                 )
             )
 
-        return ActivityBatchBreakdown(batches=batches_data)
+        return ActivityBatchBreakdown(
+            batches=batches_data,
+            total_unique_tasks=len(all_task_ids),
+            total_solved_tasks=len(solved_task_ids),
+        )
 
     async def get_export_dataset(
         self,

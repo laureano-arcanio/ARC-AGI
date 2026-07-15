@@ -384,6 +384,71 @@ class TestActivityStats:
         assert "eventTypeSummary" in dumped
 
 
+class TestActivityBatchBreakdown:
+    def test_valid_breakdown(self) -> None:
+        from app.schemas.activity import (
+            ActivityBatchBreakdown,
+            BatchSolveBreakdown,
+            TaskSolveStats,
+        )
+
+        breakdown = ActivityBatchBreakdown(
+            batches=[
+                BatchSolveBreakdown(
+                    batch_id=1,
+                    batch_name="Lote 1",
+                    total_tasks=2,
+                    tasks=[
+                        TaskSolveStats(
+                            task_id="task_a",
+                            avg_time_ms=1000.0,
+                            min_time_ms=500,
+                            max_time_ms=1500,
+                            p95_time_ms=1400,
+                            completed_count=3,
+                        ),
+                    ],
+                ),
+            ],
+            total_unique_tasks=2,
+            total_solved_tasks=1,
+        )
+        assert breakdown.total_unique_tasks == 2
+        assert breakdown.total_solved_tasks == 1
+        assert len(breakdown.batches) == 1
+
+    def test_defaults(self) -> None:
+        from app.schemas.activity import ActivityBatchBreakdown
+
+        breakdown = ActivityBatchBreakdown(batches=[])
+        assert breakdown.total_unique_tasks == 0
+        assert breakdown.total_solved_tasks == 0
+        assert breakdown.batches == []
+
+    def test_camelcase_alias(self) -> None:
+        from app.schemas.activity import (
+            ActivityBatchBreakdown,
+            BatchSolveBreakdown,
+        )
+
+        breakdown = ActivityBatchBreakdown(
+            batches=[
+                BatchSolveBreakdown(
+                    batch_id=1,
+                    batch_name="Lote 1",
+                    total_tasks=2,
+                    tasks=[],
+                ),
+            ],
+            total_unique_tasks=2,
+            total_solved_tasks=1,
+        )
+        dumped = breakdown.model_dump(by_alias=True)
+        assert "totalUniqueTasks" in dumped
+        assert "totalSolvedTasks" in dumped
+        assert "batches" in dumped
+
+
 class TestAttemptRead:
     def test_full_read_schema(self) -> None:
         now = datetime.now(UTC)

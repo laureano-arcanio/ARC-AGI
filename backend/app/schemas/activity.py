@@ -48,3 +48,5 @@ class ActivitySummary(BaseAPISchema):
 
 class ActivityBatchBreakdown(BaseAPISchema):
     batches: list[BatchSolveBreakdown]
+    total_unique_tasks: int = 0
+    total_solved_tasks: int = 0

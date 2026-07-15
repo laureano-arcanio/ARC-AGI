@@ -35,6 +35,8 @@ export type BatchSolveBreakdown = {
 
 export type ActivityBatchBreakdown = {
   batches: BatchSolveBreakdown[]
+  totalUniqueTasks: number
+  totalSolvedTasks: number
 }
 
 export type UserOverlapBucket = {
