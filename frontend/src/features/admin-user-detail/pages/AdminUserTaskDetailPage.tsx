@@ -1,9 +1,11 @@
-import { ChevronDown, ClipboardCopy } from 'lucide-react'
+import { ChevronDown, ChevronRight, ClipboardCopy } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useReviewBySolverTask } from '../../reviews/queries'
+import { useTaskById } from '../../arc-lab/queries'
+import type { TaskPair } from '../../arc-lab/types'
 import {
   useAttempts,
   useEvents,
@@ -14,6 +16,50 @@ import { eventsToGraphNodes, synthesizeGraphNodes, getNodeLabel, formatDelta } f
 import { EventGraph } from '../components/EventGraph'
 import { EventDetailsPanel } from '../components/EventDetailsPanel'
 import type { GraphNode } from '../../../shared/types/arc-graph'
+import { COLOR_MAP } from '../../../shared/types/arc-graph'
+
+function RenderGrid({ grid, label }: { grid: number[][]; label: string }) {
+  if (!grid.length || !grid[0]?.length) return null
+  const cellSize = Math.max(6, Math.min(20, 180 / Math.max(grid.length, grid[0]?.length ?? 1)))
+  return (
+    <div>
+      <p className="mb-1 text-[10px] text-gray-500">{label} ({grid.length}x{grid[0].length})</p>
+      <div className="inline-block rounded border border-gray-700 overflow-hidden">
+        {grid.map((row, ri) => (
+          <div key={ri} className="flex">
+            {row.map((cell, ci) => (
+              <div
+                key={ci}
+                style={{
+                  width: `${cellSize}px`,
+                  height: `${cellSize}px`,
+                  backgroundColor: COLOR_MAP[cell] ?? '#555',
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function RenderTaskPair({ pair, index, type }: { pair: TaskPair; index: number; type: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-semibold text-gray-300">{type} {index + 1}</p>
+      <div className="flex items-start gap-3">
+        <RenderGrid grid={pair.input} label="Input" />
+        {pair.output.length > 0 && (
+          <>
+            <ChevronRight size={16} className="mt-5 text-gray-600" />
+            <RenderGrid grid={pair.output} label="Output" />
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function AdminUserTaskDetailPage() {
   const { t } = useTranslation()
@@ -33,6 +79,8 @@ export function AdminUserTaskDetailPage() {
   } = useUserDetail(numericId)
 
   const { data: reviews } = useReviewBySolverTask(numericId, taskId ?? '')
+
+  const { data: task } = useTaskById(taskId ?? '')
 
   const {
     data: attempts,
@@ -415,6 +463,30 @@ export function AdminUserTaskDetailPage() {
                     </div>
                   </div>
                 </div>
+                {task && (
+                  <div className="border-t border-gray-700 pt-3">
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="mb-3 text-sm font-semibold text-gray-300">Train Samples</h3>
+                        <div className="flex flex-wrap gap-6">
+                          {task.train.map((pair, i) => (
+                            <RenderTaskPair key={i} pair={pair} index={i} type="Train" />
+                          ))}
+                        </div>
+                      </div>
+                      {task.test.length > 0 && (
+                        <div>
+                          <h3 className="mb-3 text-sm font-semibold text-gray-300">Test</h3>
+                          <div className="flex flex-wrap gap-6">
+                            {task.test.map((pair, i) => (
+                              <RenderTaskPair key={i} pair={pair} index={i} type="Test" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="border-t border-gray-700 pt-3">
                   <div className="flex items-center gap-2">
                     <button
