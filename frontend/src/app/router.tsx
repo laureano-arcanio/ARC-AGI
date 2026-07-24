@@ -13,6 +13,9 @@ import { ReviewTaskPage } from '../features/reviews/pages/ReviewTaskPage'
 import { AdminReviewPairsPage } from '../features/reviews/pages/AdminReviewPairsPage'
 import { BatchLeaderboardPage } from '../features/batch-leaderboard/pages/BatchLeaderboardPage'
 import { ActivityPage } from '../features/activity/pages/ActivityPage'
+import { TasksPage } from '../features/tasks/pages/TasksPage'
+import { AdminTaskSearchPage } from '../features/admin-task-search/pages/AdminTaskSearchPage'
+import { TaskSolutionsPage } from '../features/task-solutions/pages/TaskSolutionsPage'
 
 export function AppRouter() {
   return (
@@ -29,6 +32,9 @@ export function AppRouter() {
         <Route path="/admin/review-pairs" element={<AdminReviewPairsPage />} />
         <Route path="/admin/leaderboard" element={<BatchLeaderboardPage />} />
         <Route path="/admin/activity" element={<ActivityPage />} />
+        <Route path="/admin/tasks" element={<TasksPage />} />
+        <Route path="/admin/task-search" element={<AdminTaskSearchPage />} />
+        <Route path="/admin/tasks/:taskId/solutions" element={<TaskSolutionsPage />} />
         <Route path="/hypothesize/:userId/:taskId" element={<HypothesizePage />} />
         <Route path="/hypothesize/:taskId" element={<HypothesizePage />} />
         <Route path="/solve/:userId/:taskId" element={<ArcLabPage />} />

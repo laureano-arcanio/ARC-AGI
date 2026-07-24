@@ -22,6 +22,7 @@ from app.routers import (
     event,
     example_table,
     review,
+    task_stats,
     user,
 )
 from app.services.user import _hash_password
@@ -53,6 +54,7 @@ app.include_router(example_table.router)
 app.include_router(review.router)
 app.include_router(user.router)
 app.include_router(arc_task.router)
+app.include_router(task_stats.router)
 
 
 @app.on_event("startup")
