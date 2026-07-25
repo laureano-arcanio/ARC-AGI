@@ -156,6 +156,7 @@ class TaskStatsService:
         solver_email: str | None = None,
         hypothesis_text: str | None = None,
         task_id_filter: str | None = None,
+        dataset: str | None = None,
     ) -> TaskSearchPaginated:
         all_task_dims = self._load_all_task_dimensions()
         all_transform = self._load_all_transform_info()
@@ -232,6 +233,20 @@ class TaskStatsService:
                 continue
             if hypothesis_task_ids is not None and task_id not in hypothesis_task_ids:
                 continue
+            task_datasets = dims.get("datasets", set())
+            if dataset == "1" and "1" not in task_datasets:
+                continue
+            if dataset == "2" and "2" not in task_datasets:
+                continue
+            if dataset == "both" and not {"1", "2"}.issubset(task_datasets):
+                continue
+            in1 = "1" in task_datasets
+            in2 = "2" in task_datasets
+            if dataset == "1_only" and not (in1 and not in2):
+                continue
+            two_only = dataset == "2_only"
+            if two_only and not (in2 and not in1):
+                continue
             width = dims["width"]
             height = dims["height"]
             ti = all_transform.get(task_id, {
@@ -296,6 +311,7 @@ class TaskStatsService:
                     transform_label=ti["label"],
                     all_inputs_same=ti.get("all_inputs_same", True),
                     all_outputs_same=ti.get("all_outputs_same", True),
+                    datasets=sorted(task_datasets),
                 )
             )
 
@@ -333,21 +349,32 @@ class TaskStatsService:
         result = await self.db_session.execute(sql, {"task_id": task_id})
         return [TaskSolverRead(user_id=row[0], email=row[1]) for row in result.all()]
 
+    def _ensure_datasets(
+        self, result: dict[str, dict[str, Any]], task_id: str, dataset: str
+    ) -> None:
+        if task_id not in result:
+            result[task_id] = {"datasets": set()}
+        result[task_id]["datasets"].add(dataset)
+
     def _load_all_transform_info(self) -> dict[str, dict[str, Any]]:
         result: dict[str, dict[str, Any]] = {}
-        for challenges_file, _solutions_file in SOURCES:
-            challenges = self._arc_service._load_json(challenges_file)
+        for static_dir, challenges_file, _solutions_file, dataset in SOURCES:
+            challenges = self._arc_service._load_json(challenges_file, static_dir)
             for task_id, task_data in challenges.items():
+                self._ensure_datasets(result, task_id, dataset)
+                if task_id in result and result[task_id].get("_done"):
+                    continue
                 train = task_data.get("train", [])
                 if not train:
-                    result[task_id] = {
+                    result[task_id].update({
                         "same_size": True,
                         "width_delta": None,
                         "height_delta": None,
                         "label": "no_train",
                         "all_inputs_same": True,
                         "all_outputs_same": True,
-                    }
+                        "_done": True,
+                    })
                     continue
                 deltas: list[tuple[int, int]] = []
                 input_sizes: list[tuple[int, int]] = []
@@ -363,14 +390,15 @@ class TaskStatsService:
                     input_sizes.append((ih, iw))
                     output_sizes.append((oh, ow))
                 if not deltas:
-                    result[task_id] = {
+                    result[task_id].update({
                         "same_size": True,
                         "width_delta": None,
                         "height_delta": None,
                         "label": "no_train",
                         "all_inputs_same": True,
                         "all_outputs_same": True,
-                    }
+                        "_done": True,
+                    })
                     continue
                 first_dw, first_dh = deltas[0]
                 all_same = all(d == (first_dw, first_dh) for d in deltas)
@@ -378,14 +406,15 @@ class TaskStatsService:
                 all_inputs_same = all(s == input_sizes[0] for s in input_sizes)
                 all_outputs_same = all(s == output_sizes[0] for s in output_sizes)
                 if same_size:
-                    result[task_id] = {
+                    result[task_id].update({
                         "same_size": True,
                         "width_delta": 0,
                         "height_delta": 0,
                         "label": "same_size",
                         "all_inputs_same": all_inputs_same,
                         "all_outputs_same": all_outputs_same,
-                    }
+                        "_done": True,
+                    })
                 elif all_same:
                     dw, dh = first_dw, first_dh
                     if dw > 0 and dh > 0:
@@ -406,14 +435,15 @@ class TaskStatsService:
                         label = "shrink_w_more"
                     else:
                         label = "resize"
-                    result[task_id] = {
+                    result[task_id].update({
                         "same_size": False,
                         "width_delta": dw,
                         "height_delta": dh,
                         "label": label,
                         "all_inputs_same": all_inputs_same,
                         "all_outputs_same": all_outputs_same,
-                    }
+                        "_done": True,
+                    })
                 else:
                     widths = set(d[0] for d in deltas)
                     heights = set(d[1] for d in deltas)
@@ -426,24 +456,28 @@ class TaskStatsService:
                         w_min = min(d[0] for d in deltas)
                         w_max = max(d[0] for d in deltas)
                         mixed_label = f"mixed_w_{w_min}_{w_max}"
-                    result[task_id] = {
+                    result[task_id].update({
                         "same_size": False,
                         "width_delta": None,
                         "height_delta": None,
                         "label": mixed_label,
                         "all_inputs_same": all_inputs_same,
                         "all_outputs_same": all_outputs_same,
-                    }
+                        "_done": True,
+                    })
         return result
 
-    def _load_all_task_dimensions(self) -> dict[str, dict[str, int]]:
-        dims: dict[str, dict[str, int]] = {}
+    def _load_all_task_dimensions(self) -> dict[str, dict[str, Any]]:
+        dims: dict[str, dict[str, Any]] = {}
 
-        for challenges_file, _solutions_file in SOURCES:
-            challenges = self._arc_service._load_json(challenges_file)
+        for static_dir, challenges_file, _solutions_file, dataset in SOURCES:
+            challenges = self._arc_service._load_json(challenges_file, static_dir)
             for task_id, task_data in challenges.items():
-                width, height = self._first_grid_dims(task_data)
-                dims[task_id] = {"width": width, "height": height}
+                if task_id not in dims:
+                    width, height = self._first_grid_dims(task_data)
+                    dims[task_id] = {"width": width, "height": height,
+                                     "datasets": set()}
+                dims[task_id]["datasets"].add(dataset)
 
         return dims
 

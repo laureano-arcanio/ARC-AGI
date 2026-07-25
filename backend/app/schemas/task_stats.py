@@ -37,6 +37,7 @@ class TaskSearchRead(BaseAPISchema):
     transform_label: str
     all_inputs_same: bool
     all_outputs_same: bool
+    datasets: list[str]
 
 
 class TaskSearchPaginated(BaseAPISchema):

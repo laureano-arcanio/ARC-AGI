@@ -63,6 +63,7 @@ async def search_tasks(
     solver_email: str | None = Query(None, alias="solverEmail"),
     hypothesis_text: str | None = Query(None, alias="hypothesisText"),
     task_id_filter: str | None = Query(None, alias="taskId"),
+    dataset: str | None = Query(None),
     service: TaskStatsService = Depends(get_service),  # noqa: B008
     _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> TaskSearchPaginated:
@@ -85,6 +86,7 @@ async def search_tasks(
         solver_email=solver_email,
         hypothesis_text=hypothesis_text,
         task_id_filter=task_id_filter,
+        dataset=dataset,
     )
 
 

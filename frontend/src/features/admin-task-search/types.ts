@@ -17,6 +17,7 @@ export type TaskSearchRead = {
   transformLabel: string
   allInputsSame: boolean
   allOutputsSame: boolean
+  datasets: string[]
 }
 
 export type TaskSearchPaginated = {
@@ -44,6 +45,7 @@ export type TaskSearchFilters = {
   solverEmail?: string
   hypothesisText?: string
   taskId?: string
+  dataset?: string
 }
 
 export type UserRead = {

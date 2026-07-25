@@ -551,7 +551,13 @@ const es = {
   'task_search.table.transform': 'Transf. tamaño',
   'task_search.table.width': 'Ancho',
   'task_search.table.height': 'Alto',
+  'task_search.table.dataset': 'Dataset',
   'task_search.table.actions': 'Acciones',
+  'task_search.filter_dataset': 'Dataset',
+  'task_search.all_datasets': 'Todos',
+  'task_search.both_datasets': 'Ambos (1 ∩ 2)',
+  'task_search.only_dataset_1': 'Solo ARC-AGI-1',
+  'task_search.only_dataset_2': 'Solo ARC-AGI-2',
 }
 
 const en: Record<string, string> = {
@@ -1098,7 +1104,13 @@ const en: Record<string, string> = {
   'task_search.table.transform': 'Size trans.',
   'task_search.table.width': 'Width',
   'task_search.table.height': 'Height',
+  'task_search.table.dataset': 'Dataset',
   'task_search.table.actions': 'Actions',
+  'task_search.filter_dataset': 'Dataset',
+  'task_search.all_datasets': 'All',
+  'task_search.both_datasets': 'Both (1 ∩ 2)',
+  'task_search.only_dataset_1': 'Only ARC-AGI-1',
+  'task_search.only_dataset_2': 'Only ARC-AGI-2',
 }
 
 export const translations = { es, en }

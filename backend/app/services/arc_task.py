@@ -5,24 +5,46 @@ from typing import Any
 
 from app.schemas.arc_task import ArcTaskPair, ArcTaskRead, GridData
 
-STATIC_DIR = Path(__file__).resolve().parents[2] / "static" / "ARC-AGI-2"
+STATIC_DIR_1 = Path(__file__).resolve().parents[2] / "static" / "ARC-AGI-1"
+STATIC_DIR_2 = Path(__file__).resolve().parents[2] / "static" / "ARC-AGI-2"
 
-SOURCES: list[tuple[str, str | None]] = [
+# challenges_file, solutions_file
+SOURCE_FILE_ENTRY = tuple[str, str | None]
+
+SOURCE_FILES: list[SOURCE_FILE_ENTRY] = [
     ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json"),
     ("arc-agi_evaluation_challenges.json", "arc-agi_evaluation_solutions.json"),
     ("arc-agi_test_challenges.json", None),
 ]
 
+# static_dir, challenges_file, solutions_file, dataset_label
+SOURCE_ENTRY = tuple[Path, str, str | None, str]
+
+SOURCES: list[SOURCE_ENTRY] = [
+    (STATIC_DIR_1, "arc-agi_training_challenges.json",
+     "arc-agi_training_solutions.json", "1"),
+    (STATIC_DIR_1, "arc-agi_evaluation_challenges.json",
+     "arc-agi_evaluation_solutions.json", "1"),
+    (STATIC_DIR_1, "arc-agi_test_challenges.json", None, "1"),
+    (STATIC_DIR_2, "arc-agi_training_challenges.json",
+     "arc-agi_training_solutions.json", "2"),
+    (STATIC_DIR_2, "arc-agi_evaluation_challenges.json",
+     "arc-agi_evaluation_solutions.json", "2"),
+    (STATIC_DIR_2, "arc-agi_test_challenges.json", None, "2"),
+]
+
 
 class ArcTaskService:
-    def __init__(self, static_dir: Path = STATIC_DIR) -> None:
+    def __init__(self, static_dir: Path = STATIC_DIR_2) -> None:
         self._static_dir = static_dir
 
     async def _find_task(self, task_id: str) -> ArcTaskRead | None:
-        for challenges_file, solutions_file in SOURCES:
-            challenges = self._load_json(challenges_file)
+        for challenges_file, solutions_file in SOURCE_FILES:
+            challenges = self._load_json(challenges_file, self._static_dir)
             if task_id in challenges:
-                solutions = self._load_json(solutions_file) if solutions_file else {}
+                solutions = {}
+                if solutions_file:
+                    solutions = self._load_json(solutions_file, self._static_dir)
                 return self._build_task(
                     task_id, challenges[task_id], solutions.get(task_id, []),
                 )
@@ -34,33 +56,24 @@ class ArcTaskService:
         task = await self._find_task(task_id)
         if task is None or include_test_outputs:
             return task
-        # Solvers and reviewers must never receive the test solutions; only the
-        # inputs they need to work the task. Train outputs are demonstrations
-        # and stay intact.
         stripped_test = [
             ArcTaskPair(input=pair.input, output=[]) for pair in task.test
         ]
         return ArcTaskRead(id=task.id, train=task.train, test=stripped_test)
 
     async def get_solutions(self, task_id: str) -> list[GridData] | None:
-        for challenges_file, solutions_file in SOURCES:
-            challenges = self._load_json(challenges_file)
+        for challenges_file, solutions_file in SOURCE_FILES:
+            challenges = self._load_json(challenges_file, self._static_dir)
             if task_id in challenges:
                 if solutions_file is None:
                     return None
-                solutions = self._load_json(solutions_file)
+                solutions = self._load_json(solutions_file, self._static_dir)
                 return solutions.get(task_id)
         return None
 
     async def check_submission(
         self, task_id: str, grids: dict[int, GridData]
     ) -> bool:
-        """Validate submitted grids against the stored solutions.
-
-        Only the test-pair indices present in *grids* are checked. This allows
-        the client to verify test pairs one at a time instead of requiring all
-        pairs in a single request.
-        """
         solutions = await self.get_solutions(task_id)
         if not solutions:
             return False
@@ -72,8 +85,10 @@ class ArcTaskService:
         return True
 
     async def get_random_tasks(self, count: int = 10) -> list[ArcTaskRead]:
-        challenges = self._load_json("arc-agi_training_challenges.json")
-        solutions = self._load_json("arc-agi_training_solutions.json")
+        challenges = self._load_json(
+            "arc-agi_training_challenges.json", self._static_dir)
+        solutions = self._load_json(
+            "arc-agi_training_solutions.json", self._static_dir)
         ids = list(challenges.keys())
         if not ids:
             return []
@@ -100,8 +115,8 @@ class ArcTaskService:
         chosen = random.sample(tasks, sample_size)
         return chosen
 
-    def _load_json(self, name: str) -> dict[str, Any]:
-        path = self._static_dir / name
+    def _load_json(self, name: str, static_dir: Path | None = None) -> dict[str, Any]:
+        path = (static_dir or self._static_dir) / name
         with path.open("r", encoding="utf-8") as fh:
             data: dict[str, Any] = json.load(fh)
         return data

@@ -9,7 +9,7 @@ const PAGE_SIZES = [10, 20, 50, 100]
 const MAX_DIM = 30
 const DELTA_RANGE = 15
 const DEFAULT_MIN_SOLUTIONS = '1'
-const FILTER_KEYS = ['wMin', 'wMax', 'hMin', 'hMax', 'sMin', 'sMax', 'wdMin', 'wdMax', 'hdMin', 'hdMax', 'sameSize', 'allInputsSame', 'allOutputsSame', 'solverEmail', 'hypothesisText', 'taskId'] as const
+const FILTER_KEYS = ['wMin', 'wMax', 'hMin', 'hMax', 'sMin', 'sMax', 'wdMin', 'wdMax', 'hdMin', 'hdMax', 'sameSize', 'allInputsSame', 'allOutputsSame', 'solverEmail', 'hypothesisText', 'taskId', 'dataset'] as const
 const DELTA_KEYS = new Set(['wdMin', 'wdMax', 'hdMin', 'hdMax'])
 
 function clamp(n: number, lo: number, hi: number) {
@@ -104,6 +104,8 @@ function filtersFromSearchParams(sp: URLSearchParams): TaskSearchFilters {
   if (ht) f.hypothesisText = ht
   const tid = sp.get('taskId')
   if (tid) f.taskId = tid
+  const ds = sp.get('dataset')
+  if (ds) f.dataset = ds
   return f
 }
 
@@ -248,6 +250,7 @@ export function AdminTaskSearchPage() {
   const solverEmailVal = searchParams.get('solverEmail') ?? ''
   const hypothesisTextVal = searchParams.get('hypothesisText') ?? ''
   const taskIdVal = searchParams.get('taskId') ?? ''
+  const datasetVal = searchParams.get('dataset') ?? ''
 
   if (authLoading || (!data && isLoading)) {
     return (
@@ -360,6 +363,19 @@ export function AdminTaskSearchPage() {
               {users?.map(u => (
                 <option key={u.id} value={u.email}>{u.email}</option>
               ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500">{t('task_search.filter_dataset')}</label>
+            <select
+              value={datasetVal}
+              onChange={(e) => handleCommit('dataset', e.target.value)}
+              className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">{t('task_search.all_datasets')}</option>
+              <option value="both">{t('task_search.both_datasets')}</option>
+              <option value="1_only">{t('task_search.only_dataset_1')}</option>
+              <option value="2_only">{t('task_search.only_dataset_2')}</option>
             </select>
           </div>
           <div className="flex flex-col gap-1">
@@ -486,6 +502,7 @@ export function AdminTaskSearchPage() {
           <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
             <tr>
               <th className="px-4 py-3 font-medium">{t('task_search.table.task_id')}</th>
+              <th className="px-4 py-3 font-medium">{t('task_search.table.dataset')}</th>
               <th className="px-4 py-3 font-medium">{t('task_search.table.has_solution')}</th>
               <th className="px-4 py-3 font-medium">{t('task_search.table.solver_emails')}</th>
               <th className="px-4 py-3 font-medium">{t('task_search.table.hypotheses')}</th>
@@ -501,6 +518,19 @@ export function AdminTaskSearchPage() {
               <tr key={task.taskId} className="transition hover:bg-gray-900/50">
                 <td className="px-4 py-3 font-mono text-xs text-blue-400">
                   {task.taskId}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1.5">
+                    {task.datasets.map(ds => (
+                      <span key={ds} className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                        ds === '1'
+                          ? 'bg-amber-900/30 text-amber-400'
+                          : 'bg-sky-900/30 text-sky-400'
+                      }`}>
+                        ARC-{ds}
+                      </span>
+                    ))}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   {task.hasSolution ? (

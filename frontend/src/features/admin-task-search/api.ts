@@ -25,6 +25,7 @@ export function getTaskSearch(
     solverEmail: filters.solverEmail || undefined,
     hypothesisText: filters.hypothesisText || undefined,
     taskId: filters.taskId || undefined,
+    dataset: filters.dataset || undefined,
   }
 
   return http.get<TaskSearchPaginated>('/v1/tasks/search', { params })
