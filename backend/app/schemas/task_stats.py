@@ -21,6 +21,7 @@ class TaskStatsPaginated(BaseAPISchema):
 class SolverUserRead(BaseAPISchema):
     user_id: int
     email: str
+    hypothesis: str | None = None
 
 
 class TaskSearchRead(BaseAPISchema):

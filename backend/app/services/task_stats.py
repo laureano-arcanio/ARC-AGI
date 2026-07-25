@@ -153,6 +153,9 @@ class TaskStatsService:
         max_height_delta: int | None = None,
         all_inputs_same: bool | None = None,
         all_outputs_same: bool | None = None,
+        solver_email: str | None = None,
+        hypothesis_text: str | None = None,
+        task_id_filter: str | None = None,
     ) -> TaskSearchPaginated:
         all_task_dims = self._load_all_task_dimensions()
         all_transform = self._load_all_transform_info()
@@ -185,9 +188,50 @@ class TaskStatsService:
             user_ids = [uid for _, uid in combined]
             db_data[task_id] = (solver_count, emails, user_ids)
 
+        hypothesis_task_ids: set[str] | None = None
+        if hypothesis_text:
+            h_sql = text("""
+                SELECT DISTINCT task_id
+                FROM event
+                WHERE trigger->>'kind' = 'cognitive'
+                  AND trigger->>'text' ILIKE :pattern
+            """)
+            h_result = await self.db_session.execute(
+                h_sql, {"pattern": f"%{hypothesis_text}%"}
+            )
+            hypothesis_task_ids = {row[0] for row in h_result.all()}
+
+        h_all_sql = text("""
+            SELECT DISTINCT ON (task_id, user_id)
+                task_id,
+                user_id,
+                trigger->>'text' AS text
+            FROM event
+            WHERE trigger->>'kind' = 'cognitive'
+              AND trigger->>'text' IS NOT NULL
+            ORDER BY task_id, user_id, id DESC
+        """)
+        h_all_result = await self.db_session.execute(h_all_sql)
+        task_solver_hypotheses: dict[str, dict[int, str]] = {}
+        for row in h_all_result.all():
+            tid = row[0]
+            uid = row[1]
+            txt = row[2]
+            if tid not in task_solver_hypotheses:
+                task_solver_hypotheses[tid] = {}
+            task_solver_hypotheses[tid][uid] = txt
+
         items: list[TaskSearchRead] = []
         for task_id, dims in all_task_dims.items():
             solver_count, solver_emails, solver_ids = db_data.get(task_id, (0, [], []))
+
+            if solver_email is not None and solver_email not in solver_emails:
+                continue
+            tf = task_id_filter
+            if tf is not None and tf.lower() not in task_id.lower():
+                continue
+            if hypothesis_task_ids is not None and task_id not in hypothesis_task_ids:
+                continue
             width = dims["width"]
             height = dims["height"]
             ti = all_transform.get(task_id, {
@@ -228,8 +272,14 @@ class TaskStatsService:
                 if max_height_delta is not None and hd > max_height_delta:
                     continue
 
+            solver_hypotheses = task_solver_hypotheses.get(task_id, {})
+
             solvers = [
-                SolverUserRead(user_id=uid, email=em)
+                SolverUserRead(
+                    user_id=uid,
+                    email=em,
+                    hypothesis=solver_hypotheses.get(uid, None),
+                )
                 for uid, em in zip(solver_ids, solver_emails, strict=False)
             ]
             items.append(

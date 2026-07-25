@@ -60,6 +60,9 @@ async def search_tasks(
     max_height_delta: int | None = Query(None, alias="maxHeightDelta"),
     all_inputs_same: bool | None = Query(None, alias="allInputsSame"),
     all_outputs_same: bool | None = Query(None, alias="allOutputsSame"),
+    solver_email: str | None = Query(None, alias="solverEmail"),
+    hypothesis_text: str | None = Query(None, alias="hypothesisText"),
+    task_id_filter: str | None = Query(None, alias="taskId"),
     service: TaskStatsService = Depends(get_service),  # noqa: B008
     _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> TaskSearchPaginated:
@@ -79,6 +82,9 @@ async def search_tasks(
         max_height_delta=max_height_delta,
         all_inputs_same=all_inputs_same,
         all_outputs_same=all_outputs_same,
+        solver_email=solver_email,
+        hypothesis_text=hypothesis_text,
+        task_id_filter=task_id_filter,
     )
 
 

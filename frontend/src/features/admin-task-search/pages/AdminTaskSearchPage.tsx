@@ -2,14 +2,14 @@ import { useCallback, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useTaskSearch } from '../queries'
+import { useTaskSearch, useUsers } from '../queries'
 import type { TaskSearchFilters } from '../types'
 
 const PAGE_SIZES = [10, 20, 50, 100]
 const MAX_DIM = 30
 const DELTA_RANGE = 15
 const DEFAULT_MIN_SOLUTIONS = '1'
-const FILTER_KEYS = ['wMin', 'wMax', 'hMin', 'hMax', 'sMin', 'sMax', 'wdMin', 'wdMax', 'hdMin', 'hdMax', 'sameSize', 'allInputsSame', 'allOutputsSame'] as const
+const FILTER_KEYS = ['wMin', 'wMax', 'hMin', 'hMax', 'sMin', 'sMax', 'wdMin', 'wdMax', 'hdMin', 'hdMax', 'sameSize', 'allInputsSame', 'allOutputsSame', 'solverEmail', 'hypothesisText', 'taskId'] as const
 const DELTA_KEYS = new Set(['wdMin', 'wdMax', 'hdMin', 'hdMax'])
 
 function clamp(n: number, lo: number, hi: number) {
@@ -98,6 +98,12 @@ function filtersFromSearchParams(sp: URLSearchParams): TaskSearchFilters {
   if (sp.has('allOutputsSame')) {
     f.allOutputsSame = sp.get('allOutputsSame')!
   }
+  const se = sp.get('solverEmail')
+  if (se) f.solverEmail = se
+  const ht = sp.get('hypothesisText')
+  if (ht) f.hypothesisText = ht
+  const tid = sp.get('taskId')
+  if (tid) f.taskId = tid
   return f
 }
 
@@ -180,6 +186,7 @@ export function AdminTaskSearchPage() {
   )
 
   const { data, isLoading, isFetching, error } = useTaskSearch(page, perPage, appliedFilters)
+  const { data: users } = useUsers()
   const totalPages = data?.totalPages ?? 1
 
   const setParams = useCallback(
@@ -238,6 +245,9 @@ export function AdminTaskSearchPage() {
   const sameSize = searchParams.get('sameSize')
   const allInputsSame = searchParams.get('allInputsSame')
   const allOutputsSame = searchParams.get('allOutputsSame')
+  const solverEmailVal = searchParams.get('solverEmail') ?? ''
+  const hypothesisTextVal = searchParams.get('hypothesisText') ?? ''
+  const taskIdVal = searchParams.get('taskId') ?? ''
 
   if (authLoading || (!data && isLoading)) {
     return (
@@ -336,6 +346,43 @@ export function AdminTaskSearchPage() {
               <SliderInput paramKey="hdMax" value={fhdMax} min={-DELTA_RANGE} max={DELTA_RANGE} onDrag={handleDrag} onCommit={handleCommit} />
               <span className="w-6 text-center text-xs text-gray-300">{fhdMax}</span>
             </div>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500">{t('task_search.filter_solver')}</label>
+            <select
+              value={solverEmailVal}
+              onChange={(e) => handleCommit('solverEmail', e.target.value)}
+              className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">{t('task_search.all_users')}</option>
+              {users?.map(u => (
+                <option key={u.id} value={u.email}>{u.email}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500">{t('task_search.filter_hypothesis')}</label>
+            <input
+              type="text"
+              value={hypothesisTextVal}
+              onChange={(e) => handleDrag('hypothesisText', e.target.value)}
+              onBlur={(e) => handleCommit('hypothesisText', e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCommit('hypothesisText', (e.target as HTMLInputElement).value) }}
+              className="w-48 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500">{t('task_search.filter_task_id')}</label>
+            <input
+              type="text"
+              value={taskIdVal}
+              onChange={(e) => handleDrag('taskId', e.target.value)}
+              onBlur={(e) => handleCommit('taskId', e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCommit('taskId', (e.target as HTMLInputElement).value) }}
+              className="w-48 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200 focus:border-blue-500 focus:outline-none"
+            />
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -441,6 +488,7 @@ export function AdminTaskSearchPage() {
               <th className="px-4 py-3 font-medium">{t('task_search.table.task_id')}</th>
               <th className="px-4 py-3 font-medium">{t('task_search.table.has_solution')}</th>
               <th className="px-4 py-3 font-medium">{t('task_search.table.solver_emails')}</th>
+              <th className="px-4 py-3 font-medium">{t('task_search.table.hypotheses')}</th>
               <th className="px-4 py-3 font-medium">{t('task_search.table.solution_count')}</th>
               <th className="px-4 py-3 font-medium">{t('task_search.table.transform')}</th>
               <th className="px-4 py-3 font-medium">{t('task_search.table.width')}</th>
@@ -476,6 +524,19 @@ export function AdminTaskSearchPage() {
                         >
                           {s.email}
                         </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-600">-</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {task.solvers.length > 0 ? (
+                    <div className="flex flex-col gap-0.5">
+                      {task.solvers.map((s) => (
+                        <span key={s.userId} className="max-w-[200px] truncate text-xs text-gray-400" title={s.hypothesis ?? undefined}>
+                          {s.hypothesis ?? <span className="text-gray-600">-</span>}
+                        </span>
                       ))}
                     </div>
                   ) : (

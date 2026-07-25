@@ -1,6 +1,7 @@
 export type SolverUser = {
   userId: number
   email: string
+  hypothesis: string | null
 }
 
 export type TaskSearchRead = {
@@ -40,6 +41,15 @@ export type TaskSearchFilters = {
   maxHeightDelta?: string
   allInputsSame?: string
   allOutputsSame?: string
+  solverEmail?: string
+  hypothesisText?: string
+  taskId?: string
+}
+
+export type UserRead = {
+  id: number
+  email: string
+  role: string
 }
 
 export type TaskSolverRead = {

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getTaskSearch, getTaskSolvers } from './api'
+import { getTaskSearch, getTaskSolvers, getUsers } from './api'
 import type { TaskSearchFilters } from './types'
 
 export const taskSearchQueryKeys = {
@@ -16,6 +16,14 @@ export function useTaskSearch(page: number, perPage: number, filters: TaskSearch
     queryFn: () => getTaskSearch(page, perPage, filters),
     placeholderData: (prev) => prev,
     staleTime: 30 * 1000,
+  })
+}
+
+export function useUsers() {
+  return useQuery({
+    queryKey: [...taskSearchQueryKeys.all, 'users'],
+    queryFn: getUsers,
+    staleTime: 5 * 60 * 1000,
   })
 }
 

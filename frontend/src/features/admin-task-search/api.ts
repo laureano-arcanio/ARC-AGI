@@ -1,5 +1,5 @@
 import { http } from '../../lib/http'
-import type { TaskSearchFilters, TaskSearchPaginated, TaskSolverRead } from './types'
+import type { TaskSearchFilters, TaskSearchPaginated, TaskSolverRead, UserRead } from './types'
 
 export function getTaskSearch(
   page: number,
@@ -22,6 +22,9 @@ export function getTaskSearch(
     maxHeightDelta: filters.maxHeightDelta || undefined,
     allInputsSame: filters.allInputsSame || undefined,
     allOutputsSame: filters.allOutputsSame || undefined,
+    solverEmail: filters.solverEmail || undefined,
+    hypothesisText: filters.hypothesisText || undefined,
+    taskId: filters.taskId || undefined,
   }
 
   return http.get<TaskSearchPaginated>('/v1/tasks/search', { params })
@@ -29,4 +32,8 @@ export function getTaskSearch(
 
 export function getTaskSolvers(taskId: string): Promise<TaskSolverRead[]> {
   return http.get<TaskSolverRead[]>(`/v1/tasks/${taskId}/solvers`)
+}
+
+export function getUsers(): Promise<UserRead[]> {
+  return http.get<UserRead[]>('/v1/users/')
 }
