@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ChevronDown, ChevronRight, ClipboardCopy } from 'lucide-react'
+import { ChevronDown, ClipboardCopy } from 'lucide-react'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useTaskSolvers } from '../../admin-task-search/queries'
@@ -10,52 +10,10 @@ import { eventsToGraphNodes, synthesizeGraphNodes, getNodeLabel, formatDelta } f
 import { EventGraph } from '../../admin-user-detail/components/EventGraph'
 import { EventDetailsPanel } from '../../admin-user-detail/components/EventDetailsPanel'
 import { useQuery } from '@tanstack/react-query'
-import { COLOR_MAP } from '../../../shared/types/arc-graph'
 import type { GraphNode } from '../../../shared/types/arc-graph'
-import type { TaskPair } from '../../arc-lab/types'
-
-function RenderGrid({ grid, label }: { grid: number[][]; label: string }) {
-  if (!grid.length || !grid[0]?.length) return null
-  const cellSize = Math.max(6, Math.min(20, 180 / Math.max(grid.length, grid[0]?.length ?? 1)))
-  return (
-    <div>
-      <p className="mb-1 text-[10px] text-gray-500">{label} ({grid.length}x{grid[0].length})</p>
-      <div className="inline-block rounded border border-gray-700 overflow-hidden">
-        {grid.map((row, ri) => (
-          <div key={ri} className="flex">
-            {row.map((cell, ci) => (
-              <div
-                key={ci}
-                style={{
-                  width: `${cellSize}px`,
-                  height: `${cellSize}px`,
-                  backgroundColor: COLOR_MAP[cell] ?? '#555',
-                }}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function RenderTaskPair({ pair, index, type }: { pair: TaskPair; index: number; type: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs font-semibold text-gray-300">{type} {index + 1}</p>
-      <div className="flex items-start gap-3">
-        <RenderGrid grid={pair.input} label="Input" />
-        {pair.output.length > 0 && (
-          <>
-            <ChevronRight size={16} className="mt-5 text-gray-600" />
-            <RenderGrid grid={pair.output} label="Output" />
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
+import { TaskTaggingWorkspace } from '../../task-tagging/components/TaskTaggingWorkspace'
+import { useTaskTags, useTaskTagRelations } from '../../task-tagging/queries'
+import { HypothesisPanel } from '../components/HypothesisPanel'
 
 function SolverSection({ userId, email, taskId }: { userId: number; email: string; taskId: string }) {
   const { t } = useTranslation()
@@ -344,6 +302,11 @@ export function TaskSolutionsPage() {
   const { t } = useTranslation()
   const { isAdmin, isLoading: authLoading } = useAuth()
   const { taskId } = useParams<{ taskId: string }>()
+  const [tagsAccordionOpen, setTagsAccordionOpen] = useState(false)
+  const [relationsAccordionOpen, setRelationsAccordionOpen] = useState(false)
+
+  const { data: tags } = useTaskTags(taskId ?? '')
+  const { data: relations } = useTaskTagRelations(taskId ?? '')
 
   const { data: solvers, isLoading: solversLoading } = useTaskSolvers(taskId ?? '')
   const { data: task } = useTaskById(taskId ?? '')
@@ -388,23 +351,17 @@ export function TaskSolutionsPage() {
         )}
       </div>
 
+      {solvers && solvers.length > 0 && (
+        <HypothesisPanel
+          solvers={solvers.map((s) => ({ userId: s.userId, email: s.email }))}
+          taskId={taskId ?? ''}
+        />
+      )}
+
       {task && (
-        <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-300">{t('task_search.task_preview')}</h3>
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-6">
-              {task.train.map((pair, i) => (
-                <RenderTaskPair key={i} pair={pair} index={i} type="Train" />
-              ))}
-            </div>
-            {task.test.length > 0 && (
-              <div className="flex flex-wrap gap-6">
-                {task.test.map((pair, i) => (
-                  <RenderTaskPair key={i} pair={pair} index={i} type="Test" />
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="rounded-lg border border-gray-800 bg-gray-900/50">
+          <h3 className="border-b border-gray-800 px-4 py-2 text-sm font-semibold text-gray-300">{t('task_search.task_preview')}</h3>
+          <TaskTaggingWorkspace taskId={taskId ?? ''} train={task.train} test={task.test} />
         </div>
       )}
 
@@ -424,6 +381,104 @@ export function TaskSolutionsPage() {
           {t('task_search.no_solvers')}
         </div>
       )}
+
+      <div className="border-t border-gray-700 pt-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTagsAccordionOpen(!tagsAccordionOpen)}
+            className="flex flex-1 items-center justify-between rounded bg-gray-800/50 px-3 py-2 text-xs font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
+          >
+            <span>Tags ({tags?.length ?? 0})</span>
+            <ChevronDown size={16} className={`transition ${tagsAccordionOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <button
+            onClick={() => {
+              if (!tags) return
+              const text = tags.map((tag) => JSON.stringify(tag, null, 2)).join('\n\n')
+              navigator.clipboard.writeText(text)
+            }}
+            className="rounded bg-gray-800/50 px-2.5 py-2 text-gray-400 transition hover:bg-gray-700 hover:text-white"
+            title="Copy tags"
+          >
+            <ClipboardCopy size={14} />
+          </button>
+        </div>
+        {tagsAccordionOpen && tags && (
+          <table className="mt-3 w-full text-left text-xs">
+            <thead className="border-b border-gray-700 text-gray-500">
+              <tr>
+                <th className="px-3 py-2 font-medium">ID</th>
+                <th className="px-3 py-2 font-medium">User</th>
+                <th className="px-3 py-2 font-medium">Scope</th>
+                <th className="px-3 py-2 font-medium">Pair</th>
+                <th className="px-3 py-2 font-medium">Grid</th>
+                <th className="px-3 py-2 font-medium">Labels</th>
+                <th className="px-3 py-2 font-medium">Cells</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {tags.map((tag) => (
+                <tr key={tag.id} className="transition hover:bg-gray-900/50">
+                  <td className="px-3 py-2 font-mono text-gray-300">{tag.id}</td>
+                  <td className="px-3 py-2 text-gray-400">{tag.userId}</td>
+                  <td className="px-3 py-2 text-gray-400">{tag.scopeType}</td>
+                  <td className="px-3 py-2 text-gray-400">
+                    {tag.pairType ? `${tag.pairType}[${tag.pairIndex}]` : '-'}
+                  </td>
+                  <td className="px-3 py-2 text-gray-400">{tag.gridType ?? '-'}</td>
+                  <td className="px-3 py-2 font-mono text-gray-300">{tag.labels.join(', ')}</td>
+                  <td className="px-3 py-2 text-gray-400">{tag.selectedCells?.length ?? 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="border-t border-gray-700 pt-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setRelationsAccordionOpen(!relationsAccordionOpen)}
+            className="flex flex-1 items-center justify-between rounded bg-gray-800/50 px-3 py-2 text-xs font-medium text-gray-400 transition hover:bg-gray-700 hover:text-white"
+          >
+            <span>Relations ({relations?.length ?? 0})</span>
+            <ChevronDown size={16} className={`transition ${relationsAccordionOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <button
+            onClick={() => {
+              if (!relations) return
+              const text = relations.map((r) => JSON.stringify(r, null, 2)).join('\n\n')
+              navigator.clipboard.writeText(text)
+            }}
+            className="rounded bg-gray-800/50 px-2.5 py-2 text-gray-400 transition hover:bg-gray-700 hover:text-white"
+            title="Copy relations"
+          >
+            <ClipboardCopy size={14} />
+          </button>
+        </div>
+        {relationsAccordionOpen && relations && (
+          <table className="mt-3 w-full text-left text-xs">
+            <thead className="border-b border-gray-700 text-gray-500">
+              <tr>
+                <th className="px-3 py-2 font-medium">ID</th>
+                <th className="px-3 py-2 font-medium">From</th>
+                <th className="px-3 py-2 font-medium">To</th>
+                <th className="px-3 py-2 font-medium">Labels</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {relations.map((r) => (
+                <tr key={r.id} className="transition hover:bg-gray-900/50">
+                  <td className="px-3 py-2 font-mono text-gray-300">{r.id}</td>
+                  <td className="px-3 py-2 text-gray-400">{r.fromTagId}</td>
+                  <td className="px-3 py-2 text-gray-400">{r.toTagId}</td>
+                  <td className="px-3 py-2 font-mono text-gray-300">{r.labels.join(', ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   )
 }

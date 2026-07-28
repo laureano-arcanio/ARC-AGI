@@ -11,7 +11,7 @@ type GridCellProps = {
   isGhost?: boolean
   isMovingAway?: boolean
   onClick?: (x: number, y: number) => void
-  onMouseDown?: (x: number, y: number) => void
+  onMouseDown?: (x: number, y: number, e: React.MouseEvent) => void
   onMouseEnter?: (x: number, y: number) => void
 }
 
@@ -31,7 +31,7 @@ export function GridCell({
   const background = COLOR_MAP[symbol] ?? COLOR_MAP[0]
 
   const handleClick = onClick ? () => onClick(x, y) : undefined
-  const handleMouseDown = onMouseDown ? () => onMouseDown(x, y) : undefined
+  const handleMouseDown = onMouseDown ? (e: React.MouseEvent) => onMouseDown(x, y, e) : undefined
   const handleMouseEnter = onMouseEnter ? () => onMouseEnter(x, y) : undefined
 
   let outlineStyle = 'none'

@@ -11,6 +11,7 @@ from app.models.attempt import Attempt
 from app.models.batch import Batch, BatchAssignment
 from app.models.event import Event
 from app.models.review import Review, ReviewTag
+from app.models.task_tag import TaskTag, TaskTagRelation
 from app.models.user import User
 from app.repositories.event import EventRepository
 from app.schemas.activity import (
@@ -359,12 +360,12 @@ class ActivityService:
                 )
                 solver_email = solver.scalar_one_or_none()
 
-                tags_result = await db.execute(
+                review_tags_result = await db.execute(
                     select(ReviewTag).where(
                         ReviewTag.review_id == review.id
                     )
                 )
-                tag_objs = list(tags_result.scalars().all())
+                tag_objs = list(review_tags_result.scalars().all())
 
                 reviews_data.append(
                     {
@@ -385,5 +386,45 @@ class ActivityService:
                 )
 
             task_data["reviews"] = reviews_data
+
+            task_tags_result = await db.execute(
+                select(TaskTag).where(TaskTag.task_id == task_id)
+            )
+            task_tag_objs: list[TaskTag] = list(task_tags_result.scalars().all())
+            task_data["tags"] = [
+                {
+                    "id": t.id,
+                    "user_id": t.user_id,
+                    "scope_type": t.scope_type,
+                    "pair_type": t.pair_type,
+                    "pair_index": t.pair_index,
+                    "grid_type": t.grid_type,
+                    "selected_cells": t.selected_cells,
+                    "mask": t.mask,
+                    "labels": t.labels,
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                    "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+                }
+                for t in task_tag_objs
+            ]
+
+            tag_relations_result = await db.execute(
+                select(TaskTagRelation).where(TaskTagRelation.task_id == task_id)
+            )
+            relation_objs: list[TaskTagRelation] = list(
+                tag_relations_result.scalars().all()
+            )
+            task_data["tag_relations"] = [
+                {
+                    "id": r.id,
+                    "user_id": r.user_id,
+                    "from_tag_id": r.from_tag_id,
+                    "to_tag_id": r.to_tag_id,
+                    "labels": r.labels,
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                    "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+                }
+                for r in relation_objs
+            ]
 
             yield json.dumps(task_data, ensure_ascii=False) + "\n"

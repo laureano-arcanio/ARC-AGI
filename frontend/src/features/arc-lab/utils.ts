@@ -156,9 +156,76 @@ export function selectObject(
   grid: GridData,
   startX: number,
   startY: number,
+  sameColor = true,
 ): Set<string> {
-  const boundary = getConnectedComponent(grid, startX, startY)
-  if (boundary.size === 0) return boundary
+  if (sameColor) {
+    const boundary = getConnectedComponent(grid, startX, startY)
+    if (boundary.size === 0) return boundary
+    return fillBoundary(grid, boundary)
+  }
+
+  const target = grid[startX]?.[startY]
+  if (target === undefined) return new Set()
+
+  const bg = detectBackgroundColor(grid)
+  const h = gridHeight(grid)
+  const w = gridWidth(grid)
+  const visited = new Set<string>()
+  const result = new Set<string>()
+  const stack: Array<[number, number]> = [[startX, startY]]
+
+  while (stack.length > 0) {
+    const [x, y] = stack.pop()!
+    if (x < 0 || x >= h || y < 0 || y >= w) continue
+    const key = cellKey(x, y)
+    if (visited.has(key)) continue
+    visited.add(key)
+    if (grid[x][y] === bg) continue
+    result.add(key)
+    stack.push(
+      [x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1],
+      [x - 1, y - 1], [x - 1, y + 1], [x + 1, y - 1], [x + 1, y + 1],
+    )
+  }
+
+  return result
+}
+
+function detectBackgroundColor(grid: GridData): number {
+  const h = gridHeight(grid)
+  const w = gridWidth(grid)
+  if (h === 0 || w === 0) return 0
+
+  const corners = [
+    grid[0][0],
+    grid[0][w - 1],
+    grid[h - 1][0],
+    grid[h - 1][w - 1],
+  ]
+  if (corners.every((c) => c === corners[0])) return corners[0]
+
+  const freq = new Map<number, number>()
+  for (let x = 0; x < h; x++) {
+    for (let y = 0; y < w; y++) {
+      const v = grid[x][y]
+      freq.set(v, (freq.get(v) ?? 0) + 1)
+    }
+  }
+  let bg = 0
+  let maxCount = 0
+  for (const [color, count] of freq) {
+    if (count > maxCount) {
+      maxCount = count
+      bg = color
+    }
+  }
+  return bg
+}
+
+function fillBoundary(
+  grid: GridData,
+  boundary: Set<string>,
+): Set<string> {
 
   const h = gridHeight(grid)
   const w = gridWidth(grid)

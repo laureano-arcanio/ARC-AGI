@@ -62,7 +62,7 @@ class BatchRepository(BaseRepository[Batch]):
             )
         )
         result = await self.db_session.execute(query)
-        return result.scalar_one_or_none() is not None
+        return result.scalars().first() is not None
 
 
 class BatchAssignmentRepository(BaseRepository[BatchAssignment]):
