@@ -157,6 +157,7 @@ class TaskStatsService:
         hypothesis_text: str | None = None,
         task_id_filter: str | None = None,
         dataset: str | None = None,
+        has_tags: str | None = None,
     ) -> TaskSearchPaginated:
         all_task_dims = self._load_all_task_dimensions()
         all_transform = self._load_all_transform_info()
@@ -222,6 +223,12 @@ class TaskStatsService:
                 task_solver_hypotheses[tid] = {}
             task_solver_hypotheses[tid][uid] = txt
 
+        task_ids_with_tags: set[str] | None = None
+        if has_tags is not None:
+            tag_sql = text("SELECT DISTINCT task_id FROM task_tag")
+            tag_result = await self.db_session.execute(tag_sql)
+            task_ids_with_tags = {row[0] for row in tag_result.all()}
+
         items: list[TaskSearchRead] = []
         for task_id, dims in all_task_dims.items():
             solver_count, solver_emails, solver_ids = db_data.get(task_id, (0, [], []))
@@ -247,6 +254,12 @@ class TaskStatsService:
             two_only = dataset == "2_only"
             if two_only and not (in2 and not in1):
                 continue
+            if task_ids_with_tags is not None:
+                has_tag = task_id in task_ids_with_tags
+                if has_tags == "true" and not has_tag:
+                    continue
+                if has_tags == "false" and has_tag:
+                    continue
             width = dims["width"]
             height = dims["height"]
             ti = all_transform.get(task_id, {

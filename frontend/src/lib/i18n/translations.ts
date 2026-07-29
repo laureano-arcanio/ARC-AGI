@@ -558,6 +558,8 @@ const es = {
   'task_search.both_datasets': 'Ambos (1 ∩ 2)',
   'task_search.only_dataset_1': 'Solo ARC-AGI-1',
   'task_search.only_dataset_2': 'Solo ARC-AGI-2',
+  'task_search.has_tags': 'Tiene tags',
+  'task_search.no_tags': 'Sin tags',
 }
 
 const en: Record<string, string> = {
@@ -1111,6 +1113,8 @@ const en: Record<string, string> = {
   'task_search.both_datasets': 'Both (1 ∩ 2)',
   'task_search.only_dataset_1': 'Only ARC-AGI-1',
   'task_search.only_dataset_2': 'Only ARC-AGI-2',
+  'task_search.has_tags': 'Has tags',
+  'task_search.no_tags': 'No tags',
 }
 
 export const translations = { es, en }

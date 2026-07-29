@@ -26,6 +26,7 @@ export function getTaskSearch(
     hypothesisText: filters.hypothesisText || undefined,
     taskId: filters.taskId || undefined,
     dataset: filters.dataset || undefined,
+    hasTags: filters.hasTags || undefined,
   }
 
   return http.get<TaskSearchPaginated>('/v1/tasks/search', { params })

@@ -16,7 +16,7 @@ async def get_service(db_session: DatabaseSession) -> TaskStatsService:
     return TaskStatsService(db_session=db_session)
 
 
-@router.get("", response_model=TaskStatsPaginated)
+@router.get("/", response_model=TaskStatsPaginated)
 async def get_tasks_stats(
     page: int = Query(1, alias="page", ge=1),
     per_page: int = Query(100, alias="perPage", ge=1, le=200),
@@ -64,6 +64,7 @@ async def search_tasks(
     hypothesis_text: str | None = Query(None, alias="hypothesisText"),
     task_id_filter: str | None = Query(None, alias="taskId"),
     dataset: str | None = Query(None),
+    has_tags: str | None = Query(None, alias="hasTags"),
     service: TaskStatsService = Depends(get_service),  # noqa: B008
     _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> TaskSearchPaginated:
@@ -87,6 +88,7 @@ async def search_tasks(
         hypothesis_text=hypothesis_text,
         task_id_filter=task_id_filter,
         dataset=dataset,
+        has_tags=has_tags,
     )
 
 

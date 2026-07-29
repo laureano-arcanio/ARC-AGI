@@ -46,6 +46,7 @@ export type TaskSearchFilters = {
   hypothesisText?: string
   taskId?: string
   dataset?: string
+  hasTags?: string
 }
 
 export type UserRead = {

@@ -9,7 +9,7 @@ const PAGE_SIZES = [10, 20, 50, 100]
 const MAX_DIM = 30
 const DELTA_RANGE = 15
 const DEFAULT_MIN_SOLUTIONS = '1'
-const FILTER_KEYS = ['wMin', 'wMax', 'hMin', 'hMax', 'sMin', 'sMax', 'wdMin', 'wdMax', 'hdMin', 'hdMax', 'sameSize', 'allInputsSame', 'allOutputsSame', 'solverEmail', 'hypothesisText', 'taskId', 'dataset'] as const
+const FILTER_KEYS = ['wMin', 'wMax', 'hMin', 'hMax', 'sMin', 'sMax', 'wdMin', 'wdMax', 'hdMin', 'hdMax', 'sameSize', 'allInputsSame', 'allOutputsSame', 'solverEmail', 'hypothesisText', 'taskId', 'dataset', 'hasTags'] as const
 const DELTA_KEYS = new Set(['wdMin', 'wdMax', 'hdMin', 'hdMax'])
 
 function clamp(n: number, lo: number, hi: number) {
@@ -106,6 +106,8 @@ function filtersFromSearchParams(sp: URLSearchParams): TaskSearchFilters {
   if (tid) f.taskId = tid
   const ds = sp.get('dataset')
   if (ds) f.dataset = ds
+  const htag = sp.get('hasTags')
+  if (htag === 'true' || htag === 'false') f.hasTags = htag
   return f
 }
 
@@ -251,6 +253,7 @@ export function AdminTaskSearchPage() {
   const hypothesisTextVal = searchParams.get('hypothesisText') ?? ''
   const taskIdVal = searchParams.get('taskId') ?? ''
   const datasetVal = searchParams.get('dataset') ?? ''
+  const hasTagsVal = searchParams.get('hasTags')
 
   if (authLoading || (!data && isLoading)) {
     return (
@@ -461,6 +464,26 @@ export function AdminTaskSearchPage() {
             }`}
           >
             {t('task_search.input_eq_output')}
+          </button>
+          <button
+            onClick={() => toggleFilter('hasTags', 'true')}
+            className={`rounded px-3 py-1.5 text-xs font-medium transition ${
+              hasTagsVal === 'true'
+                ? 'bg-emerald-700 text-white'
+                : 'border border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {t('task_search.has_tags')}
+          </button>
+          <button
+            onClick={() => toggleFilter('hasTags', 'false')}
+            className={`rounded px-3 py-1.5 text-xs font-medium transition ${
+              hasTagsVal === 'false'
+                ? 'bg-emerald-700 text-white'
+                : 'border border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {t('task_search.no_tags')}
           </button>
           <button
             onClick={handleClear}
