@@ -51,3 +51,4 @@ class TaskSearchPaginated(BaseAPISchema):
 class TaskSolverRead(BaseAPISchema):
     user_id: int
     email: str
+    hypothesis: str | None = None

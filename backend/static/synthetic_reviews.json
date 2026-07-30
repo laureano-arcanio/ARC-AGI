@@ -1,0 +1,136 @@
+{
+  "gen_e12f9a14_opus5highdirect_20260730_080345": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_d8e07eb2_opus5highdirect_20260730_074213": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_d753a70b_opus5highdirect_20260730_074145": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_b6f77b65_opus5highdirect_20260730_000935": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_b74ca5d1_opus5highdirect_20260730_000315": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_963c33f8_opus5highdirect_20260729_231115": {
+    "status": "pending_review",
+    "notes": [],
+    "correct": true
+  },
+  "gen_581f7754_gpt56solmediumdirect_20260729_204316": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_446ef5d2_gpt56terrahighdirect_20260729_202409": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_4c416de3_gpt56terrahighdirect_20260729_202147": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_305b1341_gpt56terrahighdirect_20260729_200447": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_2f767503_gpt56terrahighdirect_20260729_200159": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_2d0172a1_gpt56terrahighdirect_20260729_200013": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_2c181942_gpt56terrahighdirect_20260729_195810": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_271d71e2_gpt56terrahighdirect_20260729_195033": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_28a6681f_gpt56terrahighdirect_20260729_195010": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_195c6913_gpt56terrahighdirect_20260729_193538": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_f560132c_opus5highdirect_20260730_084218": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  },
+  "gen_fc7cae8d_opus5highdirect_20260730_083544": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  },
+  "gen_f1bcbc2c_opus5highdirect_20260730_083314": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  },
+  "gen_f8cc533f_opus5highdirect_20260730_083146": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  },
+  "gen_fe45cba4_opus5highdirect_20260730_083142": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  },
+  "gen_f8f52ecc_opus5highdirect_20260730_083132": {
+    "status": "needs_revision",
+    "notes": []
+  },
+  "gen_ff2825db_opus5highdirect_20260730_082947": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  },
+  "gen_f0100645_opus5highdirect_20260730_082945": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  },
+  "gen_f341894c_opus5highdirect_20260730_082928": {
+    "status": "needs_revision",
+    "notes": [
+      "habria que veriricar si un dommino se cruza en la vista del azul al naranja aplica o no la regla"
+    ]
+  },
+  "gen_fd02da9e_opus5highdirect_20260730_082802": {
+    "status": "pending_review",
+    "notes": [
+      "la descriptcion no aclara que pasa con los puntos sueltos, que procuden una forma de L incopleta segun el cuadrante en el que estan"
+    ],
+    "verified": true
+  },
+  "gen_fc10701f_opus5highdirect_20260730_082751": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  },
+  "gen_f28a3cbb_opus5highdirect_20260730_082738": {
+    "status": "pending_review",
+    "notes": [
+      "en ningun caso en los originales los pixeles atraidos se apian, en las sinteticas si"
+    ],
+    "verified": true
+  },
+  "gen_de809cff_opus5highdirect_20260730_080201": {
+    "status": "pending_review",
+    "notes": [],
+    "verified": true
+  }
+}

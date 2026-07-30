@@ -22,6 +22,7 @@ from app.routers import (
     event,
     example_table,
     review,
+    synthetic_review,
     task_stats,
     task_tag,
     user,
@@ -57,6 +58,7 @@ app.include_router(user.router)
 app.include_router(arc_task.router)
 app.include_router(task_stats.router)
 app.include_router(task_tag.router)
+app.include_router(synthetic_review.router)
 
 
 @app.on_event("startup")
