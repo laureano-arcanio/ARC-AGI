@@ -241,19 +241,25 @@ class TaskStatsService:
             if hypothesis_task_ids is not None and task_id not in hypothesis_task_ids:
                 continue
             task_datasets = dims.get("datasets", set())
-            if dataset == "1" and "1" not in task_datasets:
-                continue
-            if dataset == "2" and "2" not in task_datasets:
-                continue
-            if dataset == "both" and not {"1", "2"}.issubset(task_datasets):
-                continue
-            in1 = "1" in task_datasets
-            in2 = "2" in task_datasets
-            if dataset == "1_only" and not (in1 and not in2):
-                continue
-            two_only = dataset == "2_only"
-            if two_only and not (in2 and not in1):
-                continue
+            has_1 = any(d.startswith("1_") for d in task_datasets)
+            has_2 = any(d.startswith("2_") for d in task_datasets)
+            if dataset and dataset != "all":
+                if dataset in ("1", "2"):
+                    if dataset == "1" and not has_1:
+                        continue
+                    if dataset == "2" and not has_2:
+                        continue
+                elif dataset == "both":
+                    if not (has_1 and has_2):
+                        continue
+                elif dataset == "1_only":
+                    if not (has_1 and not has_2):
+                        continue
+                elif dataset == "2_only":
+                    if not (has_2 and not has_1):
+                        continue
+                elif dataset not in task_datasets:
+                    continue
             if task_ids_with_tags is not None:
                 has_tag = task_id in task_ids_with_tags
                 if has_tags == "true" and not has_tag:
@@ -362,19 +368,30 @@ class TaskStatsService:
         result = await self.db_session.execute(sql, {"task_id": task_id})
         return [TaskSolverRead(user_id=row[0], email=row[1]) for row in result.all()]
 
+    @staticmethod
+    def _dataset_split_label(dataset: str, challenges_file: str) -> str:
+        split_map = {"training": "train", "evaluation": "eval", "test": "test"}
+        for key, label in split_map.items():
+            if key in challenges_file:
+                return f"{dataset}_{label}"
+        return dataset
+
     def _ensure_datasets(
-        self, result: dict[str, dict[str, Any]], task_id: str, dataset: str
+        self, result: dict[str, dict[str, Any]], task_id: str,
+        dataset: str, challenges_file: str,
     ) -> None:
         if task_id not in result:
             result[task_id] = {"datasets": set()}
-        result[task_id]["datasets"].add(dataset)
+        result[task_id]["datasets"].add(
+            self._dataset_split_label(dataset, challenges_file)
+        )
 
     def _load_all_transform_info(self) -> dict[str, dict[str, Any]]:
         result: dict[str, dict[str, Any]] = {}
         for static_dir, challenges_file, _solutions_file, dataset in SOURCES:
             challenges = self._arc_service._load_json(challenges_file, static_dir)
             for task_id, task_data in challenges.items():
-                self._ensure_datasets(result, task_id, dataset)
+                self._ensure_datasets(result, task_id, dataset, challenges_file)
                 if task_id in result and result[task_id].get("_done"):
                     continue
                 train = task_data.get("train", [])
@@ -490,7 +507,9 @@ class TaskStatsService:
                     width, height = self._first_grid_dims(task_data)
                     dims[task_id] = {"width": width, "height": height,
                                      "datasets": set()}
-                dims[task_id]["datasets"].add(dataset)
+                dims[task_id]["datasets"].add(
+                    self._dataset_split_label(dataset, challenges_file)
+                )
 
         return dims
 
