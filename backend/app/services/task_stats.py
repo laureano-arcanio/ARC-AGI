@@ -366,7 +366,31 @@ class TaskStatsService:
             ORDER BY u.email
         """)
         result = await self.db_session.execute(sql, {"task_id": task_id})
-        return [TaskSolverRead(user_id=row[0], email=row[1]) for row in result.all()]
+        rows = result.all()
+        user_ids = [row[0] for row in rows]
+        email_map = {row[0]: row[1] for row in rows}
+
+        h_sql = text("""
+            SELECT DISTINCT ON (user_id)
+                user_id,
+                trigger->>'text' AS text
+            FROM event
+            WHERE task_id = :task_id
+              AND trigger->>'kind' = 'cognitive'
+              AND trigger->>'text' IS NOT NULL
+            ORDER BY user_id, id DESC
+        """)
+        h_result = await self.db_session.execute(h_sql, {"task_id": task_id})
+        hypothesis_map: dict[int, str] = {row[0]: row[1] for row in h_result.all()}
+
+        return [
+            TaskSolverRead(
+                user_id=uid,
+                email=email_map[uid],
+                hypothesis=hypothesis_map.get(uid),
+            )
+            for uid in user_ids
+        ]
 
     @staticmethod
     def _dataset_split_label(dataset: str, challenges_file: str) -> str:
