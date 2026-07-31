@@ -10,8 +10,6 @@ export type TaskWithStatus = {
   solved: boolean
   status: 'not_started' | 'started' | 'completed'
   abandoned?: boolean
-  reviewed?: boolean
-  reviewerEmails?: string[]
 }
 
 export type BatchWithTasks = {

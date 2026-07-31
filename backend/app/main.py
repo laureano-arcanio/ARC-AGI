@@ -21,7 +21,6 @@ from app.routers import (
     batch,
     event,
     example_table,
-    review,
     synthetic_review,
     task_stats,
     task_tag,
@@ -53,7 +52,6 @@ app.include_router(attempt.router)
 app.include_router(batch.router)
 app.include_router(event.router)
 app.include_router(example_table.router)
-app.include_router(review.router)
 app.include_router(user.router)
 app.include_router(arc_task.router)
 app.include_router(task_stats.router)

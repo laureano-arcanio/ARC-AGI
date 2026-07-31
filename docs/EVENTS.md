@@ -8,14 +8,14 @@
 
     | Field | Meaning |
     |---|---|
-    | `user_id` | Solver or reviewer who produced the event. |
+    | `user_id` | Solver who produced the event. |
     | `task_id` | ARC task id. |
-    | `attempt_id` | Solver attempt id. `null` is only used for review-tag events. |
-    | `node_id` | Stable graph node id, e.g. `node_003`, `pre_node_001`, `review_tag_12`. |
+    | `attempt_id` | Solver attempt id the event belongs to. |
+    | `node_id` | Stable graph node id, e.g. `node_003`, `pre_node_001`. |
     | `parent_node_id` | Parent graph node id, or `null` for roots. |
-    | `test_pair_index` | Test input index the node belongs to. `null` when not attached to a test input, currently review tags. |
+    | `test_pair_index` | Test input index the node belongs to. `null` when not attached to a test input. |
     | `trigger` | JSON discriminator describing the event type and metadata. |
-    | `state_snapshot` | Output grid after the event. Pre-solver events use `[[0]]`; review tags use `[]`. |
+    | `state_snapshot` | Output grid after the event. Pre-solver events use `[[0]]`. |
     | `timestamp` | Client or server Unix milliseconds, used for display order. |
 
     Events are returned ordered by `timestamp`. The database has a uniqueness constraint on `(attempt_id, node_id, test_pair_index)`. If a duplicate is posted, the repository updates the existing row's trigger, snapshot, timestamp, and parent instead of inserting another row.
@@ -25,7 +25,6 @@
     - `POST /api/v1/events/` stores normal mechanical and cognitive events. The router verifies owner/admin access, task assignment, and that any `attempt_id` belongs to the same user and task.
     - `POST /api/v1/events/submit` is the only valid submit path. The server checks submitted grids against stored solutions and records `trigger.details.correct`; clients must not self-report correctness through the generic endpoint.
     - `GET /api/v1/events/users/{user_id}/tasks/{task_id}?attemptId=...` returns a user's events. Owner or admin only.
-    - `GET /api/v1/events/cross/{target_user_id}/tasks/{task_id}?attemptId=...` returns events without `user_id` for peer review. Reviewer must be paired with the target solver, unless admin.
 
     ## Trigger Types
 
@@ -79,19 +78,8 @@
 
     Pre-solver cognitive events use node ids `pre_node_###`, a 1x1 placeholder snapshot, and `test_pair_index: 0`. When loading a solver attempt, the solve page imports these nodes and synthesizes a `hypothesis_final` node per test input so the final pre-solve rule can parent later solve actions.
 
-    ### Review Tag
-
-    Review tagging writes backend-only events:
-
-    ```json
-    { "kind": "review_tag", "quality": "good" }
-    ```
-
-    These events have `attempt_id: null`, `node_id: review_tag_{id}`, `parent_node_id` set to the reviewed solver node, empty `state_snapshot`, and `test_pair_index: null`. They are not part of the frontend `GraphTrigger` union.
-
     ## Consumer Assumptions
 
     - Admin timelines convert events into graph nodes keyed by `(test_pair_index, node_id)` and keep the latest row for each key.
-    - Peer review only displays cognitive events from the reviewed solver and validates review tags against real stored solver node ids.
     - Submit events must be skipped by frontend generic event persistence; they are created by `/events/submit`.
-    - New event kinds should update the shared trigger types, timeline visuals, admin/review consumers, backend tests, and this document.
+    - New event kinds should update the shared trigger types, timeline visuals, admin consumers, backend tests, and this document.

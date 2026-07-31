@@ -8,10 +8,8 @@ from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
 from app.repositories.batch import BatchRepository
 from app.repositories.event import EventRepository
-from app.repositories.review import PeerReviewPairRepository
 from app.schemas.event import (
     EventCreate,
-    EventCrossRead,
     EventRead,
     EventSubmitCreate,
 )
@@ -176,31 +174,3 @@ async def get_by_user_and_task(
     return await service.get_events_by_user_and_task(
         user_id, task_id, attempt_id=attempt_id
     )
-
-
-@router.get(
-    "/cross/{target_user_id}/tasks/{task_id}",
-    response_model=list[EventCrossRead],
-)
-async def get_cross_events(
-    target_user_id: int,
-    task_id: str,
-    attempt_id: int | None = Query(None, alias="attemptId"),
-    service: EventService = Depends(get_service),  # noqa: B008
-    db_session: DatabaseSession = None,  # type: ignore[assignment]
-    current_user: CurrentUserDep = None,  # type: ignore[assignment]
-) -> list[EventCrossRead]:
-    pair_repo = PeerReviewPairRepository(db_session=db_session)
-    paired_ids = await pair_repo.get_paired_solver_ids(current_user.user_id)
-    if target_user_id not in paired_ids and current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not paired with this user",
-        )
-    events = await service.get_events_by_user_and_task(
-        target_user_id, task_id, attempt_id=attempt_id
-    )
-    return [
-        EventCrossRead.model_validate(ev.model_dump(exclude={"user_id"}))
-        for ev in events
-    ]

@@ -8,10 +8,8 @@ from httpx import ASGITransport, AsyncClient
 from app.dependencies.auth import CurrentUser, get_current_user
 from app.errors import global_exception_handler
 from app.repositories.batch import BatchRepository
-from app.repositories.review import PeerReviewPairRepository
 from app.routers.arc_task import (
     get_batch_repo,
-    get_pair_repo,
     get_service,
     router,
 )
@@ -129,8 +127,6 @@ def _build_get_task_app(
     *,
     role: str,
     has_access: bool,
-    paired_ids: list[int],
-    paired_has_access: bool,
 ) -> tuple[FastAPI, AsyncMock]:
     svc = AsyncMock(spec=ArcTaskService)
 
@@ -147,16 +143,7 @@ def _build_get_task_app(
     svc.get_by_id.side_effect = get_by_id
 
     batch_repo = AsyncMock(spec=BatchRepository)
-
-    async def user_has_access(user_id: int, _task_id: str) -> bool:
-        if user_id == 1:
-            return has_access
-        return paired_has_access
-
-    batch_repo.user_has_access.side_effect = user_has_access
-
-    pair_repo = AsyncMock(spec=PeerReviewPairRepository)
-    pair_repo.get_paired_solver_ids.return_value = paired_ids
+    batch_repo.user_has_access.return_value = has_access
 
     async def current_user() -> CurrentUser:
         return CurrentUser(user_id=1, role=role)
@@ -166,7 +153,6 @@ def _build_get_task_app(
     application.include_router(router)
     application.dependency_overrides[get_service] = lambda: svc
     application.dependency_overrides[get_batch_repo] = lambda: batch_repo
-    application.dependency_overrides[get_pair_repo] = lambda: pair_repo
     application.dependency_overrides[get_current_user] = current_user
     return application, svc
 
@@ -182,8 +168,6 @@ class TestArcTaskRouterGetTask:
         app, _ = _build_get_task_app(
             role="solver",
             has_access=True,
-            paired_ids=[],
-            paired_has_access=False,
         )
         response = await _get_task(app)
         assert response.status_code == status.HTTP_200_OK
@@ -193,29 +177,14 @@ class TestArcTaskRouterGetTask:
         app, _ = _build_get_task_app(
             role="solver",
             has_access=False,
-            paired_ids=[],
-            paired_has_access=False,
         )
         response = await _get_task(app)
         assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    async def test_paired_reviewer_allowed_without_outputs(self) -> None:
-        app, _ = _build_get_task_app(
-            role="solver",
-            has_access=False,
-            paired_ids=[2],
-            paired_has_access=True,
-        )
-        response = await _get_task(app)
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["test"][0]["output"] == []
 
     async def test_admin_receives_outputs(self) -> None:
         app, _ = _build_get_task_app(
             role="admin",
             has_access=False,
-            paired_ids=[],
-            paired_has_access=False,
         )
         response = await _get_task(app)
         assert response.status_code == status.HTTP_200_OK

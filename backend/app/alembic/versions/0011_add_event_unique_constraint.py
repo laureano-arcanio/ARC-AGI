@@ -3,7 +3,7 @@
 Prevents duplicate event rows when frontend re-sends events on page refresh.
 
 Revision ID: 0011
-Revises: 0010
+Revises: 0008
 Create Date: 2026-06-24 00:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "0011"
-down_revision: str | None = "0010"
+down_revision: str | None = "0008"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

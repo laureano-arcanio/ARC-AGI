@@ -41,6 +41,7 @@
 
 ## Development Rules
 
+- **Always take a safety dump before any database change** — before modifying, dropping, restoring, or migrating any database (including a single table, e.g. loading a dump or `DROP`/`TRUNCATE`/data updates), first dump the current state so it can be recovered. Ask the user to confirm the backup before proceeding with anything destructive.
 - **Repository never imports schemas** — always returns raw ORM models (`ModelType`), never calls `model_validate`
 - **Service always handles `model_validate`** — repository returns raw ORM, service converts to schema
 - **Router never catches domain errors** — let the global exception handler convert them to HTTP
@@ -82,6 +83,9 @@ poetry run uvicorn app.main:app --reload    # dev server
 # Pre-commit hooks (ruff + mypy run before every commit)
 poetry run pre-commit install               # enable hooks in this repo
 poetry run pre-commit run --all-files       # run hooks manually
+
+# Safety dump of the local dev DB before making any DB changes
+docker exec arc-agi-postgres-1 pg_dump -U dev-user -d dev_db -F c -f /tmp/arcagi_prechange_$(date +%Y%m%d_%H%M%S).dump
 ```
 
 ```bash

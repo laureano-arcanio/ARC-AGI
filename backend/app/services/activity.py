@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.attempt import Attempt
 from app.models.batch import Batch, BatchAssignment
 from app.models.event import Event
-from app.models.review import Review, ReviewTag
 from app.models.task_tag import TaskTag, TaskTagRelation
 from app.models.user import User
 from app.repositories.event import EventRepository
@@ -337,55 +336,6 @@ class ActivityService:
                 )
 
             task_data["users"] = users_data
-
-            reviews_query = (
-                select(Review)
-                .where(
-                    Review.task_id == task_id,
-                    Review.reviewer_id.notin_(excluded_ids),
-                    Review.solver_id.notin_(excluded_ids),
-                )
-            )
-            reviews_result = await db.execute(reviews_query)
-            review_objs = list(reviews_result.scalars().all())
-
-            reviews_data: list[dict[str, Any]] = []
-            for review in review_objs:
-                reviewer = await db.execute(
-                    select(User.email).where(User.id == review.reviewer_id)
-                )
-                reviewer_email = reviewer.scalar_one_or_none()
-                solver = await db.execute(
-                    select(User.email).where(User.id == review.solver_id)
-                )
-                solver_email = solver.scalar_one_or_none()
-
-                review_tags_result = await db.execute(
-                    select(ReviewTag).where(
-                        ReviewTag.review_id == review.id
-                    )
-                )
-                tag_objs = list(review_tags_result.scalars().all())
-
-                reviews_data.append(
-                    {
-                        "id": review.id,
-                        "reviewer_id": review.reviewer_id,
-                        "reviewer_email": reviewer_email,
-                        "solver_id": review.solver_id,
-                        "solver_email": solver_email,
-                        "status": review.status,
-                        "tags": [
-                            {
-                                "solver_node_id": t.solver_node_id,
-                                "quality": t.quality,
-                            }
-                            for t in tag_objs
-                        ],
-                    }
-                )
-
-            task_data["reviews"] = reviews_data
 
             task_tags_result = await db.execute(
                 select(TaskTag).where(TaskTag.task_id == task_id)

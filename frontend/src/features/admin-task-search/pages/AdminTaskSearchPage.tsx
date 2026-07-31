@@ -377,8 +377,16 @@ export function AdminTaskSearchPage() {
             >
               <option value="">{t('task_search.all_datasets')}</option>
               <option value="both">{t('task_search.both_datasets')}</option>
-              <option value="1_only">{t('task_search.only_dataset_1')}</option>
-              <option value="2_only">{t('task_search.only_dataset_2')}</option>
+              <option disabled="disabled">───</option>
+              <option value="1">{t('task_search.dataset_1')}</option>
+              <option value="1_train">{t('task_search.dataset_1_train')}</option>
+              <option value="1_eval">{t('task_search.dataset_1_eval')}</option>
+              <option value="1_test">{t('task_search.dataset_1_test')}</option>
+              <option disabled="disabled">───</option>
+              <option value="2">{t('task_search.dataset_2')}</option>
+              <option value="2_train">{t('task_search.dataset_2_train')}</option>
+              <option value="2_eval">{t('task_search.dataset_2_eval')}</option>
+              <option value="2_test">{t('task_search.dataset_2_test')}</option>
             </select>
           </div>
           <div className="flex flex-col gap-1">
