@@ -78,19 +78,36 @@ class SyntheticTaskService:
         concept: str | None = None,
         correct: bool | None = None,
         verified: bool | None = None,
+        only_multiple_variants: bool = False,
     ) -> SyntheticTaskListRead:
         tasks = _load_tasks()
         reviews = _load_reviews()
 
-        # Filter
+        if only_multiple_variants:
+            task_id_counts: dict[str, int] = {}
+            for t in tasks:
+                oid = t.get("original_task_id", "")
+                if oid:
+                    task_id_counts[oid] = task_id_counts.get(oid, 0) + 1
+            include_ids = {oid for oid, count in task_id_counts.items() if count > 1}
+            tasks = [t for t in tasks if t.get("original_task_id", "") in include_ids]
+
+        original_task_ids: list[str] | None = None
+        if original_task_id:
+            original_task_ids = [
+                oid.strip() for oid in original_task_id.split(",") if oid.strip()
+            ]
+
         filtered = []
         for t in tasks:
             if model_name and t.get("model_name") != model_name:
                 continue
             if witness_passed is not None and t.get("witness_passed") != witness_passed:
                 continue
-            if original_task_id and original_task_id not in t.get("original_task_id", ""):
-                continue
+            if original_task_ids:
+                task_oid = t.get("original_task_id", "")
+                if not any(oid in task_oid for oid in original_task_ids):
+                    continue
             if concept and concept.lower() not in (t.get("concept") or "").lower():
                 continue
             if review_status:
@@ -107,8 +124,8 @@ class SyntheticTaskService:
                     continue
             filtered.append(t)
 
-        # Sort by timestamp descending
-        filtered.sort(key=lambda t: t.get("timestamp", ""), reverse=True)
+        # Sort by original_task_id so same tasks are grouped together
+        filtered.sort(key=lambda t: (t.get("original_task_id", ""), t.get("timestamp", "")))
 
         total = len(filtered)
         total_pages = max(1, math.ceil(total / per_page))

@@ -69,6 +69,7 @@ export function SyntheticReviewsListPage() {
   const verifiedFilter = verifiedParam === 'true' ? true : verifiedParam === 'false' ? false : undefined
   const originalTaskId = searchParams.get('originalTaskId') ?? ''
   const concept = searchParams.get('concept') ?? ''
+  const onlyMultipleVariants = searchParams.get('onlyMultipleVariants') === 'true'
 
   const filters: ListFilters = useMemo(() => ({
     page,
@@ -80,7 +81,8 @@ export function SyntheticReviewsListPage() {
     verified: verifiedFilter,
     originalTaskId: originalTaskId || undefined,
     concept: concept || undefined,
-  }), [page, perPage, modelName, witnessPassed, reviewStatus, correctFilter, originalTaskId, concept])
+    onlyMultipleVariants: onlyMultipleVariants || undefined,
+  }), [page, perPage, modelName, witnessPassed, reviewStatus, correctFilter, verifiedFilter, originalTaskId, concept, onlyMultipleVariants])
 
   const { data, isLoading } = useSyntheticTasks(filters)
   const { data: modelNames = [] } = useSyntheticModels()
@@ -192,6 +194,7 @@ export function SyntheticReviewsListPage() {
               type="text"
               value={originalTaskId}
               onChange={(e) => applyFilter({ originalTaskId: e.target.value })}
+              placeholder="id,id,..."
               className="w-36 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -203,6 +206,20 @@ export function SyntheticReviewsListPage() {
               onChange={(e) => applyFilter({ concept: e.target.value })}
               className="w-48 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200 focus:border-blue-500 focus:outline-none"
             />
+          </div>
+          <div className="flex items-center gap-2 pt-5">
+            <input
+              type="checkbox"
+              id="onlyMultiple"
+              checked={onlyMultipleVariants}
+              onChange={(e) =>
+                applyFilter({ onlyMultipleVariants: e.target.checked ? 'true' : '' })
+              }
+              className="h-3 w-3 rounded border-gray-700 bg-gray-900 text-blue-500 focus:ring-0"
+            />
+            <label htmlFor="onlyMultiple" className="text-xs text-gray-400 cursor-pointer">
+              Solo múltiples variantes
+            </label>
           </div>
           <div>
             <button
@@ -242,7 +259,6 @@ export function SyntheticReviewsListPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
             <tr>
-              <th className="px-4 py-3 font-medium">Synth ID</th>
               <th className="px-4 py-3 font-medium">Original</th>
               <th className="px-4 py-3 font-medium">Modelo</th>
               <th className="px-4 py-3 font-medium">Witness</th>
@@ -254,13 +270,13 @@ export function SyntheticReviewsListPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {data?.items.map((task) => (
-              <tr key={task.id} className="transition hover:bg-gray-900/50">
-                <td className="px-4 py-3 font-mono text-xs text-blue-400">
-                  <Link to={`/admin/synthetic-reviews/${task.id}`} className="hover:underline">
-                    {task.id}
-                  </Link>
-                </td>
+            {data?.items.map((task, i) => {
+              const prevId = i > 0 ? data.items[i - 1].originalTaskId : null
+              const sameGroup = task.originalTaskId === prevId
+              const groupStart = !sameGroup
+
+              return (
+              <tr key={task.id} className={`transition hover:bg-gray-900/50 ${groupStart ? 'bg-gray-900/30' : ''}`}>
                 <td className="px-4 py-3">
                   <Link
                     to={`/admin/tasks/${task.originalTaskId}/solutions`}
@@ -320,10 +336,11 @@ export function SyntheticReviewsListPage() {
                   </Link>
                 </td>
               </tr>
-            ))}
+              )
+            })}
             {data?.items.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   No se encontraron tareas sintéticas
                 </td>
               </tr>

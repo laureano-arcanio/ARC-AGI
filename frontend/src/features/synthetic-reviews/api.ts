@@ -11,6 +11,7 @@ export type ListFilters = {
   verified?: boolean
   originalTaskId?: string
   concept?: string
+  onlyMultipleVariants?: boolean
 }
 
 export function fetchSyntheticModels(): Promise<string[]> {
@@ -28,6 +29,7 @@ export function fetchSyntheticTasks(filters: ListFilters = {}): Promise<Syntheti
   if (filters.verified !== undefined) params.verified = String(filters.verified)
   if (filters.originalTaskId) params.originalTaskId = filters.originalTaskId
   if (filters.concept) params.concept = filters.concept
+  if (filters.onlyMultipleVariants) params.onlyMultipleVariants = String(filters.onlyMultipleVariants)
   return http.get<SyntheticTaskList>('/v1/synthetic-tasks', { params })
 }
 

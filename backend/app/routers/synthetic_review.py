@@ -35,6 +35,7 @@ async def list_synthetic_tasks(
     concept: str | None = Query(None, alias="concept"),
     correct: bool | None = Query(None, alias="correct"),
     verified: bool | None = Query(None, alias="verified"),
+    only_multiple_variants: bool = Query(False, alias="onlyMultipleVariants"),
     service: SyntheticTaskService = Depends(get_service),  # noqa: B008
     _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> SyntheticTaskListRead:
@@ -48,6 +49,7 @@ async def list_synthetic_tasks(
         concept=concept,
         correct=correct,
         verified=verified,
+        only_multiple_variants=only_multiple_variants,
     )
 
 
