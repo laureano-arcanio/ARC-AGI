@@ -75,3 +75,14 @@ export function useUpdateUserReview(id: string) {
     },
   })
 }
+
+export function useBulkUpdateUserReviews() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (updates: { id: string; data: UserReviewUpdate }[]) =>
+      Promise.all(updates.map((u) => updateUserReview(u.id, u.data))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: myReviewsQueryKeys.all })
+    },
+  })
+}
