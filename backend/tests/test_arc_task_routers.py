@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI, status
@@ -144,6 +144,7 @@ def _build_get_task_app(
 
     batch_repo = AsyncMock(spec=BatchRepository)
     batch_repo.user_has_access.return_value = has_access
+    batch_repo.get_user_review_task_ids.return_value = []
 
     async def current_user() -> CurrentUser:
         return CurrentUser(user_id=1, role=role)
@@ -189,3 +190,28 @@ class TestArcTaskRouterGetTask:
         response = await _get_task(app)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["test"][0]["output"] == [[4]]
+
+    async def test_reviewer_with_review_access_allowed(self) -> None:
+        app, _ = _build_get_task_app(
+            role="solver",
+            has_access=False,
+        )
+        with patch(
+            "app.routers.arc_task.SyntheticTaskService.user_can_review_original",
+            return_value=True,
+        ):
+            response = await _get_task(app)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["test"][0]["output"] == []
+
+    async def test_reviewer_without_review_access_denied(self) -> None:
+        app, _ = _build_get_task_app(
+            role="solver",
+            has_access=False,
+        )
+        with patch(
+            "app.routers.arc_task.SyntheticTaskService.user_can_review_original",
+            return_value=False,
+        ):
+            response = await _get_task(app)
+        assert response.status_code == status.HTTP_403_FORBIDDEN

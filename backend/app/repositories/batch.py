@@ -34,18 +34,30 @@ class BatchRepository(BaseRepository[Batch]):
         await self.db_session.refresh(db_instance)
         return db_instance
 
-    async def get_batches_for_user(self, user_id: int) -> list[Batch]:
+    async def get_batches_for_user(
+        self, user_id: int, batch_type: str | None = None
+    ) -> list[Batch]:
         query = (
             select(Batch)
             .join(BatchAssignment, BatchAssignment.batch_id == Batch.id)
             .where(BatchAssignment.user_id == user_id)
             .options(selectinload(Batch.assignments))
         )
+        if batch_type is not None:
+            query = query.where(Batch.batch_type == batch_type)
         result = await self.db_session.execute(query)
         return list(result.scalars().unique().all())
 
     async def get_accessible_task_ids(self, user_id: int) -> list[str]:
-        batches = await self.get_batches_for_user(user_id)
+        batches = await self.get_batches_for_user(user_id, batch_type="solver")
+        seen: set[str] = set()
+        for batch in batches:
+            for tid in batch.task_ids:
+                seen.add(str(tid))
+        return sorted(seen)
+
+    async def get_user_review_task_ids(self, user_id: int) -> list[str]:
+        batches = await self.get_batches_for_user(user_id, batch_type="review")
         seen: set[str] = set()
         for batch in batches:
             for tid in batch.task_ids:
@@ -58,6 +70,22 @@ class BatchRepository(BaseRepository[Batch]):
             .join(Batch, Batch.id == BatchAssignment.batch_id)
             .where(
                 BatchAssignment.user_id == user_id,
+                Batch.batch_type == "solver",
+                cast(Batch.task_ids, JSONB).contains([task_id]),
+            )
+        )
+        result = await self.db_session.execute(query)
+        return result.scalars().first() is not None
+
+    async def user_has_review_access(
+        self, user_id: int, task_id: str
+    ) -> bool:
+        query = (
+            select(BatchAssignment)
+            .join(Batch, Batch.id == BatchAssignment.batch_id)
+            .where(
+                BatchAssignment.user_id == user_id,
+                Batch.batch_type == "review",
                 cast(Batch.task_ids, JSONB).contains([task_id]),
             )
         )

@@ -12,6 +12,9 @@ import {
 } from '../queries'
 import { Multiselect } from '../../../components/ui/Multiselect'
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog'
+import { batchTypeStyle } from '../batchType'
+
+const BATCH_TYPES = ['solver', 'review']
 
 export function AdminBatchesPage() {
   const { t } = useTranslation()
@@ -33,14 +36,17 @@ export function AdminBatchesPage() {
 
   const [name, setName] = useState('')
   const [taskIdsInput, setTaskIdsInput] = useState('')
+  const [batchType, setBatchType] = useState('solver')
   const [createError, setCreateError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
   const [expandedBatch, setExpandedBatch] = useState<number | null>(null)
   const [editingBatchId, setEditingBatchId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
   const [editTaskIds, setEditTaskIds] = useState<string[]>([])
+  const [editBatchType, setEditBatchType] = useState('solver')
   const [addTaskIdInput, setAddTaskIdInput] = useState('')
   const [editError, setEditError] = useState('')
+  const [copiedBatchId, setCopiedBatchId] = useState<number | null>(null)
 
   if (authLoading || isLoading) {
     return (
@@ -84,9 +90,14 @@ export function AdminBatchesPage() {
     }
     setCreateError('')
     try {
-      await createBatchMutation.mutateAsync({ name: trimmedName, taskIds })
+      await createBatchMutation.mutateAsync({
+        name: trimmedName,
+        taskIds,
+        batchType,
+      })
       setName('')
       setTaskIdsInput('')
+      setBatchType('solver')
     } catch {
       setCreateError(t('batches.create_error'))
     }
@@ -115,10 +126,19 @@ export function AdminBatchesPage() {
     }
   }
 
-  const handleStartEdit = (batch: { id: number; name: string; taskIds: string[] }) => {
+  const handleCopyTaskIds = async (batch: { id: number; taskIds: string[] }) => {
+    await navigator.clipboard.writeText(batch.taskIds.join(', '))
+    setCopiedBatchId(batch.id)
+    window.setTimeout(() => {
+      setCopiedBatchId(current => (current === batch.id ? null : current))
+    }, 1500)
+  }
+
+  const handleStartEdit = (batch: { id: number; name: string; taskIds: string[]; batchType?: string }) => {
     setEditingBatchId(batch.id)
     setEditName(batch.name)
     setEditTaskIds([...batch.taskIds])
+    setEditBatchType(batch.batchType ?? 'solver')
     setAddTaskIdInput('')
     setEditError('')
     setExpandedBatch(batch.id)
@@ -162,7 +182,11 @@ export function AdminBatchesPage() {
     try {
       await updateBatchMutation.mutateAsync({
         id: editingBatchId!,
-        data: { name: trimmedName, taskIds: editTaskIds },
+        data: {
+          name: trimmedName,
+          taskIds: editTaskIds,
+          batchType: editBatchType,
+        },
       })
       handleCancelEdit()
     } catch {
@@ -197,6 +221,25 @@ export function AdminBatchesPage() {
             rows={3}
             className="rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
           />
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-gray-500">{t('batches.type_label')}</label>
+            <div className="flex gap-2">
+              {BATCH_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setBatchType(type)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                    batchType === type
+                      ? batchTypeStyle(type).badge
+                      : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {batchTypeStyle(type).label}
+                </button>
+              ))}
+            </div>
+          </div>
           {createError && (
             <p className="text-sm text-red-400">{createError}</p>
           )}
@@ -220,7 +263,7 @@ export function AdminBatchesPage() {
         {batches?.map((batch) => (
           <div
             key={batch.id}
-            className="rounded-lg border border-gray-800 bg-gray-900"
+            className={`rounded-lg border border-gray-800 border-l-4 bg-gray-900 ${batchTypeStyle(batch.batchType ?? 'solver').border}`}
           >
             <div className="flex items-center justify-between p-4">
               <button
@@ -234,14 +277,27 @@ export function AdminBatchesPage() {
                 <span className="text-sm text-gray-500">
                   {expandedBatch === batch.id ? '▾' : '▸'}
                 </span>
-                <div>
+                <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-white">{batch.name}</h3>
-                  <p className="text-xs text-gray-500">
-                    {batch.taskIds.length} {t('batches.tasks_count')}
-                  </p>
+                  <span
+                    className={`rounded border px-2 py-0.5 text-[10px] font-medium ${batchTypeStyle(batch.batchType ?? 'solver').badge}`}
+                  >
+                    {batchTypeStyle(batch.batchType ?? 'solver').label}
+                  </span>
                 </div>
+                <p className="text-xs text-gray-500">
+                  {batch.taskIds.length} {t('batches.tasks_count')}
+                </p>
               </button>
               <div className="flex gap-2">
+                <button
+                  onClick={() => handleCopyTaskIds(batch)}
+                  className="rounded bg-gray-600/10 px-3 py-1 text-xs font-medium text-gray-400 transition hover:bg-gray-600/20"
+                >
+                  {copiedBatchId === batch.id
+                    ? t('batches.copied')
+                    : t('batches.copy_tasks')}
+                </button>
                 <button
                   onClick={() => handleStartEdit(batch)}
                   className="rounded bg-blue-600/10 px-3 py-1 text-xs font-medium text-blue-400 transition hover:bg-blue-600/20"
@@ -274,6 +330,25 @@ export function AdminBatchesPage() {
                       placeholder={t('batches.name_edit_placeholder')}
                       className="rounded-lg border border-gray-700 bg-gray-950 px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                     />
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-gray-500">{t('batches.type_label')}</label>
+                      <div className="flex gap-2">
+                        {BATCH_TYPES.map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setEditBatchType(type)}
+                            className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                              editBatchType === type
+                                ? batchTypeStyle(type).badge
+                                : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
+                            }`}
+                          >
+                            {batchTypeStyle(type).label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div>
                       <div className="flex flex-wrap gap-1">
                         {editTaskIds.map((tid) => (

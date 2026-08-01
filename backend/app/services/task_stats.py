@@ -8,6 +8,7 @@ from app.schemas.task_stats import (
     SolverUserRead,
     TaskSearchPaginated,
     TaskSearchRead,
+    TaskSolverAnonRead,
     TaskSolverRead,
     TaskStatsPaginated,
     TaskStatsRead,
@@ -389,6 +390,43 @@ class TaskStatsService:
                 email=email_map[uid],
                 hypothesis=hypothesis_map.get(uid),
             )
+            for uid in user_ids
+        ]
+
+    async def get_task_solvers_anon(
+        self, task_id: str
+    ) -> list[TaskSolverAnonRead]:
+        sql = text("""
+            SELECT DISTINCT u.id
+            FROM event e
+            JOIN "user" u ON u.id = e.user_id
+            WHERE
+                e.task_id = :task_id
+                AND e.trigger->>'action' = 'submit'
+                AND CAST(e.trigger->'details'->>'correct' AS BOOLEAN) = true
+            ORDER BY u.id
+        """)
+        result = await self.db_session.execute(sql, {"task_id": task_id})
+        rows = result.all()
+        user_ids = [row[0] for row in rows]
+
+        h_sql = text("""
+            SELECT DISTINCT ON (user_id)
+                user_id,
+                trigger->>'text' AS text
+            FROM event
+            WHERE task_id = :task_id
+              AND trigger->>'kind' = 'cognitive'
+              AND trigger->>'text' IS NOT NULL
+            ORDER BY user_id, id DESC
+        """)
+        h_result = await self.db_session.execute(h_sql, {"task_id": task_id})
+        hypothesis_map: dict[int, str] = {
+            row[0]: row[1] for row in h_result.all()
+        }
+
+        return [
+            TaskSolverAnonRead(hypothesis=hypothesis_map.get(uid))
             for uid in user_ids
         ]
 

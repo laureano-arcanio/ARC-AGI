@@ -5,6 +5,7 @@ from app.dependencies.database import DatabaseSession
 from app.repositories.batch import BatchRepository
 from app.schemas.arc_task import ArcTaskRead
 from app.services.arc_task import ArcTaskService
+from app.services.synthetic_task import SyntheticTaskService
 
 router = APIRouter(prefix="/api/v1/arc-tasks", tags=["arc-tasks"])
 
@@ -44,6 +45,13 @@ async def get_task(
     if not allowed:
         allowed = await batch_repo.user_has_access(
             current_user.user_id, task_id
+        )
+    if not allowed:
+        review_ids = await batch_repo.get_user_review_task_ids(
+            current_user.user_id
+        )
+        allowed = SyntheticTaskService.user_can_review_original(
+            task_id, review_ids
         )
     if not allowed:
         raise HTTPException(

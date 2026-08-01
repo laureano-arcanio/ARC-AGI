@@ -2,6 +2,7 @@ export type BatchRead = {
   id: number
   name: string
   taskIds: string[]
+  batchType: string
   createdAt: string | null
   updatedAt: string | null
 }

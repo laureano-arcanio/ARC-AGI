@@ -25,6 +25,7 @@ class BatchService(
             "id": instance.id,
             "name": instance.name,
             "task_ids": instance.task_ids,
+            "batch_type": instance.batch_type or "solver",
             "created_at": instance.created_at,
             "updated_at": instance.updated_at,
             "assigned_user_ids": self._get_assigned_user_ids(instance),
@@ -49,15 +50,27 @@ class BatchService(
         )
         return self._to_read(instance)
 
-    async def get_batches_for_user(self, user_id: int) -> list[BatchRead]:
-        instances = await self.repository.get_batches_for_user(user_id)
+    async def get_batches_for_user(
+        self, user_id: int, batch_type: str | None = None
+    ) -> list[BatchRead]:
+        instances = await self.repository.get_batches_for_user(
+            user_id, batch_type=batch_type
+        )
         return [self._to_read(inst) for inst in instances]
 
     async def get_accessible_task_ids(self, user_id: int) -> list[str]:
         return await self.repository.get_accessible_task_ids(user_id)
 
+    async def get_user_review_task_ids(self, user_id: int) -> list[str]:
+        return await self.repository.get_user_review_task_ids(user_id)
+
     async def user_has_access(self, user_id: int, task_id: str) -> bool:
         return await self.repository.user_has_access(user_id, task_id)
+
+    async def user_has_review_access(
+        self, user_id: int, task_id: str
+    ) -> bool:
+        return await self.repository.user_has_review_access(user_id, task_id)
 
 
 class BatchAssignmentService(

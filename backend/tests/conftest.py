@@ -22,6 +22,12 @@ class MockResult:
     def scalar_one_or_none(self):
         return self._scalar_one_or_none
 
+    def first(self):
+        return self._scalar_one_or_none
+
+    def unique(self):
+        return self
+
     def scalars(self):
         return self
 

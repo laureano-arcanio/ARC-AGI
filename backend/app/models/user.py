@@ -8,6 +8,7 @@ from app.models import AbstractBase
 
 if TYPE_CHECKING:
     from app.models.batch import BatchAssignment
+    from app.models.user_review import UserReview
 
 
 class UserRole(enum.StrEnum):
@@ -29,5 +30,8 @@ class User(AbstractBase):
     )
 
     batch_assignments: Mapped[list["BatchAssignment"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    user_reviews: Mapped[list["UserReview"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )

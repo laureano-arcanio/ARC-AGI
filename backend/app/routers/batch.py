@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.dependencies.auth import AdminDep, CurrentUserDep, require_owner_or_admin
 from app.dependencies.database import DatabaseSession
@@ -71,11 +71,12 @@ async def delete_batch(
 @router.get("/user/{user_id}", response_model=list[BatchRead])
 async def get_user_batches(
     user_id: int,
+    type: str | None = Query(None, alias="type"),
     service: BatchService = Depends(get_batch_service),  # noqa: B008
     current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> list[BatchRead]:
     require_owner_or_admin(user_id, current_user)
-    return await service.get_batches_for_user(user_id)
+    return await service.get_batches_for_user(user_id, batch_type=type)
 
 
 @router.get("/user/{user_id}/task-ids", response_model=list[str])

@@ -52,3 +52,7 @@ class TaskSolverRead(BaseAPISchema):
     user_id: int
     email: str
     hypothesis: str | None = None
+
+
+class TaskSolverAnonRead(BaseAPISchema):
+    hypothesis: str | None = None

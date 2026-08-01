@@ -1,3 +1,5 @@
+from typing import Any
+
 from app.types.base import BaseAPISchema
 
 
@@ -17,8 +19,8 @@ class SyntheticTaskRead(BaseAPISchema):
     correct: bool | None = None
     verified: bool = False
     hypothesis: str | None = None
-    train: list[dict] = []
-    test: list[dict] = []
+    train: list[dict[str, Any]] = []
+    test: list[dict[str, Any]] = []
 
 
 class SyntheticTaskListRead(BaseAPISchema):

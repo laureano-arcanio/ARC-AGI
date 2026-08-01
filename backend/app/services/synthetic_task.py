@@ -44,7 +44,9 @@ def _save_reviews(reviews: dict[str, dict[str, Any]]) -> None:
         json.dump(reviews, f, indent=2, ensure_ascii=False)
 
 
-def _task_to_read(task: dict[str, Any], review: dict[str, Any] | None) -> SyntheticTaskRead:
+def _task_to_read(
+    task: dict[str, Any], review: dict[str, Any] | None
+) -> SyntheticTaskRead:
     return SyntheticTaskRead(
         id=task.get("id", ""),
         original_task_id=task.get("original_task_id", ""),
@@ -125,7 +127,12 @@ class SyntheticTaskService:
             filtered.append(t)
 
         # Sort by original_task_id so same tasks are grouped together
-        filtered.sort(key=lambda t: (t.get("original_task_id", ""), t.get("timestamp", "")))
+        filtered.sort(
+            key=lambda t: (
+                t.get("original_task_id", ""),
+                t.get("timestamp", ""),
+            )
+        )
 
         total = len(filtered)
         total_pages = max(1, math.ceil(total / per_page))
@@ -153,6 +160,23 @@ class SyntheticTaskService:
                 return _task_to_read(t, reviews.get(synth_task_id))
         return None
 
+    def resolve_entry(self, entry_id: str) -> list[SyntheticTaskRead]:
+        """Resolve a review batch entry to its synthetic tasks.
+
+        An entry may be either a synthetic task id (returns that single task)
+        or an original ARC task id (returns all its synthetic variants).
+        """
+        tasks = _load_tasks()
+        reviews = _load_reviews()
+        for t in tasks:
+            if t.get("id") == entry_id:
+                return [_task_to_read(t, reviews.get(entry_id))]
+        return [
+            _task_to_read(t, reviews.get(t["id"]))
+            for t in tasks
+            if t.get("original_task_id") == entry_id
+        ]
+
     def get_review(self, synth_task_id: str) -> SyntheticReviewRead:
         reviews = _load_reviews()
         r = reviews.get(synth_task_id)
@@ -171,10 +195,53 @@ class SyntheticTaskService:
         models = sorted({t.get("model_name", "") for t in tasks if t.get("model_name")})
         return models
 
-    def update_review(self, synth_task_id: str, data: SyntheticReviewUpdate) -> SyntheticReviewRead:
+    @staticmethod
+    def user_can_review_original(
+        original_task_id: str, synth_task_ids: list[str]
+    ) -> bool:
+        if not synth_task_ids:
+            return False
+        ids = set(synth_task_ids)
+        if original_task_id in ids:
+            return True
+        for t in _load_tasks():
+            if (
+                t.get("id") in ids
+                and t.get("original_task_id") == original_task_id
+            ):
+                return True
+        return False
+
+    @staticmethod
+    def user_has_variant_access(
+        review_task_ids: list[str], variant_id: str
+    ) -> bool:
+        """True if a reviewer can access a synthetic variant.
+
+        Allowed when the variant id itself is in the review batches, or when
+        its original ARC task id is (batches may reference original tasks).
+        """
+        if not review_task_ids:
+            return False
+        ids = set(review_task_ids)
+        if variant_id in ids:
+            return True
+        for t in _load_tasks():
+            if (
+                t.get("id") == variant_id
+                and t.get("original_task_id") in ids
+            ):
+                return True
+        return False
+
+    def update_review(
+        self, synth_task_id: str, data: SyntheticReviewUpdate
+    ) -> SyntheticReviewRead:
         with _lock:
             reviews = _load_reviews()
-            record = reviews.get(synth_task_id, {"status": "pending_review", "notes": []})
+            record = reviews.get(
+                synth_task_id, {"status": "pending_review", "notes": []}
+            )
             if data.status is not None:
                 record["status"] = data.status
             if data.correct is not None:

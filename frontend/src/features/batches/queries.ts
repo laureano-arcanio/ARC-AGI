@@ -11,6 +11,7 @@ import {
   getUserAccessibleTaskIds,
 } from './api'
 import { adminUsersQueryKeys } from '../admin-users/queries'
+import type { BatchUpdate } from './types'
 
 export const batchQueryKeys = {
   all: ['batches'] as const,
@@ -49,7 +50,7 @@ export function useCreateBatch() {
 export function useUpdateBatch() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { name?: string; taskIds?: string[] } }) =>
+    mutationFn: ({ id, data }: { id: number; data: BatchUpdate }) =>
       updateBatch(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: batchQueryKeys.all })

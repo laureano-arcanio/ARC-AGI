@@ -51,9 +51,14 @@ export function Layout({ children }: LayoutProps) {
               </>
             )}
             {!isAdmin && userId && (
-              <Link to="/my-tasks" className="text-gray-400 transition hover:text-white">
-                {t('nav.my_tasks')}
-              </Link>
+              <>
+                <Link to="/my-tasks" className="text-gray-400 transition hover:text-white">
+                  {t('nav.my_tasks')}
+                </Link>
+                <Link to="/my-reviews" className="text-purple-400 transition hover:text-purple-300">
+                  {t('nav.my_reviews')}
+                </Link>
+              </>
             )}
 
           </div>

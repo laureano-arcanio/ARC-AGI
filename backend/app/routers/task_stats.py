@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.dependencies.auth import AdminDep
+from app.dependencies.auth import AdminDep, CurrentUserDep
 from app.dependencies.database import DatabaseSession
+from app.repositories.batch import BatchRepository
 from app.schemas.task_stats import (
     TaskSearchPaginated,
+    TaskSolverAnonRead,
     TaskSolverRead,
     TaskStatsPaginated,
 )
+from app.services.synthetic_task import SyntheticTaskService
 from app.services.task_stats import TaskStatsService
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
@@ -14,6 +17,10 @@ router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
 async def get_service(db_session: DatabaseSession) -> TaskStatsService:
     return TaskStatsService(db_session=db_session)
+
+
+async def get_batch_repo(db_session: DatabaseSession) -> BatchRepository:
+    return BatchRepository(db_session=db_session)
 
 
 @router.get("/", response_model=TaskStatsPaginated)
@@ -99,3 +106,25 @@ async def get_task_solvers(
     _admin: AdminDep = None,  # type: ignore[assignment]
 ) -> list[TaskSolverRead]:
     return await service.get_task_solvers(task_id=task_id)
+
+
+@router.get(
+    "/{task_id}/solvers-public", response_model=list[TaskSolverAnonRead]
+)
+async def get_task_solvers_public(
+    task_id: str,
+    service: TaskStatsService = Depends(get_service),  # noqa: B008
+    batch_repo: BatchRepository = Depends(get_batch_repo),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
+) -> list[TaskSolverAnonRead]:
+    review_ids = await batch_repo.get_user_review_task_ids(
+        current_user.user_id
+    )
+    if not SyntheticTaskService.user_can_review_original(
+        task_id, review_ids
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view these solutions",
+        )
+    return await service.get_task_solvers_anon(task_id=task_id)

@@ -2,7 +2,9 @@ import { http } from '../../lib/http'
 import type { BatchRead, UserTaskSummary } from './types'
 
 export function getUserBatches(userId: number): Promise<BatchRead[]> {
-  return http.get<BatchRead[]>(`/v1/batches/user/${userId}`)
+  return http.get<BatchRead[]>(`/v1/batches/user/${userId}`, {
+    params: { type: 'solver' },
+  })
 }
 
 export function getUserTasks(userId: number): Promise<UserTaskSummary[]> {

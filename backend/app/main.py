@@ -25,6 +25,7 @@ from app.routers import (
     task_stats,
     task_tag,
     user,
+    user_review,
 )
 from app.services.user import _hash_password
 
@@ -57,6 +58,7 @@ app.include_router(arc_task.router)
 app.include_router(task_stats.router)
 app.include_router(task_tag.router)
 app.include_router(synthetic_review.router)
+app.include_router(user_review.router)
 
 
 @app.on_event("startup")

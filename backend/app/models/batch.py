@@ -13,6 +13,9 @@ class Batch(AbstractBase):
     __tablename__ = "batch"
 
     name: Mapped[str] = mapped_column(String, nullable=False)
+    batch_type: Mapped[str] = mapped_column(
+        String, nullable=False, default="solver", server_default="solver"
+    )
     task_ids: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
 
     assignments: Mapped[list["BatchAssignment"]] = relationship(
