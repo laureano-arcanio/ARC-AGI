@@ -202,7 +202,7 @@ class TestArcTaskRouterGetTask:
         ):
             response = await _get_task(app)
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["test"][0]["output"] == []
+        assert response.json()["test"][0]["output"] == [[4]]
 
     async def test_reviewer_without_review_access_denied(self) -> None:
         app, _ = _build_get_task_app(
