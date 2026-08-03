@@ -263,7 +263,19 @@ export function MyReviewsPage() {
                                 {t(status.label)}
                               </span>
                             </div>
-                            <span
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={
+                                  entry?.solved
+                                    ? 'rounded-full bg-green-600 px-2 py-0.5 text-xs font-bold text-white'
+                                    : 'rounded-full bg-amber-600 px-2 py-0.5 text-xs font-bold text-white'
+                                }
+                              >
+                                {entry?.solved
+                                  ? t('my_reviews.solved')
+                                  : t('my_reviews.not_solved')}
+                              </span>
+                              <span
                               className={
                                 entry && (entry.status === 'done' || entry.status === 'needs_revision')
                                   ? 'w-28 text-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-700'
@@ -276,6 +288,7 @@ export function MyReviewsPage() {
                                   : 'my_reviews.review',
                               )}
                             </span>
+                            </div>
                           </button>
                         )
                       })}

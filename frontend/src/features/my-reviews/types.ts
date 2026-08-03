@@ -43,4 +43,5 @@ export type ReviewEntryProgress = {
   needsRevision: number
   pending: number
   status: string
+  solved: boolean
 }

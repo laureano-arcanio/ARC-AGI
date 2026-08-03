@@ -25,6 +25,7 @@ class ReviewEntryProgress(BaseAPISchema):
     needs_revision: int = 0
     pending: int = 0
     status: str = "pending_review"
+    solved: bool = False
 
 
 class SolverReviewVariant(BaseAPISchema):

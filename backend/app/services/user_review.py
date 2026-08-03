@@ -16,7 +16,37 @@ from app.schemas.user_review import (
     UserReviewUpdate,
 )
 from app.services.base_service import BaseService
-from app.services.synthetic_task import SyntheticTaskService
+from app.services.synthetic_task import SyntheticTaskService, _get_cached_index
+
+
+def _resolve_original_ids(entry_ids: list[str]) -> dict[str, str]:
+    idx = _get_cached_index()
+    result: dict[str, str] = {}
+    for eid in entry_ids:
+        t = idx._by_id.get(eid)
+        if t:
+            oid = t.get("original_task_id", eid)
+        else:
+            oid = eid
+        result[eid] = oid
+    return result
+
+
+async def _get_solved_for_entries(
+    event_repository: EventRepository | None,
+    user_id: int,
+    entry_ids: list[str],
+    original_ids: dict[str, str],
+) -> dict[str, bool]:
+    if event_repository is None:
+        return {}
+    unique_originals = list({oid for oid in original_ids.values()})
+    if not unique_originals:
+        return {}
+    solved_originals = await event_repository.get_solved_task_ids(
+        user_id, unique_originals
+    )
+    return {eid: original_ids[eid] in solved_originals for eid in entry_ids}
 
 
 class UserReviewService(
@@ -160,6 +190,11 @@ class UserReviewService(
         )
         by_synth = {i.synth_task_id: self._to_read(i) for i in instances}
 
+        original_task_ids = _resolve_original_ids(requested)
+        solved = await _get_solved_for_entries(
+            self.event_repository, user_id, requested, original_task_ids
+        )
+
         result: list[ReviewEntryProgress] = []
         for eid in requested:
             vids = entry_variants[eid]
@@ -187,6 +222,7 @@ class UserReviewService(
                     needs_revision=needs_revision,
                     pending=pending,
                     status=status,
+                    solved=solved.get(eid, False),
                 )
             )
         return result

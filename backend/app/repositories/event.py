@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import Float, cast, func, select
+from sqlalchemy import Boolean, Float, cast, func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.models.event import Event
@@ -195,3 +195,23 @@ class EventRepository(BaseRepository[Event]):
             query = query.where(action_expr.in_(event_types))
         result = await self.db_session.execute(query)
         return list(result.all())
+
+    async def get_solved_task_ids(
+        self, user_id: int, task_ids: list[str]
+    ) -> set[str]:
+        if not task_ids:
+            return set()
+        query = (
+            select(Event.task_id)
+            .where(
+                Event.user_id == user_id,
+                Event.task_id.in_(task_ids),
+                Event.trigger["action"].as_string() == "submit",
+                cast(
+                    Event.trigger["details"]["correct"].as_string(), Boolean
+                ).is_(True),
+            )
+            .distinct()
+        )
+        result = await self.db_session.execute(query)
+        return {row[0] for row in result.all()}
