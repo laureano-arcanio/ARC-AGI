@@ -1,14 +1,16 @@
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query'
 import { createUser, getUsers, updateUser, deleteUser } from './api'
 import type { UserCreate } from './types'
-import { getUserBatchTasks } from '../admin-user-detail/api'
-import type { BatchWithTasks } from '../admin-user-detail/types'
+import { getUserBatchTasks, getUserReviewBatchTasks } from '../admin-user-detail/api'
+import type { BatchWithTasks, ReviewBatchWithTasks } from '../admin-user-detail/types'
 
 export const adminUsersQueryKeys = {
   all: ['admin-users'] as const,
   list: () => [...adminUsersQueryKeys.all, 'list'] as const,
   batchCompletion: (userId: number) =>
     [...adminUsersQueryKeys.all, 'batch-completion', userId] as const,
+  reviewBatchCompletion: (userId: number) =>
+    [...adminUsersQueryKeys.all, 'review-batch-completion', userId] as const,
 }
 
 export function useUsers() {
@@ -69,6 +71,67 @@ export function useUsersBatchCompletion(userIds: number[]) {
         completionByUser.set(userId, pct)
       })
       return { completedByUser, inProgressByUser, abandonedByUser, completionByUser }
+    },
+  })
+}
+
+export function useUsersReviewBatchCompletion(userIds: number[]) {
+  return useQueries({
+    queries: userIds.map((userId) => ({
+      queryKey: adminUsersQueryKeys.reviewBatchCompletion(userId),
+      queryFn: () => getUserReviewBatchTasks(userId),
+      staleTime: 10 * 1000,
+    })),
+    combine: (results) => {
+      const reviewCompletedByUser = new Map<number, Set<number>>()
+      const reviewInProgressByUser = new Map<number, Set<number>>()
+      const reviewNeedsRevisionByUser = new Map<number, Set<number>>()
+      const reviewCompletionPctByUser = new Map<number, Map<number, string>>()
+      results.forEach((result, i) => {
+        const userId = userIds[i]
+        const data: ReviewBatchWithTasks[] | undefined = result.data
+        const completed = new Set<number>()
+        const inProgress = new Set<number>()
+        const needsRevision = new Set<number>()
+        const pct = new Map<number, string>()
+        if (data) {
+          data.forEach((batch) => {
+            let totalDone = 0
+            let totalTasks = 0
+            let hasNeedsRevision = false
+            let anyStarted = false
+            batch.tasks.forEach((t) => {
+              totalDone += t.done
+              totalTasks += t.total
+              if (t.needsRevision > 0) hasNeedsRevision = true
+              if (t.status === 'done' || t.status === 'needs_revision') anyStarted = true
+            })
+            if (totalTasks > 0) {
+              pct.set(
+                batch.batchId,
+                `${Math.round((totalDone / totalTasks) * 100)}%`,
+              )
+            }
+            if (totalTasks > 0 && totalDone === totalTasks) {
+              completed.add(batch.batchId)
+            } else if (hasNeedsRevision) {
+              needsRevision.add(batch.batchId)
+            } else if (anyStarted) {
+              inProgress.add(batch.batchId)
+            }
+          })
+        }
+        reviewCompletedByUser.set(userId, completed)
+        reviewInProgressByUser.set(userId, inProgress)
+        reviewNeedsRevisionByUser.set(userId, needsRevision)
+        reviewCompletionPctByUser.set(userId, pct)
+      })
+      return {
+        reviewCompletedByUser,
+        reviewInProgressByUser,
+        reviewNeedsRevisionByUser,
+        reviewCompletionPctByUser,
+      }
     },
   })
 }
