@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ClipboardCopy } from 'lucide-react'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useTaskById } from '../../arc-lab/queries'
 import type { ArcTaskRead } from '../../arc-lab/types'
-import { ConfirmDialog } from '../../../components/common/ConfirmDialog'
 import { PairDisplay } from '../../synthetic-reviews/components/PairDisplay'
 import type { SyntheticTask } from '../../synthetic-reviews/types'
 import {
   useBulkUpdateUserReviews,
   useMyAnonymousSolvers,
+  useMyReviewBatches,
   useMyUserReview,
   useResolvedSyntheticTasks,
   useUpdateUserReview,
@@ -58,14 +58,14 @@ function ReviewVariantCard({
   variant,
   variantIndex,
   originalTask,
-  selected,
-  onToggleSelect,
+  selectedPairKeys,
+  onTogglePair,
 }: {
   variant: SyntheticTask
   variantIndex: number
   originalTask: ArcTaskRead | undefined
-  selected: boolean
-  onToggleSelect: () => void
+  selectedPairKeys: Set<string>
+  onTogglePair: (pairKey: string) => void
 }) {
   const { t } = useTranslation()
   const [notesAccordionOpen, setNotesAccordionOpen] = useState(true)
@@ -121,48 +121,7 @@ function ReviewVariantCard({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500">
-            {t('my_reviews.detail.model')}
-          </span>
-          <span className="text-xs text-gray-200">{variant.modelName}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500">
-            {t('my_reviews.detail.witness')}
-          </span>
-          <span className="text-xs text-gray-200">
-            {variant.witnessPassed
-              ? t('my_reviews.detail.witness_passed')
-              : t('my_reviews.detail.witness_failed', {
-                  n: variant.witnessNPassed ?? 0,
-                  total: variant.witnessNTotal ?? 0,
-                })}
-          </span>
-        </div>
-      </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {!variant.witnessPassed && (
-          <button
-            onClick={() => updateReview.mutate({ correct: true })}
-            disabled={updateReview.isPending}
-            className="rounded border border-green-700 px-3 py-1.5 text-xs font-medium text-green-400 transition hover:bg-green-950 hover:text-green-300"
-          >
-            {t('my_reviews.detail.mark_correct')}
-          </button>
-        )}
-        {review?.correct === true && (
-          <button
-            onClick={() => updateReview.mutate({ correct: null })}
-            disabled={updateReview.isPending}
-            className="rounded border border-gray-700 px-3 py-1.5 text-xs text-gray-400 transition hover:border-gray-500 hover:text-gray-300"
-          >
-            {t('my_reviews.detail.unmark')}
-          </button>
-        )}
-      </div>
 
       <div className="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div
@@ -220,55 +179,81 @@ function ReviewVariantCard({
 
         <div
           className={`min-w-0 rounded border bg-gray-950/40 p-4 transition ${
-            selected ? 'border-red-500' : 'border-gray-800'
+            variant.train.some((_, i) => selectedPairKeys.has(`${variant.id}:train:${i}`)) ||
+            variant.test.some((_, i) => selectedPairKeys.has(`${variant.id}:test:${i}`))
+              ? 'border-red-500'
+              : 'border-gray-800'
           }`}
         >
-          <div className="flex items-center justify-between gap-2">
-            <label className="flex cursor-pointer items-center gap-2 select-none">
-              <input
-                type="checkbox"
-                checked={selected}
-                onChange={onToggleSelect}
-                className="h-5 w-5 cursor-pointer accent-red-600"
-              />
-              <span className="text-xs font-semibold text-gray-300">
-                {t('my_reviews.detail.generated_task')}
-              </span>
-            </label>
-            <button
-              onClick={() =>
-                handleCopy({ train: variant.train, test: variant.test })
-              }
-              className="rounded bg-gray-800/50 px-2 py-1 text-gray-400 hover:text-white"
-            >
-              <ClipboardCopy size={12} />
-            </button>
-          </div>
+          <span className="text-xs font-semibold text-gray-300">
+            {t('my_reviews.detail.generated_task')}
+          </span>
           <div className="mt-3 flex flex-col gap-5">
-            {variant.train.map((pair, i) => (
-              <PairDisplay
-                key={`gen-train-${i}`}
-                label={`Train ${i + 1}`}
-                pair={pair}
-                rowWidth={colWidth || undefined}
-                maxCellSize={REVIEW_MAX_CELL}
-              />
-            ))}
+            {variant.train.map((pair, i) => {
+              const pairKey = `${variant.id}:train:${i}`
+              const isSelected = selectedPairKeys.has(pairKey)
+              return (
+                <div
+                  key={`gen-train-${i}`}
+                  className={`rounded border p-1 transition ${
+                    isSelected ? 'border-red-600/60 bg-red-950/20' : 'border-transparent'
+                  }`}
+                >
+                  <label className="mb-1 flex cursor-pointer items-center gap-1.5 select-none">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onTogglePair(pairKey)}
+                      className="h-4 w-4 cursor-pointer accent-red-600"
+                    />
+                    <span className="text-[10px] font-semibold text-gray-500">
+                      Train {i + 1}
+                    </span>
+                  </label>
+                  <PairDisplay
+                    label=""
+                    pair={pair}
+                    rowWidth={colWidth || undefined}
+                    maxCellSize={REVIEW_MAX_CELL}
+                  />
+                </div>
+              )
+            })}
             {variant.test.length > 0 && (
               <div className="border-t border-gray-800 pt-4">
                 <p className="mb-2 text-xs font-semibold text-gray-600">
                   Test
                 </p>
-                {variant.test.map((pair, i) => (
-                  <div key={`gen-test-${i}`} className="mb-5 last:mb-0">
-                    <PairDisplay
-                      label={`Test ${i + 1}`}
-                      pair={pair}
-                      rowWidth={colWidth || undefined}
-                      maxCellSize={REVIEW_MAX_CELL}
-                    />
-                  </div>
-                ))}
+                {variant.test.map((pair, i) => {
+                  const pairKey = `${variant.id}:test:${i}`
+                  const isSelected = selectedPairKeys.has(pairKey)
+                  return (
+                    <div
+                      key={`gen-test-${i}`}
+                      className={`mb-5 last:mb-0 rounded border p-1 transition ${
+                        isSelected ? 'border-red-600/60 bg-red-950/20' : 'border-transparent'
+                      }`}
+                    >
+                      <label className="mb-1 flex cursor-pointer items-center gap-1.5 select-none">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => onTogglePair(pairKey)}
+                          className="h-4 w-4 cursor-pointer accent-red-600"
+                        />
+                        <span className="text-[10px] font-semibold text-gray-500">
+                          Test {i + 1}
+                        </span>
+                      </label>
+                      <PairDisplay
+                        label=""
+                        pair={pair}
+                        rowWidth={colWidth || undefined}
+                        maxCellSize={REVIEW_MAX_CELL}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -340,43 +325,59 @@ export function MyReviewPage() {
   const { data: originalTask } = useTaskById(originalTaskId)
   const { data: solvers = [] } = useMyAnonymousSolvers(originalTaskId)
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [showIncorrectModal, setShowIncorrectModal] = useState(false)
+  const navigate = useNavigate()
+  const { data: batches } = useMyReviewBatches(userId ?? 0)
+
+  const findNextTaskId = (): string | null => {
+    if (!batches || !taskId) return null
+    for (const batch of batches) {
+      const idx = batch.taskIds.indexOf(taskId)
+      if (idx >= 0 && idx < batch.taskIds.length - 1) return batch.taskIds[idx + 1]
+    }
+    return null
+  }
+
+  const [selectedPairKeys, setSelectedPairKeys] = useState<Set<string>>(new Set())
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackText, setFeedbackText] = useState('')
   const bulkUpdate = useBulkUpdateUserReviews()
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
+  const togglePairSelection = (pairKey: string) => {
+    setSelectedPairKeys((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(pairKey)) next.delete(pairKey)
+      else next.add(pairKey)
       return next
     })
+  }
+
+  const selectedVariantIds = () => {
+    return [...new Set([...selectedPairKeys].map((k) => k.split(':')[0]))]
   }
 
   const markAllValid = () => {
     if (!tasks || tasks.length === 0) return
     bulkUpdate.mutate(
       tasks.map((t) => ({ id: t.id, data: { status: 'done', verified: true } })),
+      {
+        onSuccess: () => {
+          const nextId = findNextTaskId()
+          navigate(nextId ? `/my-reviews/${nextId}` : '/my-reviews')
+        },
+      },
     )
   }
 
-  const markIncorrect = (ids: string[]) => {
+  const markIncorrect = (ids: string[], feedback: string) => {
     if (ids.length === 0) return
+    const notes = feedback.trim() ? [feedback.trim()] : []
     bulkUpdate.mutate(
       ids.map((id) => ({
         id,
-        data: { status: 'needs_revision', verified: true, correct: false },
+        data: { status: 'needs_revision', verified: true, correct: false, notes },
       })),
     )
-    setSelectedIds(new Set())
-  }
-
-  const handleIncorrectClick = () => {
-    if (selectedIds.size > 0) {
-      markIncorrect([...selectedIds])
-    } else {
-      setShowIncorrectModal(true)
-    }
+    setSelectedPairKeys(new Set())
   }
 
   if (authLoading || tasksLoading) {
@@ -422,40 +423,9 @@ export function MyReviewPage() {
 
       {(tasks?.length ?? 0) > 0 && (
         <>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-4">
-              <p className="text-xs font-semibold text-gray-500">
-                {t('my_reviews.detail.original_task')}
-              </p>
-              <p className="mt-1 font-mono text-sm text-gray-200">
-                {originalTaskId}
-              </p>
-            </div>
-            <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-4">
-              <p className="text-xs font-semibold text-gray-500">
-                {t('my_reviews.detail.variants_count', {
-                  n: tasks?.length ?? 0,
-                })}
-              </p>
-            </div>
-            <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-4">
-              <p className="text-xs font-semibold text-gray-500">
-                {t('my_reviews.detail.solvers')}
-              </p>
-              {solvers.length === 0 && (
-                <span className="mt-1 block text-xs text-gray-600">
-                  {t('my_reviews.detail.no_solvers')}
-                </span>
-              )}
-            </div>
-          </div>
 
           {solvers.length > 0 && (
-            <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-4">
-              <p className="text-xs font-semibold text-gray-500">
-                {t('my_reviews.detail.solvers')}
-              </p>
-              <div className="mt-2 flex flex-col gap-3">
+            <div className="flex flex-col gap-3">
                 {solvers.map((s, i) => (
                   <div
                     key={i}
@@ -465,26 +435,20 @@ export function MyReviewPage() {
                       {t('my_reviews.detail.solver_label', { n: i + 1 })}
                     </span>
                     {s.hypothesis ? (
-                      <p className="mt-1 whitespace-pre-wrap text-xs text-gray-300">
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-300">
                         {s.hypothesis}
                       </p>
                     ) : (
-                      <p className="mt-1 text-xs text-gray-600">
+                      <p className="mt-1 text-sm text-gray-600">
                         {t('my_reviews.detail.no_hypothesis')}
                       </p>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/60 p-4">
-            <p className="mr-auto text-xs text-gray-400">
-              {selectedIds.size > 0
-                ? t('my_reviews.detail.selected_count', { n: selectedIds.size })
-                : t('my_reviews.detail.select_hint')}
-            </p>
+          <div className="flex justify-end gap-3">
             <button
               onClick={markAllValid}
               disabled={bulkUpdate.isPending}
@@ -493,8 +457,8 @@ export function MyReviewPage() {
               {t('my_reviews.detail.all_valid')}
             </button>
             <button
-              onClick={handleIncorrectClick}
-              disabled={bulkUpdate.isPending}
+              onClick={() => setShowFeedbackModal(true)}
+              disabled={selectedPairKeys.size === 0 || bulkUpdate.isPending}
               className="rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-40"
             >
               {t('my_reviews.detail.all_incorrect')}
@@ -508,25 +472,56 @@ export function MyReviewPage() {
                 variant={variant}
                 variantIndex={i}
                 originalTask={originalTask}
-                selected={selectedIds.has(variant.id)}
-                onToggleSelect={() => toggleSelect(variant.id)}
+                selectedPairKeys={selectedPairKeys}
+                onTogglePair={togglePairSelection}
               />
             ))}
           </div>
 
-          <ConfirmDialog
-            open={showIncorrectModal}
-            title={t('my_reviews.detail.mark_incorrect_title')}
-            message={t('my_reviews.detail.mark_incorrect_message')}
-            confirmLabel={t('my_reviews.detail.mark_incorrect_all')}
-            cancelLabel={t('my_reviews.detail.mark_incorrect_select')}
-            onConfirm={() => {
-              if (tasks) markIncorrect(tasks.map((t) => t.id))
-              setShowIncorrectModal(false)
-            }}
-            onCancel={() => setShowIncorrectModal(false)}
-            variant="danger"
-          />
+          {showFeedbackModal && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div className="absolute inset-0" onClick={() => setShowFeedbackModal(false)} />
+              <div className="relative w-full max-w-lg rounded-xl border border-gray-800 bg-gray-900 p-5 shadow-xl">
+                <h2 className="text-sm font-semibold text-gray-100">
+                  {t('my_reviews.detail.incorrect_feedback_title')}
+                </h2>
+                <textarea
+                  autoFocus
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder={t('my_reviews.detail.incorrect_feedback_placeholder')}
+                  className="mt-3 h-32 w-full resize-none rounded border border-gray-700 bg-gray-950 p-3 text-sm text-gray-200 placeholder-gray-600 focus:border-red-500 focus:outline-none"
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowFeedbackModal(false)
+                      setFeedbackText('')
+                    }}
+                    className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                  >
+                    {t('my_reviews.detail.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      markIncorrect(selectedVariantIds(), feedbackText)
+                      setShowFeedbackModal(false)
+                      setFeedbackText('')
+                    }}
+                    className="rounded-md bg-red-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  >
+                    {t('my_reviews.detail.continue')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -400,13 +400,18 @@ const es = {
   'my_reviews.detail.add_note_btn': 'Agregar',
   'my_reviews.detail.all_valid': 'SON TODOS VALIDOS',
   'my_reviews.detail.all_incorrect': 'SON INCORRECTOS',
-  'my_reviews.detail.select_hint': 'Marca con el checkbox las tareas generadas incorrectas.',
-  'my_reviews.detail.selected_count': '{n} tarea(s) seleccionada(s)',
+  'my_reviews.detail.select_hint': 'Marca con los checkboxes los pares individuales que son incorrectos.',
+  'my_reviews.detail.selected_pairs_count': '{n} par(es) seleccionado(s)',
   'my_reviews.detail.mark_incorrect_title': '¿Son todas incorrectas?',
   'my_reviews.detail.mark_incorrect_message':
-    'No seleccionaste ninguna tarea. ¿Quieres marcar TODAS las tareas generadas como incorrectas o prefieres seleccionarlas una por una?',
+    'No seleccionaste ningún par. ¿Quieres marcar TODAS las tareas generadas como incorrectas o prefieres seleccionar pares individuales?',
   'my_reviews.detail.mark_incorrect_all': 'Sí, todas son incorrectas',
   'my_reviews.detail.mark_incorrect_select': 'Seleccionar individualmente',
+  'my_reviews.detail.incorrect_feedback_title': '¿Qué está mal?',
+  'my_reviews.detail.incorrect_feedback_placeholder':
+    'Explica en detalle qué está mal en los pares seleccionados...',
+  'my_reviews.detail.continue': 'Continuar',
+  'my_reviews.detail.cancel': 'Cancelar',
 
   'arc_lab.access_denied': 'No tienes acceso a esta tarea.',
   'arc_lab.back_to_tasks': 'Volver a mis tareas',
@@ -965,13 +970,18 @@ const en: Record<string, string> = {
   'my_reviews.detail.add_note_btn': 'Add',
   'my_reviews.detail.all_valid': 'ALL VALID',
   'my_reviews.detail.all_incorrect': 'ALL INCORRECT',
-  'my_reviews.detail.select_hint': 'Check the generated tasks that are incorrect.',
-  'my_reviews.detail.selected_count': '{n} task(s) selected',
+  'my_reviews.detail.select_hint': 'Check the individual pairs that are incorrect.',
+  'my_reviews.detail.selected_pairs_count': '{n} pair(s) selected',
   'my_reviews.detail.mark_incorrect_title': 'Are all of them incorrect?',
   'my_reviews.detail.mark_incorrect_message':
-    "You haven't selected any task. Do you want to mark ALL generated tasks as incorrect, or select them one by one?",
+    "You haven't selected any pair. Do you want to mark ALL generated tasks as incorrect, or select pairs individually?",
   'my_reviews.detail.mark_incorrect_all': 'Yes, all are incorrect',
   'my_reviews.detail.mark_incorrect_select': 'Select individually',
+  'my_reviews.detail.incorrect_feedback_title': "What's wrong?",
+  'my_reviews.detail.incorrect_feedback_placeholder':
+    'Explain in detail what is wrong with the selected pairs...',
+  'my_reviews.detail.continue': 'Continue',
+  'my_reviews.detail.cancel': 'Cancel',
 
   'arc_lab.access_denied': 'You do not have access to this task.',
   'arc_lab.back_to_tasks': 'Back to my tasks',
