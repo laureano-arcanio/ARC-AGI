@@ -56,3 +56,11 @@ class TaskSolverRead(BaseAPISchema):
 
 class TaskSolverAnonRead(BaseAPISchema):
     hypothesis: str | None = None
+
+
+class MyHypothesisRead(BaseAPISchema):
+    hypothesis: str | None = None
+
+
+class MyHypothesisUpdate(BaseAPISchema):
+    hypothesis: str

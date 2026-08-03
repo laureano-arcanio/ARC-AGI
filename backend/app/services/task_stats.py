@@ -1,9 +1,11 @@
 import math
+import time
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.repositories.event import EventRepository
 from app.schemas.task_stats import (
     SolverUserRead,
     TaskSearchPaginated,
@@ -394,7 +396,7 @@ class TaskStatsService:
         ]
 
     async def get_task_solvers_anon(
-        self, task_id: str
+        self, task_id: str, exclude_user_id: int | None = None
     ) -> list[TaskSolverAnonRead]:
         sql = text("""
             SELECT DISTINCT u.id
@@ -404,9 +406,12 @@ class TaskStatsService:
                 e.task_id = :task_id
                 AND e.trigger->>'action' = 'submit'
                 AND CAST(e.trigger->'details'->>'correct' AS BOOLEAN) = true
+                AND (:exclude_user_id IS NULL OR u.id <> :exclude_user_id)
             ORDER BY u.id
         """)
-        result = await self.db_session.execute(sql, {"task_id": task_id})
+        result = await self.db_session.execute(
+            sql, {"task_id": task_id, "exclude_user_id": exclude_user_id}
+        )
         rows = result.all()
         user_ids = [row[0] for row in rows]
 
@@ -429,6 +434,50 @@ class TaskStatsService:
             TaskSolverAnonRead(hypothesis=hypothesis_map.get(uid))
             for uid in user_ids
         ]
+
+    async def get_my_hypothesis(self, task_id: str, user_id: int) -> str | None:
+        sql = text("""
+            SELECT trigger->>'text' AS text
+            FROM event
+            WHERE task_id = :task_id
+              AND user_id = :user_id
+              AND trigger->>'kind' = 'cognitive'
+              AND trigger->>'text' IS NOT NULL
+            ORDER BY id DESC
+            LIMIT 1
+        """)
+        result = await self.db_session.execute(
+            sql, {"task_id": task_id, "user_id": user_id}
+        )
+        row = result.first()
+        return row[0] if row else None
+
+    async def save_my_hypothesis(
+        self, task_id: str, user_id: int, hypothesis: str
+    ) -> str:
+        """Save the current user's hypothesis for a task as a new cognitive
+        revision event, mirroring the solve page's hypothesis_revision flow."""
+        node_id = f"my_hypothesis_{int(time.time() * 1000)}"
+        repo = EventRepository(db_session=self.db_session)
+        await repo.create(
+            {
+                "user_id": user_id,
+                "task_id": task_id,
+                "attempt_id": None,
+                "node_id": node_id,
+                "parent_node_id": None,
+                "test_pair_index": None,
+                "trigger": {
+                    "kind": "cognitive",
+                    "intent": "hypothesis_revision",
+                    "text": hypothesis,
+                },
+                "state_snapshot": [[]],
+                "timestamp": int(time.time() * 1000),
+                "sequence_index": None,
+            }
+        )
+        return hypothesis
 
     @staticmethod
     def _dataset_split_label(dataset: str, challenges_file: str) -> str:

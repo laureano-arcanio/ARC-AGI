@@ -412,6 +412,13 @@ const es = {
     'Explica en detalle qué está mal en los pares seleccionados...',
   'my_reviews.detail.continue': 'Continuar',
   'my_reviews.detail.cancel': 'Cancelar',
+  'my_reviews.detail.my_hypothesis': 'Tu hipótesis',
+  'my_reviews.detail.fix_hypothesis': 'Corregir',
+  'my_reviews.detail.hypothesis_modal_title': 'Corregir tu hipótesis',
+  'my_reviews.detail.hypothesis_modal_placeholder':
+    'Escribe tu hipótesis revisada...',
+  'my_reviews.detail.save': 'Guardar',
+  'my_reviews.detail.no_my_hypothesis': 'Aún no tienes hipótesis.',
 
   'arc_lab.access_denied': 'No tienes acceso a esta tarea.',
   'arc_lab.back_to_tasks': 'Volver a mis tareas',
@@ -982,6 +989,13 @@ const en: Record<string, string> = {
     'Explain in detail what is wrong with the selected pairs...',
   'my_reviews.detail.continue': 'Continue',
   'my_reviews.detail.cancel': 'Cancel',
+  'my_reviews.detail.my_hypothesis': 'Your hypothesis',
+  'my_reviews.detail.fix_hypothesis': 'Fix',
+  'my_reviews.detail.hypothesis_modal_title': 'Fix your hypothesis',
+  'my_reviews.detail.hypothesis_modal_placeholder':
+    'Write your revised hypothesis...',
+  'my_reviews.detail.save': 'Save',
+  'my_reviews.detail.no_my_hypothesis': 'You have no hypothesis yet.',
 
   'arc_lab.access_denied': 'You do not have access to this task.',
   'arc_lab.back_to_tasks': 'Back to my tasks',
