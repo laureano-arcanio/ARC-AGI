@@ -1,3 +1,5 @@
+import asyncio
+
 from app.errors import ObjectNotFoundError
 from app.models.user_review import UserReview
 from app.repositories.batch import BatchRepository
@@ -114,7 +116,9 @@ class UserReviewService(
                 all_entry_ids.append(str(tid))
         if not all_entry_ids:
             return []
-        progress = await self.list_progress(user_id, all_entry_ids)
+        progress = await self.list_progress(
+            user_id, all_entry_ids, allowed_ids=set(all_entry_ids)
+        )
         progress_by_entry = {p.entry_id: p for p in progress}
         result: list[ReviewBatchWithTasks] = []
         for batch in batches:
@@ -138,9 +142,12 @@ class UserReviewService(
         return result
 
     async def list_progress(
-        self, user_id: int, entry_ids: list[str]
+        self, user_id: int, entry_ids: list[str], allowed_ids: set[str] | None = None
     ) -> list[ReviewEntryProgress]:
-        allowed = set(await self.batch_repository.get_user_review_task_ids(user_id))
+        if allowed_ids is None:
+            allowed = set(await self.batch_repository.get_user_review_task_ids(user_id))
+        else:
+            allowed = allowed_ids
         requested = [eid for eid in entry_ids if eid in allowed]
         if not requested:
             return []
@@ -205,17 +212,24 @@ class UserReviewService(
 
         user_ids = list(reviews_by_user.keys())
         emails: dict[int, str] = {}
-        if self.user_repository is not None:
-            users = await self.user_repository.get_by_ids(user_ids)
-            emails = {u.id: u.email for u in users}
-
         hypothesis_texts: dict[int, list[str]] = {}
-        if self.event_repository is not None:
-            hypothesis_texts = (
-                await self.event_repository.get_hypothesis_texts_by_task(
+
+        async def _fetch_emails() -> dict[int, str]:
+            if self.user_repository is not None:
+                users = await self.user_repository.get_by_ids(user_ids)
+                return {u.id: u.email for u in users}
+            return {}
+
+        async def _fetch_hypotheses() -> dict[int, list[str]]:
+            if self.event_repository is not None:
+                return await self.event_repository.get_hypothesis_texts_by_task(
                     original_task_id
                 )
-            )
+            return {}
+
+        emails, hypothesis_texts = await asyncio.gather(
+            _fetch_emails(), _fetch_hypotheses()
+        )
 
         result: list[SolverReviewDetail] = []
         for user_id in sorted(reviews_by_user.keys()):

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ClipboardCopy } from 'lucide-react'
 import { useTranslation } from '../../../lib/i18n'
@@ -29,11 +29,18 @@ function useColumnWidth(): {
   useEffect(() => {
     const el = colRef.current
     if (!el) return
+    let rafId: number
     const ro = new ResizeObserver(([entry]) => {
-      setColWidth(entry.contentRect.width)
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        setColWidth(entry.contentRect.width)
+      })
     })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(rafId)
+    }
   }, [])
   return { colRef, colWidth }
 }
@@ -56,7 +63,7 @@ const REVIEW_STATUS: Record<
   },
 }
 
-function ReviewVariantCard({
+const ReviewVariantCard = React.memo(function ReviewVariantCard({
   variant,
   variantIndex,
   originalTask,
@@ -312,7 +319,7 @@ function ReviewVariantCard({
       </div>
     </div>
   )
-}
+})
 
 export function MyReviewPage() {
   const { t } = useTranslation()
@@ -332,14 +339,14 @@ export function MyReviewPage() {
   const navigate = useNavigate()
   const { data: batches } = useMyReviewBatches(userId ?? 0)
 
-  const findNextTaskId = (): string | null => {
+  const findNextTaskId = useMemo((): string | null => {
     if (!batches || !taskId) return null
     for (const batch of batches) {
       const idx = batch.taskIds.indexOf(taskId)
       if (idx >= 0 && idx < batch.taskIds.length - 1) return batch.taskIds[idx + 1]
     }
     return null
-  }
+  }, [batches, taskId])
 
   const [selectedPairKeys, setSelectedPairKeys] = useState<Set<string>>(new Set())
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
@@ -363,14 +370,14 @@ export function MyReviewPage() {
     )
   }
 
-  const togglePairSelection = (pairKey: string) => {
+  const togglePairSelection = useCallback((pairKey: string) => {
     setSelectedPairKeys((prev) => {
       const next = new Set(prev)
       if (next.has(pairKey)) next.delete(pairKey)
       else next.add(pairKey)
       return next
     })
-  }
+  }, [])
 
   const selectedVariantIds = () => {
     return [...new Set([...selectedPairKeys].map((k) => k.split(':')[0]))]
@@ -382,7 +389,7 @@ export function MyReviewPage() {
       tasks.map((t) => ({ id: t.id, data: { status: 'done', verified: true } })),
       {
         onSuccess: () => {
-          const nextId = findNextTaskId()
+          const nextId = findNextTaskId
           navigate(nextId ? `/my-reviews/${nextId}` : '/my-reviews')
         },
       },
@@ -397,8 +404,14 @@ export function MyReviewPage() {
         id,
         data: { status: 'needs_revision', verified: true, correct: false, notes },
       })),
+      {
+        onSuccess: () => {
+          setSelectedPairKeys(new Set())
+          const nextId = findNextTaskId
+          navigate(nextId ? `/my-reviews/${nextId}` : '/my-reviews')
+        },
+      },
     )
-    setSelectedPairKeys(new Set())
   }
 
   if (authLoading || tasksLoading) {

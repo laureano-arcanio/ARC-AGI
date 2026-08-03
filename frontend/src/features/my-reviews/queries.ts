@@ -30,7 +30,7 @@ export function useMyReviewBatches(userId: number) {
     queryKey: myReviewsQueryKeys.batches(userId),
     queryFn: () => getUserReviewBatches(userId),
     enabled: userId > 0,
-    staleTime: 0,
+    staleTime: 5 * 60 * 1000,
   })
 }
 
@@ -96,7 +96,6 @@ export function useUpdateUserReview(id: string) {
     mutationFn: (data: UserReviewUpdate) => updateUserReview(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: myReviewsQueryKeys.review(id) })
-      qc.invalidateQueries({ queryKey: myReviewsQueryKeys.all })
     },
   })
 }
