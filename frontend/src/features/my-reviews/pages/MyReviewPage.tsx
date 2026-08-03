@@ -458,31 +458,32 @@ export function MyReviewPage() {
       {(tasks?.length ?? 0) > 0 && (
         <>
 
+          <div className="rounded border border-purple-600/60 bg-purple-950/30 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-purple-300">
+                {t('my_reviews.detail.my_hypothesis')}
+              </span>
+              <button
+                onClick={openHypothesisModal}
+                disabled={updateMyHypothesis.isPending}
+                className="rounded bg-purple-700 px-2 py-1 text-xs font-medium text-white transition hover:bg-purple-600 disabled:opacity-40"
+              >
+                {t('my_reviews.detail.fix_hypothesis')}
+              </button>
+            </div>
+            {myHypothesis?.hypothesis ? (
+              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-200">
+                {myHypothesis.hypothesis}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-gray-500">
+                {t('my_reviews.detail.no_my_hypothesis')}
+              </p>
+            )}
+          </div>
+
           {solvers.length > 0 && (
             <div className="flex flex-col gap-3">
-              <div className="rounded border border-purple-600/60 bg-purple-950/30 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold text-purple-300">
-                    {t('my_reviews.detail.my_hypothesis')}
-                  </span>
-                  <button
-                    onClick={openHypothesisModal}
-                    disabled={updateMyHypothesis.isPending}
-                    className="rounded bg-purple-700 px-2 py-1 text-xs font-medium text-white transition hover:bg-purple-600 disabled:opacity-40"
-                  >
-                    {t('my_reviews.detail.fix_hypothesis')}
-                  </button>
-                </div>
-                {myHypothesis?.hypothesis ? (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-200">
-                    {myHypothesis.hypothesis}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-sm text-gray-500">
-                    {t('my_reviews.detail.no_my_hypothesis')}
-                  </p>
-                )}
-              </div>
               {solvers.map((s, i) => (
                 <div
                   key={i}
