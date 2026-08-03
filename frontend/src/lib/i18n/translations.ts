@@ -412,6 +412,8 @@ const es = {
     'Explica en detalle qué está mal en los pares seleccionados...',
   'my_reviews.detail.continue': 'Continuar',
   'my_reviews.detail.cancel': 'Cancelar',
+  'my_reviews.detail.previous': 'Anterior',
+  'my_reviews.detail.next': 'Siguiente',
 
   'arc_lab.access_denied': 'No tienes acceso a esta tarea.',
   'arc_lab.back_to_tasks': 'Volver a mis tareas',
@@ -982,6 +984,8 @@ const en: Record<string, string> = {
     'Explain in detail what is wrong with the selected pairs...',
   'my_reviews.detail.continue': 'Continue',
   'my_reviews.detail.cancel': 'Cancel',
+  'my_reviews.detail.previous': 'Previous',
+  'my_reviews.detail.next': 'Next',
 
   'arc_lab.access_denied': 'You do not have access to this task.',
   'arc_lab.back_to_tasks': 'Back to my tasks',

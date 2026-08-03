@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ClipboardCopy } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ClipboardCopy } from 'lucide-react'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useTaskById } from '../../arc-lab/queries'
@@ -328,14 +328,21 @@ export function MyReviewPage() {
   const navigate = useNavigate()
   const { data: batches } = useMyReviewBatches(userId ?? 0)
 
-  const findNextTaskId = (): string | null => {
-    if (!batches || !taskId) return null
+  const findAdjacentTaskIds = (): { prev: string | null; next: string | null } => {
+    if (!batches || !taskId) return { prev: null, next: null }
     for (const batch of batches) {
       const idx = batch.taskIds.indexOf(taskId)
-      if (idx >= 0 && idx < batch.taskIds.length - 1) return batch.taskIds[idx + 1]
+      if (idx >= 0) {
+        return {
+          prev: idx > 0 ? batch.taskIds[idx - 1] : null,
+          next: idx < batch.taskIds.length - 1 ? batch.taskIds[idx + 1] : null,
+        }
+      }
     }
-    return null
+    return { prev: null, next: null }
   }
+
+  const { prev: prevTaskId, next: nextTaskId } = findAdjacentTaskIds()
 
   const [selectedPairKeys, setSelectedPairKeys] = useState<Set<string>>(new Set())
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
@@ -361,8 +368,7 @@ export function MyReviewPage() {
       tasks.map((t) => ({ id: t.id, data: { status: 'done', verified: true } })),
       {
         onSuccess: () => {
-          const nextId = findNextTaskId()
-          navigate(nextId ? `/my-reviews/${nextId}` : '/my-reviews')
+          navigate(nextTaskId ? `/my-reviews/${nextTaskId}` : '/my-reviews')
         },
       },
     )
@@ -406,6 +412,24 @@ export function MyReviewPage() {
         >
           &larr; {t('my_reviews.detail.back')}
         </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => prevTaskId && navigate(`/my-reviews/${prevTaskId}`)}
+            disabled={!prevTaskId}
+            className="flex items-center gap-1 rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <ChevronLeft size={14} />
+            {t('my_reviews.detail.previous')}
+          </button>
+          <button
+            onClick={() => nextTaskId && navigate(`/my-reviews/${nextTaskId}`)}
+            disabled={!nextTaskId}
+            className="flex items-center gap-1 rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <ChevronRight size={14} />
+            {t('my_reviews.detail.next')}
+          </button>
+        </div>
       </div>
 
       <div className="flex items-start justify-between">
