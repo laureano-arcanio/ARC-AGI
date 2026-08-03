@@ -18,6 +18,21 @@ export type BatchWithTasks = {
   tasks: TaskWithStatus[]
 }
 
+export type ReviewBatchTask = {
+  entryId: string
+  total: number
+  done: number
+  needsRevision: number
+  pending: number
+  status: string
+}
+
+export type ReviewBatchWithTasks = {
+  batchId: number
+  batchName: string
+  tasks: ReviewBatchTask[]
+}
+
 export type AttemptRead = {
   id: number
   userId: number

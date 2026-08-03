@@ -40,3 +40,19 @@ export type SyntheticReviewUpdate = {
   verified?: boolean
   notes?: string[]
 }
+
+export type SolverReviewVariant = {
+  synthTaskId: string
+  status: string
+  correct: boolean | null
+  verified: boolean
+  notes: string[]
+}
+
+export type SolverReviewDetail = {
+  userId: number
+  email: string
+  originalHypothesis: string | null
+  revisedHypothesis: string | null
+  variants: SolverReviewVariant[]
+}

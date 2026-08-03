@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import Float, cast, func, select
+from sqlalchemy import Boolean, Float, cast, func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.models.event import Event
@@ -157,6 +157,28 @@ class EventRepository(BaseRepository[Event]):
         result = await self.db_session.execute(query)
         return [row[0] for row in result.all()]
 
+    async def get_hypothesis_texts_by_task(
+        self, task_id: str
+    ) -> dict[int, list[str]]:
+        """Return per-user hypothesis texts for a task, oldest first.
+
+        Only cognitive events with a non-null text (e.g. hypothesis_revision).
+        """
+        query = (
+            select(self.model.user_id, self.model.trigger["text"].as_string())
+            .where(
+                self.model.task_id == task_id,
+                self.model.trigger["kind"].as_string() == "cognitive",
+                self.model.trigger["text"].isnot(None),
+            )
+            .order_by(self.model.timestamp, self.model.id)
+        )
+        result = await self.db_session.execute(query)
+        texts: dict[int, list[str]] = {}
+        for user_id, text in result.all():
+            texts.setdefault(user_id, []).append(text)
+        return texts
+
     async def get_event_type_summary(
         self,
         event_types: list[str] | None,
@@ -173,3 +195,23 @@ class EventRepository(BaseRepository[Event]):
             query = query.where(action_expr.in_(event_types))
         result = await self.db_session.execute(query)
         return list(result.all())
+
+    async def get_solved_task_ids(
+        self, user_id: int, task_ids: list[str]
+    ) -> set[str]:
+        if not task_ids:
+            return set()
+        query = (
+            select(Event.task_id)
+            .where(
+                Event.user_id == user_id,
+                Event.task_id.in_(task_ids),
+                Event.trigger["action"].as_string() == "submit",
+                cast(
+                    Event.trigger["details"]["correct"].as_string(), Boolean
+                ).is_(True),
+            )
+            .distinct()
+        )
+        result = await self.db_session.execute(query)
+        return {row[0] for row in result.all()}

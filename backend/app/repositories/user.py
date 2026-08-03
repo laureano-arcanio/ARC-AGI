@@ -15,3 +15,10 @@ class UserRepository(BaseRepository[User]):
         if not db_instance:
             raise ObjectNotFoundError(object_type="User", object_id=email)
         return db_instance
+
+    async def get_by_ids(self, ids: list[int]) -> list[User]:
+        if not ids:
+            return []
+        query = select(self.model).where(self.model.id.in_(ids))
+        result = await self.db_session.execute(query)
+        return list(result.scalars().all())

@@ -42,6 +42,7 @@ async def get_task(
 ) -> ArcTaskRead:
     is_admin = current_user.role == "admin"
     allowed = is_admin
+    has_review_access = False
     if not allowed:
         allowed = await batch_repo.user_has_access(
             current_user.user_id, task_id
@@ -50,16 +51,19 @@ async def get_task(
         review_ids = await batch_repo.get_user_review_task_ids(
             current_user.user_id
         )
-        allowed = SyntheticTaskService.user_can_review_original(
+        has_review_access = SyntheticTaskService.user_can_review_original(
             task_id, review_ids
         )
+        allowed = has_review_access
     if not allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this task",
         )
-    # Only admins receive the test solutions; solvers get inputs.
-    task = await service.get_by_id(task_id, include_test_outputs=is_admin)
+    # Admins and reviewers receive the test solutions; solvers get inputs only.
+    task = await service.get_by_id(
+        task_id, include_test_outputs=is_admin or has_review_access
+    )
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
     return task

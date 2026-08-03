@@ -4,6 +4,8 @@ from app.dependencies.auth import AdminDep, CurrentUserDep
 from app.dependencies.database import DatabaseSession
 from app.repositories.batch import BatchRepository
 from app.schemas.task_stats import (
+    MyHypothesisRead,
+    MyHypothesisUpdate,
     TaskSearchPaginated,
     TaskSolverAnonRead,
     TaskSolverRead,
@@ -21,6 +23,21 @@ async def get_service(db_session: DatabaseSession) -> TaskStatsService:
 
 async def get_batch_repo(db_session: DatabaseSession) -> BatchRepository:
     return BatchRepository(db_session=db_session)
+
+
+async def _require_review_access(
+    task_id: str,
+    batch_repo: BatchRepository,
+    current_user: CurrentUserDep,
+) -> None:
+    review_ids = await batch_repo.get_user_review_task_ids(
+        current_user.user_id
+    )
+    if not SyntheticTaskService.user_can_review_original(task_id, review_ids):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view these solutions",
+        )
 
 
 @router.get("/", response_model=TaskStatsPaginated)
@@ -117,14 +134,36 @@ async def get_task_solvers_public(
     batch_repo: BatchRepository = Depends(get_batch_repo),  # noqa: B008
     current_user: CurrentUserDep = None,  # type: ignore[assignment]
 ) -> list[TaskSolverAnonRead]:
-    review_ids = await batch_repo.get_user_review_task_ids(
-        current_user.user_id
+    await _require_review_access(task_id, batch_repo, current_user)
+    return await service.get_task_solvers_anon(
+        task_id=task_id, exclude_user_id=current_user.user_id
     )
-    if not SyntheticTaskService.user_can_review_original(
-        task_id, review_ids
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view these solutions",
-        )
-    return await service.get_task_solvers_anon(task_id=task_id)
+
+
+@router.get("/{task_id}/my-hypothesis", response_model=MyHypothesisRead)
+async def get_my_hypothesis(
+    task_id: str,
+    service: TaskStatsService = Depends(get_service),  # noqa: B008
+    batch_repo: BatchRepository = Depends(get_batch_repo),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
+) -> MyHypothesisRead:
+    await _require_review_access(task_id, batch_repo, current_user)
+    hypothesis = await service.get_my_hypothesis(
+        task_id=task_id, user_id=current_user.user_id
+    )
+    return MyHypothesisRead(hypothesis=hypothesis)
+
+
+@router.put("/{task_id}/my-hypothesis", response_model=MyHypothesisRead)
+async def update_my_hypothesis(
+    task_id: str,
+    data: MyHypothesisUpdate,
+    service: TaskStatsService = Depends(get_service),  # noqa: B008
+    batch_repo: BatchRepository = Depends(get_batch_repo),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
+) -> MyHypothesisRead:
+    await _require_review_access(task_id, batch_repo, current_user)
+    hypothesis = await service.save_my_hypothesis(
+        task_id=task_id, user_id=current_user.user_id, hypothesis=data.hypothesis
+    )
+    return MyHypothesisRead(hypothesis=hypothesis)

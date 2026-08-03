@@ -3,7 +3,10 @@ from fastapi import APIRouter, Depends, status
 from app.dependencies.auth import AdminDep, CurrentUserDep, require_owner_or_admin
 from app.dependencies.database import DatabaseSession
 from app.repositories.attempt import AttemptRepository
+from app.repositories.batch import BatchRepository
+from app.repositories.event import EventRepository
 from app.repositories.user import UserRepository
+from app.repositories.user_review import UserReviewRepository
 from app.schemas.attempt import BatchWithTasks, UserTaskSummary
 from app.schemas.user import (
     LoginResponse,
@@ -13,8 +16,10 @@ from app.schemas.user import (
     UserRead,
     UserUpdate,
 )
+from app.schemas.user_review import ReviewBatchWithTasks
 from app.services.attempt import AttemptService
 from app.services.user import UserService
+from app.services.user_review import UserReviewService
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
@@ -101,6 +106,26 @@ async def get_user_batch_tasks(
 ) -> list[BatchWithTasks]:
     require_owner_or_admin(id, current_user)
     return await service.get_user_batch_tasks(id)
+
+
+@router.get("/{id}/review-batch-tasks", response_model=list[ReviewBatchWithTasks])
+async def get_user_review_batch_tasks(
+    id: int,
+    db_session: DatabaseSession,
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
+) -> list[ReviewBatchWithTasks]:
+    require_owner_or_admin(id, current_user)
+    repository = UserReviewRepository(db_session=db_session)
+    batch_repository = BatchRepository(db_session=db_session)
+    user_repository = UserRepository(db_session=db_session)
+    event_repository = EventRepository(db_session=db_session)
+    service = UserReviewService(
+        repository=repository,
+        batch_repository=batch_repository,
+        user_repository=user_repository,
+        event_repository=event_repository,
+    )
+    return await service.get_user_review_batches(id)
 
 
 @router.delete("/{id}/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

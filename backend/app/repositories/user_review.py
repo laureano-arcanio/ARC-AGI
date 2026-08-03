@@ -38,6 +38,17 @@ class UserReviewRepository(BaseRepository[UserReview]):
         result = await self.db_session.execute(query)
         return list(result.scalars().all())
 
+    async def get_reviews_by_tasks(
+        self, synth_task_ids: list[str]
+    ) -> list[UserReview]:
+        if not synth_task_ids:
+            return []
+        query = select(UserReview).where(
+            UserReview.synth_task_id.in_(synth_task_ids)
+        )
+        result = await self.db_session.execute(query)
+        return list(result.scalars().all())
+
     async def upsert(
         self, user_id: int, synth_task_id: str, data: dict[str, Any]
     ) -> UserReview:

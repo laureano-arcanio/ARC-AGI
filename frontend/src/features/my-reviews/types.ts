@@ -27,6 +27,14 @@ export type AnonymousSolver = {
   hypothesis: string | null
 }
 
+export type MyHypothesis = {
+  hypothesis: string | null
+}
+
+export type MyHypothesisUpdate = {
+  hypothesis: string
+}
+
 export type ReviewEntryProgress = {
   entryId: string
   synthTaskIds: string[]
@@ -35,4 +43,5 @@ export type ReviewEntryProgress = {
   needsRevision: number
   pending: number
   status: string
+  solved: boolean
 }

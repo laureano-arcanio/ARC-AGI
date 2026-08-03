@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import time
 from typing import Any
 
 from sqlalchemy import cast, select
@@ -7,6 +10,19 @@ from sqlalchemy.orm import selectinload
 from app.errors import ObjectNotFoundError
 from app.models.batch import Batch, BatchAssignment
 from app.repositories.base_repository import BaseRepository
+
+_review_task_ids_cache: dict[int, tuple[float, list[str]]] = {}
+
+
+def _get_cached_review_task_ids(user_id: int) -> list[str] | None:
+    entry = _review_task_ids_cache.get(user_id)
+    if entry is not None and time.monotonic() - entry[0] < 30:
+        return entry[1]
+    return None
+
+
+def _set_cached_review_task_ids(user_id: int, ids: list[str]) -> None:
+    _review_task_ids_cache[user_id] = (time.monotonic(), ids)
 
 
 class BatchRepository(BaseRepository[Batch]):
@@ -57,12 +73,17 @@ class BatchRepository(BaseRepository[Batch]):
         return sorted(seen)
 
     async def get_user_review_task_ids(self, user_id: int) -> list[str]:
+        cached = _get_cached_review_task_ids(user_id)
+        if cached is not None:
+            return cached
         batches = await self.get_batches_for_user(user_id, batch_type="review")
         seen: set[str] = set()
         for batch in batches:
             for tid in batch.task_ids:
                 seen.add(str(tid))
-        return sorted(seen)
+        result = sorted(seen)
+        _set_cached_review_task_ids(user_id, result)
+        return result
 
     async def user_has_access(self, user_id: int, task_id: str) -> bool:
         query = (

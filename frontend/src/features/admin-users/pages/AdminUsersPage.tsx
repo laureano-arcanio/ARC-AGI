@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUsersBatchCompletion } from '../queries'
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUsersBatchCompletion, useUsersReviewBatchCompletion } from '../queries'
 import { useBatches, useAssignBatchToUser, useUnassignBatchFromUser } from '../../batches/queries'
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog'
 import { HttpClientError } from '../../../lib/http'
@@ -31,6 +31,7 @@ export function AdminUsersPage() {
 
   const userIds = (users ?? []).map((u) => u.id)
   const { completedByUser, inProgressByUser, abandonedByUser, completionByUser } = useUsersBatchCompletion(userIds)
+  const { reviewCompletedByUser, reviewInProgressByUser, reviewNeedsRevisionByUser, reviewCompletionPctByUser } = useUsersReviewBatchCompletion(userIds)
 
   const getUserBatches = (userId: number): BatchRead[] =>
     (batches ?? []).filter(b => b.assignedUserIds.includes(userId))
@@ -231,6 +232,10 @@ export function AdminUsersPage() {
                     inProgressBatchIds={inProgressByUser.get(user.id) ?? new Set()}
                     abandonedBatchIds={abandonedByUser.get(user.id) ?? new Set()}
                     completionPct={completionByUser.get(user.id) ?? new Map()}
+                    reviewCompletedBatchIds={reviewCompletedByUser.get(user.id) ?? new Set()}
+                    reviewInProgressBatchIds={reviewInProgressByUser.get(user.id) ?? new Set()}
+                    reviewNeedsRevisionBatchIds={reviewNeedsRevisionByUser.get(user.id) ?? new Set()}
+                    reviewCompletionPct={reviewCompletionPctByUser.get(user.id) ?? new Map()}
                     disabled={isMutating}
                     batchesLoading={batchesLoading}
                     placeholder={t('admin.batches_placeholder')}
@@ -296,12 +301,37 @@ type BatchPillsProps = {
   inProgressBatchIds: Set<number>
   abandonedBatchIds: Set<number>
   completionPct: Map<number, string>
+  reviewCompletedBatchIds: Set<number>
+  reviewInProgressBatchIds: Set<number>
+  reviewNeedsRevisionBatchIds: Set<number>
+  reviewCompletionPct: Map<number, string>
   disabled: boolean
   batchesLoading: boolean
   placeholder: string
 }
 
-function getBatchPillColor(batchId: number, completed: Set<number>, inProgress: Set<number>, abandoned: Set<number>) {
+function getBatchPillColor(
+  batchId: number,
+  batchType: string,
+  completed: Set<number>,
+  inProgress: Set<number>,
+  abandoned: Set<number>,
+  reviewCompleted: Set<number>,
+  reviewInProgress: Set<number>,
+  reviewNeedsRevision: Set<number>,
+) {
+  if (batchType === 'review') {
+    if (reviewCompleted.has(batchId)) {
+      return 'bg-green-600/20 text-green-400 border-green-600/30'
+    }
+    if (reviewNeedsRevision.has(batchId)) {
+      return 'bg-orange-600/20 text-orange-400 border-orange-600/30'
+    }
+    if (reviewInProgress.has(batchId)) {
+      return 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30'
+    }
+    return 'bg-gray-600/20 text-gray-400 border-gray-600/30'
+  }
   if (completed.has(batchId)) {
     return 'bg-green-600/20 text-green-400 border-green-600/30'
   }
@@ -324,6 +354,10 @@ function BatchPills({
   inProgressBatchIds,
   abandonedBatchIds,
   completionPct,
+  reviewCompletedBatchIds,
+  reviewInProgressBatchIds,
+  reviewNeedsRevisionBatchIds,
+  reviewCompletionPct,
   disabled,
   batchesLoading,
   placeholder,
@@ -370,21 +404,26 @@ function BatchPills({
       {batchesLoading && userBatches.length === 0 && (
         <span className="text-xs text-gray-500">...</span>
       )}
-      {userBatches.map((batch) => (
+      {userBatches.map((batch) => {
+        const isReview = batch.batchType === 'review'
+        const pct = isReview
+          ? reviewCompletionPct.get(batch.id)
+          : completionPct.get(batch.id)
+        return (
         <button
           key={batch.id}
           type="button"
           disabled={disabled}
           onClick={() => onUnassign(batch.id)}
           title={batch.name}
-          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50 ${getBatchPillColor(batch.id, completedBatchIds, inProgressBatchIds, abandonedBatchIds)}`}
+          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50 ${getBatchPillColor(batch.id, batch.batchType, completedBatchIds, inProgressBatchIds, abandonedBatchIds, reviewCompletedBatchIds, reviewInProgressBatchIds, reviewNeedsRevisionBatchIds)}`}
         >
           {batch.name}
-          {completionPct.has(batch.id) && (
-            <span className="ml-1 opacity-70">{completionPct.get(batch.id)}</span>
+          {pct !== undefined && (
+            <span className="ml-1 opacity-70">{pct}</span>
           )}
         </button>
-      ))}
+      )})}
       {!batchesLoading && userBatches.length === 0 && (
         <span className="text-xs text-gray-500">{placeholder}</span>
       )}

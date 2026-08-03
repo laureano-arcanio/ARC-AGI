@@ -6,10 +6,11 @@ import { useAuth } from '../../../lib/auth'
 import {
   useUserDetail,
   useUserBatchTasks,
+  useUserReviewBatchTasks,
   useUpdateUserPassword,
   useDeleteUserTask,
 } from '../queries'
-import type { BatchWithTasks, TaskWithStatus } from '../types'
+import type { BatchWithTasks, ReviewBatchWithTasks, TaskWithStatus } from '../types'
 
 function ConfirmDialog({
   open,
@@ -195,6 +196,89 @@ function BatchTable({
   )
 }
 
+function ReviewBatchTable({
+  batch,
+  navigate,
+  t,
+}: {
+  batch: ReviewBatchWithTasks
+  navigate: (path: string) => void
+  t: (key: string, params?: TranslationParams) => string
+}) {
+  function reviewStatusLabel(status: string): { label: string; color: string } {
+    if (status === 'done') {
+      return { label: 'my_reviews.status_done', color: 'text-green-400' }
+    }
+    if (status === 'needs_revision') {
+      return { label: 'my_reviews.status_needs_revision', color: 'text-red-400' }
+    }
+    return { label: 'my_reviews.status_pending_review', color: 'text-gray-500' }
+  }
+
+  return (
+    <div className="overflow-x-auto rounded border border-gray-700">
+      <div className="border-b border-gray-700 bg-gray-800/80 px-3 py-2 text-sm font-semibold text-gray-300">
+        {batch.batchName}
+      </div>
+      <table className="w-full text-left text-xs">
+        <thead className="border-b border-gray-700 bg-gray-800/50 text-gray-500">
+          <tr>
+            <th className="px-3 py-1.5 font-medium">
+              {t('admin_detail.review_table.entry')}
+            </th>
+            <th className="px-3 py-1.5 font-medium">
+              {t('admin_detail.review_table.progress')}
+            </th>
+            <th className="px-3 py-1.5 font-medium">
+              {t('admin_detail.review_table.status')}
+            </th>
+            <th className="px-3 py-1.5 font-medium">
+              {t('admin_detail.review_table.link')}
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-800">
+          {batch.tasks.map((task) => {
+            const statusInfo = reviewStatusLabel(task.status)
+            return (
+              <tr
+                key={task.entryId}
+                className="transition hover:bg-gray-900/50"
+              >
+                <td className="cursor-pointer px-3 py-1.5 font-mono text-gray-200 hover:text-white"
+                  onClick={() =>
+                    navigate(`/admin/tasks/${task.entryId}/solutions`)
+                  }
+                >
+                  {task.entryId}
+                </td>
+                <td className="px-3 py-1.5 text-gray-400">
+                  {t('admin_detail.review_progress', { done: task.done, total: task.total })}
+                </td>
+                <td className="px-3 py-1.5">
+                  <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${statusInfo.color} border-current`}>
+                    {t(statusInfo.label)}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5">
+                  <button
+                    onClick={() =>
+                      navigate(`/admin/tasks/${task.entryId}/solutions`)
+                    }
+                    className="rounded bg-purple-700 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-purple-600"
+                  >
+                    {t('admin_detail.review_table.link')}
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export function AdminUserDetailPage() {
   const { t } = useTranslation()
   const { isAdmin, isLoading: authLoading } = useAuth()
@@ -213,6 +297,12 @@ export function AdminUserDetailPage() {
     error: tasksError,
   } = useUserBatchTasks(numericId)
 
+  const {
+    data: reviewBatches,
+    isLoading: reviewLoading,
+    error: reviewError,
+  } = useUserReviewBatchTasks(numericId)
+
   const [passwordValue, setPasswordValue] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
@@ -221,6 +311,7 @@ export function AdminUserDetailPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [activeTab, setActiveTab] = useState<'solutions' | 'reviews'>('solutions')
   const deleteMutation = useDeleteUserTask()
 
   const allTasks = batches?.flatMap((b) => b.tasks) ?? []
@@ -254,7 +345,7 @@ export function AdminUserDetailPage() {
     }
   }
 
-  if (authLoading || userLoading || tasksLoading) {
+  if (authLoading || userLoading || tasksLoading || reviewLoading) {
     return (
       <div className="flex items-center gap-3 text-gray-400">
         <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-blue-400" />
@@ -285,6 +376,15 @@ export function AdminUserDetailPage() {
       <div className="rounded-lg border border-red-800 bg-red-950 p-4 text-red-300">
         <p className="font-semibold">{t('admin_detail.error')}</p>
         <p className="mt-1 text-sm">{tasksError.message}</p>
+      </div>
+    )
+  }
+
+  if (reviewError) {
+    return (
+      <div className="rounded-lg border border-red-800 bg-red-950 p-4 text-red-300">
+        <p className="font-semibold">{t('admin_detail.error')}</p>
+        <p className="mt-1 text-sm">{reviewError.message}</p>
       </div>
     )
   }
@@ -366,61 +466,111 @@ export function AdminUserDetailPage() {
         )}
       </div>
 
-      {batches && batches.length === 0 ? (
-        <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
-          {t('admin_detail.no_tasks')}
+      <div className="border-b border-gray-800">
+        <div className="flex gap-0">
+          <button
+            onClick={() => setActiveTab('solutions')}
+            className={`px-4 py-2 text-sm font-medium transition border-b-2 ${
+              activeTab === 'solutions'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {t('admin_detail.tab_solutions')}
+          </button>
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`px-4 py-2 text-sm font-medium transition border-b-2 ${
+              activeTab === 'reviews'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {t('admin_detail.tab_reviews')}
+          </button>
         </div>
-      ) : (
+      </div>
+
+      {activeTab === 'solutions' && (
         <>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">
-              {t('admin_detail.total')}: {totalTaskCount}
-              {' | '}
-              {t('admin_detail.total_resolved')}: {solvedTaskCount}
-              {selectedTaskIds.size > 0 && (
-                <span className="ml-1 text-blue-400">
-                  ({selectedTaskIds.size} selected)
+          {batches && batches.length === 0 ? (
+            <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
+              {t('admin_detail.no_tasks')}
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500">
+                  {t('admin_detail.total')}: {totalTaskCount}
+                  {' | '}
+                  {t('admin_detail.total_resolved')}: {solvedTaskCount}
+                  {selectedTaskIds.size > 0 && (
+                    <span className="ml-1 text-blue-400">
+                      ({selectedTaskIds.size} selected)
+                    </span>
+                  )}
                 </span>
+                <button
+                  onClick={() => {
+                    if (selectedTaskIds.size === 0) return
+                    setConfirmOpen(true)
+                  }}
+                  disabled={selectedTaskIds.size === 0 || deleteMutation.isPending}
+                  className={`ml-auto rounded px-3 py-1 text-xs font-medium transition ${
+                    selectedTaskIds.size > 0
+                      ? 'bg-red-800 text-red-200 hover:bg-red-700'
+                      : 'bg-gray-800 text-gray-600'
+                  } disabled:opacity-40`}
+                >
+                  {t('admin_detail.delete_tasks')}
+                </button>
+              </div>
+              {deleteStatus === 'success' && (
+                <p className="text-xs text-green-400">
+                  {t('admin_detail.delete_success')}
+                </p>
               )}
-            </span>
-            <button
-              onClick={() => {
-                if (selectedTaskIds.size === 0) return
-                setConfirmOpen(true)
-              }}
-              disabled={selectedTaskIds.size === 0 || deleteMutation.isPending}
-              className={`ml-auto rounded px-3 py-1 text-xs font-medium transition ${
-                selectedTaskIds.size > 0
-                  ? 'bg-red-800 text-red-200 hover:bg-red-700'
-                  : 'bg-gray-800 text-gray-600'
-              } disabled:opacity-40`}
-            >
-              {t('admin_detail.delete_tasks')}
-            </button>
-          </div>
-          {deleteStatus === 'success' && (
-            <p className="text-xs text-green-400">
-              {t('admin_detail.delete_success')}
-            </p>
+              {deleteStatus === 'error' && (
+                <p className="text-xs text-red-400">
+                  {t('admin_detail.delete_error')}
+                </p>
+              )}
+              <div className="flex flex-col gap-4">
+                {batches?.map((batch) => (
+                  <BatchTable
+                    key={batch.batchId}
+                    batch={batch}
+                    numericId={numericId}
+                    selectedTaskIds={selectedTaskIds}
+                    onToggleSelect={toggleSelect}
+                    navigate={navigate}
+                    t={t}
+                  />
+                ))}
+              </div>
+            </>
           )}
-          {deleteStatus === 'error' && (
-            <p className="text-xs text-red-400">
-              {t('admin_detail.delete_error')}
-            </p>
+        </>
+      )}
+
+      {activeTab === 'reviews' && (
+        <>
+          {reviewBatches && reviewBatches.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {reviewBatches.map((batch) => (
+                <ReviewBatchTable
+                  key={batch.batchId}
+                  batch={batch}
+                  navigate={navigate}
+                  t={t}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-gray-800 p-8 text-center text-gray-500">
+              {t('admin_detail.review_no_batches')}
+            </div>
           )}
-          <div className="flex flex-col gap-4">
-            {batches?.map((batch) => (
-              <BatchTable
-                key={batch.batchId}
-                batch={batch}
-                numericId={numericId}
-                selectedTaskIds={selectedTaskIds}
-                onToggleSelect={toggleSelect}
-                navigate={navigate}
-                t={t}
-              />
-            ))}
-          </div>
         </>
       )}
 

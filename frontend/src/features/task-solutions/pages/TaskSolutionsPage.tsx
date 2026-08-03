@@ -14,8 +14,53 @@ import type { GraphNode } from '../../../shared/types/arc-graph'
 import { TaskTaggingWorkspace } from '../../task-tagging/components/TaskTaggingWorkspace'
 import { useTaskTags, useTaskTagRelations } from '../../task-tagging/queries'
 import { HypothesisPanel } from '../components/HypothesisPanel'
+import { http } from '../../../lib/http'
 
-function SolverSection({ userId, email, taskId }: { userId: number; email: string; taskId: string }) {
+type ReviewVariant = {
+  synthTaskId: string
+  status: string
+  correct: boolean | null
+  verified: boolean
+  notes: string[]
+}
+
+type SolverReviewDetail = {
+  userId: number
+  email: string
+  originalHypothesis: string | null
+  revisedHypothesis: string | null
+  variants: ReviewVariant[]
+}
+
+const REVIEW_STATUS: Record<
+  string,
+  { label: string; color: string }
+> = {
+  pending_review: {
+    label: 'my_reviews.status_pending_review',
+    color: 'bg-gray-800 text-gray-400',
+  },
+  needs_revision: {
+    label: 'my_reviews.status_needs_revision',
+    color: 'bg-red-900/40 text-red-400',
+  },
+  done: {
+    label: 'my_reviews.status_done',
+    color: 'bg-green-900/40 text-green-400',
+  },
+}
+
+function SolverSection({
+  userId,
+  email,
+  taskId,
+  review,
+}: {
+  userId: number
+  email: string
+  taskId: string
+  review: SolverReviewDetail | undefined
+}) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(true)
   const [selectedAttemptId, setSelectedAttemptId] = useState<number | null>(null)
@@ -79,6 +124,78 @@ function SolverSection({ userId, email, taskId }: { userId: number; email: strin
 
       {expanded && (
         <div className="border-t border-gray-800 px-4 py-3">
+          {review && review.variants.length > 0 && (
+            <div className="mb-4 flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                {t('my_reviews.detail.title')}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {review.variants.map((v) => {
+                  const vStatus = REVIEW_STATUS[v.status] ?? REVIEW_STATUS.pending_review
+                  return (
+                    <div
+                      key={v.synthTaskId}
+                      className="flex items-center gap-2 rounded border border-gray-700 bg-gray-900/60 px-3 py-1.5"
+                    >
+                      <span
+                        className="cursor-pointer font-mono text-[10px] text-purple-400 hover:text-purple-300"
+                        onClick={() =>
+                          navigator.clipboard.writeText(v.synthTaskId)
+                        }
+                        title="Click to copy variant ID"
+                      >
+                        {v.synthTaskId.slice(0, 30)}...
+                      </span>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${vStatus.color}`}>
+                        {t(vStatus.label)}
+                      </span>
+                      {v.verified && (
+                        <span className="rounded bg-blue-900/40 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+                          {t('my_reviews.detail.verified')}
+                        </span>
+                      )}
+                      {v.correct === true && (
+                        <span className="rounded bg-green-900/40 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                          {t('my_reviews.detail.correct')}
+                        </span>
+                      )}
+                      {v.correct === false && (
+                        <span className="rounded bg-red-900/40 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
+                          {t('my_reviews.detail.incorrect')}
+                        </span>
+                      )}
+                      {v.notes.length > 0 && (
+                        <span className="text-[10px] text-gray-500" title={v.notes.join('\n')}>
+                          {v.notes.length} note(s)
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {review.originalHypothesis && (
+                <div className="rounded border border-gray-700 bg-gray-950/50 px-3 py-2">
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                    {t('my_reviews.detail.my_hypothesis')}
+                  </span>
+                  <p className="mt-1 whitespace-pre-wrap text-xs text-gray-300">
+                    {review.originalHypothesis}
+                  </p>
+                </div>
+              )}
+              {review.revisedHypothesis && (
+                <div className="rounded border border-green-800/50 bg-green-950/30 px-3 py-2">
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                    {t('my_reviews.detail.my_hypothesis')} (revisada)
+                  </span>
+                  <p className="mt-1 whitespace-pre-wrap text-xs text-gray-300">
+                    {review.revisedHypothesis}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {attemptsLoading ? (
             <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
               <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-600 border-t-blue-400" />
@@ -311,6 +428,20 @@ export function TaskSolutionsPage() {
   const { data: solvers, isLoading: solversLoading } = useTaskSolvers(taskId ?? '')
   const { data: task } = useTaskById(taskId ?? '')
 
+  const { data: reviewDetails } = useQuery({
+    queryKey: ['task-solutions', 'reviews', taskId],
+    queryFn: () =>
+      http.get<SolverReviewDetail[]>(
+        `/v1/user-reviews/by-original/${encodeURIComponent(taskId ?? '')}`,
+      ),
+    enabled: isAdmin && !!taskId,
+    staleTime: 0,
+  })
+
+  const reviewByUser = new Map(
+    (reviewDetails ?? []).map((r) => [r.userId, r]),
+  )
+
   if (authLoading || solversLoading) {
     return (
       <div className="flex items-center gap-3 text-gray-400">
@@ -373,6 +504,7 @@ export function TaskSolutionsPage() {
               userId={solver.userId}
               email={solver.email}
               taskId={taskId ?? ''}
+              review={reviewByUser.get(solver.userId)}
             />
           ))}
         </div>

@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import threading
 from pathlib import Path
 from typing import Any
@@ -16,32 +17,94 @@ TASKS_PATH = STATIC_DIR / "synthetic_tasks.jsonl"
 REVIEWS_PATH = STATIC_DIR / "synthetic_reviews.json"
 
 _lock = threading.Lock()
+_tasks_cache: tuple[float, list[dict[str, Any]]] | None = None
+_reviews_cache: tuple[float, dict[str, dict[str, Any]]] | None = None
+_index_cache: tuple[float, float, "_TaskIndex"] | None = None
+
+
+def _file_mtime(path: Path) -> float:
+    try:
+        return os.path.getmtime(path)
+    except OSError:
+        return 0.0
 
 
 def _load_tasks() -> list[dict[str, Any]]:
+    global _tasks_cache
     if not TASKS_PATH.exists():
+        _tasks_cache = None
         return []
+    mtime = _file_mtime(TASKS_PATH)
+    if _tasks_cache is not None and _tasks_cache[0] == mtime:
+        return _tasks_cache[1]
     lines: list[dict[str, Any]] = []
     with open(TASKS_PATH) as f:
         for line in f:
             line = line.strip()
             if line:
                 lines.append(json.loads(line))
+    _tasks_cache = (mtime, lines)
     return lines
 
 
 def _load_reviews() -> dict[str, dict[str, Any]]:
+    global _reviews_cache
     if not REVIEWS_PATH.exists():
+        _reviews_cache = None
         return {}
+    mtime = _file_mtime(REVIEWS_PATH)
+    if _reviews_cache is not None and _reviews_cache[0] == mtime:
+        return _reviews_cache[1]
     with open(REVIEWS_PATH) as f:
         data: dict[str, dict[str, Any]] = json.load(f)
+    _reviews_cache = (mtime, data)
     return data
 
 
 def _save_reviews(reviews: dict[str, dict[str, Any]]) -> None:
+    global _reviews_cache, _index_cache
     REVIEWS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(REVIEWS_PATH, "w") as f:
         json.dump(reviews, f, indent=2, ensure_ascii=False)
+    mtime = _file_mtime(REVIEWS_PATH)
+    _reviews_cache = (mtime, reviews)
+    _index_cache = None
+
+
+class _TaskIndex:
+    def __init__(self, tasks: list[dict[str, Any]], reviews: dict[str, dict[str, Any]]):
+        self._by_id: dict[str, dict[str, Any]] = {}
+        self._by_original: dict[str, list[dict[str, Any]]] = {}
+        self.reviews = reviews
+        for t in tasks:
+            tid = t.get("id", "")
+            if tid:
+                self._by_id[tid] = t
+            oid = t.get("original_task_id", "")
+            if oid:
+                self._by_original.setdefault(oid, []).append(t)
+
+    def resolve(self, entry_id: str) -> list[dict[str, Any]]:
+        if entry_id in self._by_id:
+            return [self._by_id[entry_id]]
+        return self._by_original.get(entry_id, [])
+
+
+def _get_cached_index() -> _TaskIndex:
+    global _index_cache
+    tasks_mtime = _file_mtime(TASKS_PATH)
+    reviews_mtime = _file_mtime(REVIEWS_PATH)
+    if (
+        _index_cache is not None
+        and _index_cache[0] == tasks_mtime
+        and _index_cache[1] == reviews_mtime
+    ):
+        return _index_cache[2]
+    tasks = _load_tasks()
+    reviews = _load_reviews()
+    idx = _TaskIndex(tasks, reviews)
+    _index_cache = (tasks_mtime, reviews_mtime, idx)
+    return idx
 
 
 def _task_to_read(
@@ -166,16 +229,22 @@ class SyntheticTaskService:
         An entry may be either a synthetic task id (returns that single task)
         or an original ARC task id (returns all its synthetic variants).
         """
-        tasks = _load_tasks()
-        reviews = _load_reviews()
-        for t in tasks:
-            if t.get("id") == entry_id:
-                return [_task_to_read(t, reviews.get(entry_id))]
+        index = self._build_index()
         return [
-            _task_to_read(t, reviews.get(t["id"]))
-            for t in tasks
-            if t.get("original_task_id") == entry_id
+            _task_to_read(t, index.reviews.get(t.get("id", "")))
+            for t in index.resolve(entry_id)
         ]
+
+    def resolve_entry_ids(self, entry_ids: list[str]) -> dict[str, list[str]]:
+        """Bulk-resolve entry IDs to their variant IDs (one file read)."""
+        index = self._build_index()
+        result: dict[str, list[str]] = {}
+        for eid in entry_ids:
+            result[eid] = [t.get("id", "") for t in index.resolve(eid)]
+        return result
+
+    def _build_index(self) -> "_TaskIndex":
+        return _get_cached_index()
 
     def get_review(self, synth_task_id: str) -> SyntheticReviewRead:
         reviews = _load_reviews()
@@ -204,11 +273,10 @@ class SyntheticTaskService:
         ids = set(synth_task_ids)
         if original_task_id in ids:
             return True
-        for t in _load_tasks():
-            if (
-                t.get("id") in ids
-                and t.get("original_task_id") == original_task_id
-            ):
+        idx = _get_cached_index()
+        for tid in ids:
+            t = idx._by_id.get(tid)
+            if t and t.get("original_task_id") == original_task_id:
                 return True
         return False
 
@@ -226,13 +294,9 @@ class SyntheticTaskService:
         ids = set(review_task_ids)
         if variant_id in ids:
             return True
-        for t in _load_tasks():
-            if (
-                t.get("id") == variant_id
-                and t.get("original_task_id") in ids
-            ):
-                return True
-        return False
+        idx = _get_cached_index()
+        t = idx._by_id.get(variant_id)
+        return bool(t and t.get("original_task_id") in ids)
 
     def update_review(
         self, synth_task_id: str, data: SyntheticReviewUpdate

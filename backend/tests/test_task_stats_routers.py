@@ -49,6 +49,23 @@ async def _get_solvers_public(app: FastAPI, task_id: str = "54dc2872"):
         return await ac.get(f"/api/v1/tasks/{task_id}/solvers-public")
 
 
+async def _get_my_hypothesis(app: FastAPI, task_id: str = "54dc2872"):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        return await ac.get(f"/api/v1/tasks/{task_id}/my-hypothesis")
+
+
+async def _put_my_hypothesis(
+    app: FastAPI, task_id: str = "54dc2872", body: dict | None = None
+):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        return await ac.put(
+            f"/api/v1/tasks/{task_id}/my-hypothesis",
+            json=body or {"hypothesis": "regla revisada"},
+        )
+
+
 class TestTaskSolversPublic:
     async def test_returns_anonymized_solutions(self) -> None:
         svc = AsyncMock(spec=TaskStatsService)
@@ -67,6 +84,9 @@ class TestTaskSolversPublic:
         assert data == [{"hypothesis": "hipótesis anónima"}]
         assert "email" not in data[0]
         assert "userId" not in data[0]
+        svc.get_task_solvers_anon.assert_awaited_once_with(
+            task_id="54dc2872", exclude_user_id=1
+        )
 
     async def test_denied_without_review_access(self) -> None:
         repo = AsyncMock(spec=BatchRepository)
@@ -79,4 +99,73 @@ class TestTaskSolversPublic:
             return_value=False,
         ):
             response = await _get_solvers_public(app)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+class TestMyHypothesis:
+    async def test_get_returns_own_hypothesis(self) -> None:
+        svc = AsyncMock(spec=TaskStatsService)
+        svc.get_my_hypothesis.return_value = "mi hipótesis"
+        repo = AsyncMock(spec=BatchRepository)
+        repo.get_user_review_task_ids.return_value = ["gen_1"]
+        with patch(
+            "app.routers.task_stats.SyntheticTaskService.user_can_review_original",
+            return_value=True,
+        ):
+            response = await _get_my_hypothesis(_build_app(svc, repo))
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"hypothesis": "mi hipótesis"}
+        svc.get_my_hypothesis.assert_awaited_once_with(
+            task_id="54dc2872", user_id=1
+        )
+
+    async def test_get_returns_null_when_no_hypothesis(self) -> None:
+        svc = AsyncMock(spec=TaskStatsService)
+        svc.get_my_hypothesis.return_value = None
+        repo = AsyncMock(spec=BatchRepository)
+        repo.get_user_review_task_ids.return_value = ["gen_1"]
+        with patch(
+            "app.routers.task_stats.SyntheticTaskService.user_can_review_original",
+            return_value=True,
+        ):
+            response = await _get_my_hypothesis(_build_app(svc, repo))
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"hypothesis": None}
+
+    async def test_get_denied_without_review_access(self) -> None:
+        repo = AsyncMock(spec=BatchRepository)
+        repo.get_user_review_task_ids.return_value = []
+        app = _build_app(AsyncMock(spec=TaskStatsService), repo)
+        with patch(
+            "app.routers.task_stats.SyntheticTaskService.user_can_review_original",
+            return_value=False,
+        ):
+            response = await _get_my_hypothesis(app)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_put_saves_hypothesis(self) -> None:
+        svc = AsyncMock(spec=TaskStatsService)
+        svc.save_my_hypothesis.return_value = "regla revisada"
+        repo = AsyncMock(spec=BatchRepository)
+        repo.get_user_review_task_ids.return_value = ["gen_1"]
+        with patch(
+            "app.routers.task_stats.SyntheticTaskService.user_can_review_original",
+            return_value=True,
+        ):
+            response = await _put_my_hypothesis(_build_app(svc, repo))
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"hypothesis": "regla revisada"}
+        svc.save_my_hypothesis.assert_awaited_once_with(
+            task_id="54dc2872", user_id=1, hypothesis="regla revisada"
+        )
+
+    async def test_put_denied_without_review_access(self) -> None:
+        repo = AsyncMock(spec=BatchRepository)
+        repo.get_user_review_task_ids.return_value = []
+        app = _build_app(AsyncMock(spec=TaskStatsService), repo)
+        with patch(
+            "app.routers.task_stats.SyntheticTaskService.user_can_review_original",
+            return_value=False,
+        ):
+            response = await _put_my_hypothesis(app)
         assert response.status_code == status.HTTP_403_FORBIDDEN

@@ -3,8 +3,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.errors import ObjectNotFoundError
+from app.models.user import User
 from app.models.user_review import UserReview
 from app.repositories.batch import BatchRepository
+from app.repositories.event import EventRepository
+from app.repositories.user import UserRepository
 from app.repositories.user_review import UserReviewRepository
 from app.schemas.user_review import UserReviewUpdate
 from app.services.synthetic_task import SyntheticTaskService
@@ -16,6 +19,20 @@ def _make_service(
 ) -> UserReviewService:
     return UserReviewService(
         repository=review_repo, batch_repository=batch_repo
+    )
+
+
+def _make_full_service(
+    review_repo: AsyncMock,
+    batch_repo: AsyncMock,
+    user_repo: AsyncMock,
+    event_repo: AsyncMock,
+) -> UserReviewService:
+    return UserReviewService(
+        repository=review_repo,
+        batch_repository=batch_repo,
+        user_repository=user_repo,
+        event_repository=event_repo,
     )
 
 
@@ -114,27 +131,14 @@ class TestUserReviewServiceListForUserTasks:
 
 
 class TestUserReviewServiceListProgress:
-    @patch.object(SyntheticTaskService, "resolve_entry")
+    @patch.object(SyntheticTaskService, "resolve_entry_ids")
     async def test_resolves_original_entries_and_aggregates(
         self, mock_resolve
     ) -> None:
-        from app.schemas.synthetic_review import SyntheticTaskRead
-
-        def _read(task_id: str, original: str) -> SyntheticTaskRead:
-            return SyntheticTaskRead(
-                id=task_id,
-                original_task_id=original,
-                model_name="gpt-test",
-                witness_passed=True,
-                train=[],
-                test=[],
-            )
-
-        mock_resolve.side_effect = lambda eid: (
-            [_read("gen_a1", "d35bdbdc"), _read("gen_a2", "d35bdbdc")]
-            if eid == "d35bdbdc"
-            else [_read("gen_b1", "46c35fc7")]
-        )
+        mock_resolve.return_value = {
+            "d35bdbdc": ["gen_a1", "gen_a2"],
+            "46c35fc7": ["gen_b1"],
+        }
 
         review_repo = AsyncMock(spec=UserReviewRepository)
         review_repo.get_by_user_and_tasks.return_value = [
@@ -169,24 +173,11 @@ class TestUserReviewServiceListProgress:
         assert result[0].status == "pending_review"
         assert result[1].status == "needs_revision"
 
-    @patch.object(SyntheticTaskService, "resolve_entry")
+    @patch.object(SyntheticTaskService, "resolve_entry_ids")
     async def test_marks_done_when_all_variants_done(self, mock_resolve) -> None:
-        from app.schemas.synthetic_review import SyntheticTaskRead
-
-        def _read(task_id: str, original: str) -> SyntheticTaskRead:
-            return SyntheticTaskRead(
-                id=task_id,
-                original_task_id=original,
-                model_name="gpt-test",
-                witness_passed=True,
-                train=[],
-                test=[],
-            )
-
-        mock_resolve.return_value = [
-            _read("gen_a1", "d35bdbdc"),
-            _read("gen_a2", "d35bdbdc"),
-        ]
+        mock_resolve.return_value = {
+            "d35bdbdc": ["gen_a1", "gen_a2"],
+        }
         review_repo = AsyncMock(spec=UserReviewRepository)
         review_repo.get_by_user_and_tasks.return_value = [
             UserReview(
@@ -218,3 +209,115 @@ class TestUserReviewServiceListProgress:
         service = _make_service(review_repo, batch_repo)
         result = await service.list_progress(1, ["d35bdbdc"])
         assert result == []
+
+
+class TestUserReviewServiceGetSolverReviewDetails:
+    @patch.object(SyntheticTaskService, "resolve_entry")
+    async def test_groups_reviews_by_user(self, mock_resolve) -> None:
+        from app.schemas.synthetic_review import SyntheticTaskRead
+
+        mock_resolve.return_value = [
+            SyntheticTaskRead(
+                id="gen_a1",
+                original_task_id="d35bdbdc",
+                model_name="gpt-test",
+                witness_passed=True,
+                train=[],
+                test=[],
+            ),
+            SyntheticTaskRead(
+                id="gen_a2",
+                original_task_id="d35bdbdc",
+                model_name="gpt-test",
+                witness_passed=True,
+                train=[],
+                test=[],
+            ),
+        ]
+        review_repo = AsyncMock(spec=UserReviewRepository)
+        review_repo.get_reviews_by_tasks.return_value = [
+            UserReview(
+                id=1,
+                user_id=7,
+                synth_task_id="gen_a1",
+                status="done",
+                correct=False,
+                notes=["incorrecta"],
+            ),
+            UserReview(
+                id=2,
+                user_id=7,
+                synth_task_id="gen_a2",
+                status="pending_review",
+                notes=[],
+            ),
+        ]
+        batch_repo = AsyncMock(spec=BatchRepository)
+        user_repo = AsyncMock(spec=UserRepository)
+        user_repo.get_by_ids.return_value = [User(id=7, email="a@b.com")]
+        event_repo = AsyncMock(spec=EventRepository)
+        event_repo.get_hypothesis_texts_by_task.return_value = {
+            7: ["hip original", "hip revisada"]
+        }
+        service = _make_full_service(review_repo, batch_repo, user_repo, event_repo)
+
+        result = await service.get_solver_review_details("d35bdbdc")
+        assert len(result) == 1
+        assert result[0].user_id == 7
+        assert result[0].email == "a@b.com"
+        assert result[0].original_hypothesis == "hip original"
+        assert result[0].revised_hypothesis == "hip revisada"
+        assert [v.synth_task_id for v in result[0].variants] == [
+            "gen_a1",
+            "gen_a2",
+        ]
+        assert result[0].variants[0].correct is False
+        assert result[0].variants[0].notes == ["incorrecta"]
+        review_repo.get_reviews_by_tasks.assert_awaited_once_with(
+            ["gen_a1", "gen_a2"]
+        )
+        event_repo.get_hypothesis_texts_by_task.assert_awaited_once_with(
+            "d35bdbdc"
+        )
+
+    @patch.object(SyntheticTaskService, "resolve_entry")
+    async def test_returns_empty_when_no_variants(self, mock_resolve) -> None:
+        mock_resolve.return_value = []
+        review_repo = AsyncMock(spec=UserReviewRepository)
+        batch_repo = AsyncMock(spec=BatchRepository)
+        service = _make_service(review_repo, batch_repo)
+        result = await service.get_solver_review_details("d35bdbdc")
+        assert result == []
+        review_repo.get_reviews_by_tasks.assert_not_awaited()
+
+    @patch.object(SyntheticTaskService, "resolve_entry")
+    async def test_handles_missing_repos_gracefully(self, mock_resolve) -> None:
+        from app.schemas.synthetic_review import SyntheticTaskRead
+
+        mock_resolve.return_value = [
+            SyntheticTaskRead(
+                id="gen_a1",
+                original_task_id="d35bdbdc",
+                model_name="gpt-test",
+                witness_passed=True,
+                train=[],
+                test=[],
+            )
+        ]
+        review_repo = AsyncMock(spec=UserReviewRepository)
+        review_repo.get_reviews_by_tasks.return_value = [
+            UserReview(
+                id=1,
+                user_id=7,
+                synth_task_id="gen_a1",
+                status="done",
+                notes=[],
+            )
+        ]
+        batch_repo = AsyncMock(spec=BatchRepository)
+        service = _make_service(review_repo, batch_repo)
+        result = await service.get_solver_review_details("d35bdbdc")
+        assert len(result) == 1
+        assert result[0].email == ""
+        assert result[0].original_hypothesis is None
+        assert result[0].revised_hypothesis is None

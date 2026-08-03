@@ -4,7 +4,7 @@ import { ChevronDown, ClipboardCopy } from 'lucide-react'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
 import { useTaskById } from '../../arc-lab/queries'
-import { useSyntheticTask, useSyntheticReview, useTaskSolvers, useUpdateSyntheticReview } from '../queries'
+import { useSyntheticTask, useSyntheticReview, useSolverReviewDetails, useTaskSolvers, useUpdateSyntheticReview } from '../queries'
 import { PairDisplay } from '../components/PairDisplay'
 
 export function SyntheticReviewDetailPage() {
@@ -18,6 +18,9 @@ export function SyntheticReviewDetailPage() {
   const { data: review, isLoading: reviewLoading } = useSyntheticReview(id ?? '')
   const { data: originalTask } = useTaskById(synthTask?.originalTaskId ?? '')
   const { data: solvers = [] } = useTaskSolvers(synthTask?.originalTaskId ?? '')
+  const { data: solverReviewDetails = [] } = useSolverReviewDetails(
+    synthTask?.originalTaskId ?? '',
+  )
   const updateReview = useUpdateSyntheticReview(id ?? '')
 
   if (authLoading || taskLoading || reviewLoading) {
@@ -199,6 +202,62 @@ export function SyntheticReviewDetailPage() {
               ) : (
                 <p className="mt-1 text-xs text-gray-600">Sin hipótesis</p>
               )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-4">
+        <p className="text-xs font-semibold text-gray-500">Revisión de los solvers</p>
+        {solverReviewDetails.length === 0 && (
+          <span className="mt-2 block text-xs text-gray-600">Sin datos</span>
+        )}
+        <div className="mt-2 flex flex-col gap-3">
+          {solverReviewDetails.map((s) => (
+            <div key={s.userId} className="rounded border border-gray-800 bg-gray-950 p-3">
+              <span className="text-xs text-blue-400">{s.email}</span>
+              <div className="mt-2 flex flex-col gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-gray-600">Hipótesis original</p>
+                  {s.originalHypothesis ? (
+                    <p className="mt-0.5 whitespace-pre-wrap text-xs text-gray-300">{s.originalHypothesis}</p>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-gray-600">Sin hipótesis</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-600">Hipótesis revisada</p>
+                  {s.revisedHypothesis ? (
+                    <p className="mt-0.5 whitespace-pre-wrap text-xs text-gray-300">{s.revisedHypothesis}</p>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-gray-600">Sin hipótesis revisada</p>
+                  )}
+                </div>
+                {s.variants.length > 0 && (
+                  <div className="mt-1">
+                    <p className="text-xs font-semibold text-gray-600">Variantes revisadas</p>
+                    <div className="mt-1 flex flex-col gap-1">
+                      {s.variants.map((v) => (
+                        <div key={v.synthTaskId} className="flex items-center gap-2 rounded bg-gray-900/60 px-2 py-1">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                              v.correct === false
+                                ? 'bg-red-900/40 text-red-400'
+                                : v.correct === true
+                                  ? 'bg-green-900/40 text-green-400'
+                                  : 'bg-gray-800 text-gray-400'
+                            }`}
+                          >
+                            {v.correct === false ? '✗' : v.correct === true ? '✓' : '—'}
+                          </span>
+                          <span className="font-mono text-[10px] text-gray-400">{v.synthTaskId}</span>
+                          <span className="ml-auto text-[10px] text-gray-500">{v.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>

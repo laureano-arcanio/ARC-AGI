@@ -2,6 +2,8 @@ import { http } from '../../lib/http'
 import type { SyntheticTask } from '../synthetic-reviews/types'
 import type {
   AnonymousSolver,
+  MyHypothesis,
+  MyHypothesisUpdate,
   ReviewBatch,
   ReviewEntryProgress,
   UserReview,
@@ -45,5 +47,21 @@ export function updateUserReview(
 export function fetchAnonymousSolvers(taskId: string): Promise<AnonymousSolver[]> {
   return http.get<AnonymousSolver[]>(
     `/v1/tasks/${encodeURIComponent(taskId)}/solvers-public`,
+  )
+}
+
+export function fetchMyHypothesis(taskId: string): Promise<MyHypothesis> {
+  return http.get<MyHypothesis>(
+    `/v1/tasks/${encodeURIComponent(taskId)}/my-hypothesis`,
+  )
+}
+
+export function updateMyHypothesis(
+  taskId: string,
+  data: MyHypothesisUpdate,
+): Promise<MyHypothesis> {
+  return http.put<MyHypothesis>(
+    `/v1/tasks/${encodeURIComponent(taskId)}/my-hypothesis`,
+    data,
   )
 }

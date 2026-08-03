@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, ClipboardCopy } from 'lucide-react'
 import { useTranslation } from '../../../lib/i18n'
@@ -10,9 +10,11 @@ import type { SyntheticTask } from '../../synthetic-reviews/types'
 import {
   useBulkUpdateUserReviews,
   useMyAnonymousSolvers,
+  useMyHypothesis,
   useMyReviewBatches,
   useMyUserReview,
   useResolvedSyntheticTasks,
+  useUpdateMyHypothesis,
   useUpdateUserReview,
 } from '../queries'
 
@@ -27,11 +29,18 @@ function useColumnWidth(): {
   useEffect(() => {
     const el = colRef.current
     if (!el) return
+    let rafId: number
     const ro = new ResizeObserver(([entry]) => {
-      setColWidth(entry.contentRect.width)
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        setColWidth(entry.contentRect.width)
+      })
     })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(rafId)
+    }
   }, [])
   return { colRef, colWidth }
 }
@@ -54,7 +63,7 @@ const REVIEW_STATUS: Record<
   },
 }
 
-function ReviewVariantCard({
+const ReviewVariantCard = React.memo(function ReviewVariantCard({
   variant,
   variantIndex,
   originalTask,
@@ -310,7 +319,7 @@ function ReviewVariantCard({
       </div>
     </div>
   )
-}
+})
 
 export function MyReviewPage() {
   const { t } = useTranslation()
@@ -324,11 +333,16 @@ export function MyReviewPage() {
   const originalTaskId = tasks && tasks.length > 0 ? tasks[0].originalTaskId : ''
   const { data: originalTask } = useTaskById(originalTaskId)
   const { data: solvers = [] } = useMyAnonymousSolvers(originalTaskId)
+  const { data: myHypothesis } = useMyHypothesis(originalTaskId)
+  const updateMyHypothesis = useUpdateMyHypothesis(originalTaskId)
 
   const navigate = useNavigate()
   const { data: batches } = useMyReviewBatches(userId ?? 0)
 
-  const findAdjacentTaskIds = (): { prev: string | null; next: string | null } => {
+  const { prev: prevTaskId, next: nextTaskId } = useMemo((): {
+    prev: string | null
+    next: string | null
+  } => {
     if (!batches || !taskId) return { prev: null, next: null }
     for (const batch of batches) {
       const idx = batch.taskIds.indexOf(taskId)
@@ -340,23 +354,38 @@ export function MyReviewPage() {
       }
     }
     return { prev: null, next: null }
-  }
-
-  const { prev: prevTaskId, next: nextTaskId } = findAdjacentTaskIds()
+  }, [batches, taskId])
 
   const [selectedPairKeys, setSelectedPairKeys] = useState<Set<string>>(new Set())
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [feedbackText, setFeedbackText] = useState('')
   const bulkUpdate = useBulkUpdateUserReviews()
 
-  const togglePairSelection = (pairKey: string) => {
+  const [showHypothesisModal, setShowHypothesisModal] = useState(false)
+  const [hypothesisText, setHypothesisText] = useState('')
+
+  const openHypothesisModal = () => {
+    setHypothesisText(myHypothesis?.hypothesis ?? '')
+    setShowHypothesisModal(true)
+  }
+
+  const saveHypothesis = () => {
+    const trimmed = hypothesisText.trim()
+    if (!trimmed || updateMyHypothesis.isPending) return
+    updateMyHypothesis.mutate(
+      { hypothesis: trimmed },
+      { onSuccess: () => setShowHypothesisModal(false) },
+    )
+  }
+
+  const togglePairSelection = useCallback((pairKey: string) => {
     setSelectedPairKeys((prev) => {
       const next = new Set(prev)
       if (next.has(pairKey)) next.delete(pairKey)
       else next.add(pairKey)
       return next
     })
-  }
+  }, [])
 
   const selectedVariantIds = () => {
     return [...new Set([...selectedPairKeys].map((k) => k.split(':')[0]))]
@@ -382,8 +411,13 @@ export function MyReviewPage() {
         id,
         data: { status: 'needs_revision', verified: true, correct: false, notes },
       })),
+      {
+        onSuccess: () => {
+          setSelectedPairKeys(new Set())
+          navigate(nextTaskId ? `/my-reviews/${nextTaskId}` : '/my-reviews')
+        },
+      },
     )
-    setSelectedPairKeys(new Set())
   }
 
   if (authLoading || tasksLoading) {
@@ -448,28 +482,52 @@ export function MyReviewPage() {
       {(tasks?.length ?? 0) > 0 && (
         <>
 
+          <div className="rounded border border-purple-600/60 bg-purple-950/30 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-purple-300">
+                {t('my_reviews.detail.my_hypothesis')}
+              </span>
+              <button
+                onClick={openHypothesisModal}
+                disabled={updateMyHypothesis.isPending}
+                className="rounded bg-purple-700 px-2 py-1 text-xs font-medium text-white transition hover:bg-purple-600 disabled:opacity-40"
+              >
+                {t('my_reviews.detail.fix_hypothesis')}
+              </button>
+            </div>
+            {myHypothesis?.hypothesis ? (
+              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-200">
+                {myHypothesis.hypothesis}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-gray-500">
+                {t('my_reviews.detail.no_my_hypothesis')}
+              </p>
+            )}
+          </div>
+
           {solvers.length > 0 && (
             <div className="flex flex-col gap-3">
-                {solvers.map((s, i) => (
-                  <div
-                    key={i}
-                    className="rounded border border-gray-800 bg-gray-950 p-3"
-                  >
-                    <span className="text-xs text-gray-500">
-                      {t('my_reviews.detail.solver_label', { n: i + 1 })}
-                    </span>
-                    {s.hypothesis ? (
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-300">
-                        {s.hypothesis}
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-sm text-gray-600">
-                        {t('my_reviews.detail.no_hypothesis')}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {solvers.map((s, i) => (
+                <div
+                  key={i}
+                  className="rounded border border-gray-800 bg-gray-950 p-3"
+                >
+                  <span className="text-xs text-gray-500">
+                    {t('my_reviews.detail.solver_label', { n: i + 1 })}
+                  </span>
+                  {s.hypothesis ? (
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-gray-300">
+                      {s.hypothesis}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-600">
+                      {t('my_reviews.detail.no_hypothesis')}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
 
           <div className="flex justify-end gap-3">
@@ -501,6 +559,45 @@ export function MyReviewPage() {
               />
             ))}
           </div>
+
+          {showHypothesisModal && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div className="absolute inset-0" onClick={() => setShowHypothesisModal(false)} />
+              <div className="relative w-full max-w-lg rounded-xl border border-purple-800 bg-gray-900 p-5 shadow-xl">
+                <h2 className="text-sm font-semibold text-gray-100">
+                  {t('my_reviews.detail.hypothesis_modal_title')}
+                </h2>
+                <textarea
+                  autoFocus
+                  value={hypothesisText}
+                  onChange={(e) => setHypothesisText(e.target.value)}
+                  placeholder={t('my_reviews.detail.hypothesis_modal_placeholder')}
+                  className="mt-3 h-32 w-full resize-none rounded border border-gray-700 bg-gray-950 p-3 text-sm text-gray-200 placeholder-gray-600 focus:border-purple-500 focus:outline-none"
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowHypothesisModal(false)}
+                    className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                  >
+                    {t('my_reviews.detail.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveHypothesis}
+                    disabled={!hypothesisText.trim() || updateMyHypothesis.isPending}
+                    className="rounded-md bg-purple-700 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-purple-600 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                  >
+                    {t('my_reviews.detail.save')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {showFeedbackModal && (
             <div

@@ -46,7 +46,7 @@ class MockAsyncSession:
     def set_execute_result(self, result: MockResult) -> None:
         self._execute_result = result
 
-    async def execute(self, _query):  # type: ignore[no-untyped-def]
+    async def execute(self, _query, _params=None):  # type: ignore[no-untyped-def]
         return self._execute_result
 
     def add(self, instance: object) -> None:
