@@ -30,6 +30,7 @@ export function useMyReviewBatches(userId: number) {
     queryKey: myReviewsQueryKeys.batches(userId),
     queryFn: () => getUserReviewBatches(userId),
     enabled: userId > 0,
+    staleTime: 0,
   })
 }
 

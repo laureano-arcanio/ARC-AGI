@@ -263,8 +263,18 @@ export function MyReviewsPage() {
                                 {t(status.label)}
                               </span>
                             </div>
-                            <span className="w-28 text-center rounded-lg bg-purple-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-purple-700">
-                              {t('my_reviews.review')}
+                            <span
+                              className={
+                                entry && (entry.status === 'done' || entry.status === 'needs_revision')
+                                  ? 'w-28 text-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-700'
+                                  : 'w-28 text-center rounded-lg bg-purple-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-purple-700'
+                              }
+                            >
+                              {t(
+                                entry && (entry.status === 'done' || entry.status === 'needs_revision')
+                                  ? 'my_reviews.modify'
+                                  : 'my_reviews.review',
+                              )}
                             </span>
                           </button>
                         )

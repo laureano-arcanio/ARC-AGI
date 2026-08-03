@@ -157,6 +157,28 @@ class EventRepository(BaseRepository[Event]):
         result = await self.db_session.execute(query)
         return [row[0] for row in result.all()]
 
+    async def get_hypothesis_texts_by_task(
+        self, task_id: str
+    ) -> dict[int, list[str]]:
+        """Return per-user hypothesis texts for a task, oldest first.
+
+        Only cognitive events with a non-null text (e.g. hypothesis_revision).
+        """
+        query = (
+            select(self.model.user_id, self.model.trigger["text"].as_string())
+            .where(
+                self.model.task_id == task_id,
+                self.model.trigger["kind"].as_string() == "cognitive",
+                self.model.trigger["text"].isnot(None),
+            )
+            .order_by(self.model.timestamp, self.model.id)
+        )
+        result = await self.db_session.execute(query)
+        texts: dict[int, list[str]] = {}
+        for user_id, text in result.all():
+            texts.setdefault(user_id, []).append(text)
+        return texts
+
     async def get_event_type_summary(
         self,
         event_types: list[str] | None,

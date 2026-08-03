@@ -44,6 +44,25 @@ def _save_reviews(reviews: dict[str, dict[str, Any]]) -> None:
         json.dump(reviews, f, indent=2, ensure_ascii=False)
 
 
+class _TaskIndex:
+    def __init__(self, tasks: list[dict[str, Any]], reviews: dict[str, dict[str, Any]]):
+        self._by_id: dict[str, dict[str, Any]] = {}
+        self._by_original: dict[str, list[dict[str, Any]]] = {}
+        self.reviews = reviews
+        for t in tasks:
+            tid = t.get("id", "")
+            if tid:
+                self._by_id[tid] = t
+            oid = t.get("original_task_id", "")
+            if oid:
+                self._by_original.setdefault(oid, []).append(t)
+
+    def resolve(self, entry_id: str) -> list[dict[str, Any]]:
+        if entry_id in self._by_id:
+            return [self._by_id[entry_id]]
+        return self._by_original.get(entry_id, [])
+
+
 def _task_to_read(
     task: dict[str, Any], review: dict[str, Any] | None
 ) -> SyntheticTaskRead:
@@ -166,16 +185,24 @@ class SyntheticTaskService:
         An entry may be either a synthetic task id (returns that single task)
         or an original ARC task id (returns all its synthetic variants).
         """
+        index = self._build_index()
+        return [
+            _task_to_read(t, index.reviews.get(t.get("id", "")))
+            for t in index.resolve(entry_id)
+        ]
+
+    def resolve_entry_ids(self, entry_ids: list[str]) -> dict[str, list[str]]:
+        """Bulk-resolve entry IDs to their variant IDs (one file read)."""
+        index = self._build_index()
+        result: dict[str, list[str]] = {}
+        for eid in entry_ids:
+            result[eid] = [t.get("id", "") for t in index.resolve(eid)]
+        return result
+
+    def _build_index(self) -> "_TaskIndex":
         tasks = _load_tasks()
         reviews = _load_reviews()
-        for t in tasks:
-            if t.get("id") == entry_id:
-                return [_task_to_read(t, reviews.get(entry_id))]
-        return [
-            _task_to_read(t, reviews.get(t["id"]))
-            for t in tasks
-            if t.get("original_task_id") == entry_id
-        ]
+        return _TaskIndex(tasks, reviews)
 
     def get_review(self, synth_task_id: str) -> SyntheticReviewRead:
         reviews = _load_reviews()

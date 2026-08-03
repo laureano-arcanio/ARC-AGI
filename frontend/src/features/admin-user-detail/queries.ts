@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getUser, getUserBatchTasks, getAttempts, getEvents, updateUserPassword, deleteUserTask, deleteAttempt } from './api'
+import { getUser, getUserBatchTasks, getUserReviewBatchTasks, getAttempts, getEvents, updateUserPassword, deleteUserTask, deleteAttempt } from './api'
 
 export const adminUserDetailQueryKeys = {
   all: ['admin-user-detail'] as const,
@@ -7,6 +7,8 @@ export const adminUserDetailQueryKeys = {
     [...adminUserDetailQueryKeys.all, 'user', userId] as const,
   tasks: (userId: number) =>
     [...adminUserDetailQueryKeys.all, 'tasks', userId] as const,
+  reviewTasks: (userId: number) =>
+    [...adminUserDetailQueryKeys.all, 'review-tasks', userId] as const,
   attempts: (userId: number, taskId: string) =>
     [...adminUserDetailQueryKeys.all, 'attempts', userId, taskId] as const,
   events: (
@@ -34,6 +36,14 @@ export function useUserBatchTasks(userId: number) {
   return useQuery({
     queryKey: adminUserDetailQueryKeys.tasks(userId),
     queryFn: () => getUserBatchTasks(userId),
+  })
+}
+
+export function useUserReviewBatchTasks(userId: number) {
+  return useQuery({
+    queryKey: adminUserDetailQueryKeys.reviewTasks(userId),
+    queryFn: () => getUserReviewBatchTasks(userId),
+    staleTime: 0,
   })
 }
 

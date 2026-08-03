@@ -1,5 +1,5 @@
 import { http } from '../../lib/http'
-import type { SyntheticReview, SyntheticReviewUpdate, SyntheticTask, SyntheticTaskList } from './types'
+import type { SolverReviewDetail, SyntheticReview, SyntheticReviewUpdate, SyntheticTask, SyntheticTaskList } from './types'
 
 export type ListFilters = {
   page?: number
@@ -53,4 +53,12 @@ export type TaskSolverRead = {
 
 export function fetchTaskSolvers(taskId: string): Promise<TaskSolverRead[]> {
   return http.get<TaskSolverRead[]>(`/v1/tasks/${encodeURIComponent(taskId)}/solvers`)
+}
+
+export function fetchSolverReviewDetails(
+  originalTaskId: string,
+): Promise<SolverReviewDetail[]> {
+  return http.get<SolverReviewDetail[]>(
+    `/v1/user-reviews/by-original/${encodeURIComponent(originalTaskId)}`,
+  )
 }

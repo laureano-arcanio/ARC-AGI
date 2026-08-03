@@ -406,7 +406,7 @@ class TaskStatsService:
                 e.task_id = :task_id
                 AND e.trigger->>'action' = 'submit'
                 AND CAST(e.trigger->'details'->>'correct' AS BOOLEAN) = true
-                AND (:exclude_user_id IS NULL OR u.id <> :exclude_user_id)
+                AND (CAST(:exclude_user_id AS INTEGER) IS NULL OR u.id <> :exclude_user_id)
             ORDER BY u.id
         """)
         result = await self.db_session.execute(

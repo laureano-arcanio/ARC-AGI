@@ -12,7 +12,12 @@ from app.errors import (
     object_not_found_handler,
 )
 from app.routers.user_review import get_service, router
-from app.schemas.user_review import ReviewEntryProgress, UserReviewRead
+from app.schemas.user_review import (
+    ReviewEntryProgress,
+    SolverReviewDetail,
+    SolverReviewVariant,
+    UserReviewRead,
+)
 from app.services.user_review import UserReviewService
 
 
@@ -27,6 +32,22 @@ def mock_service() -> AsyncMock:
     )
     svc.list_for_user_tasks.return_value = [
         UserReviewRead(user_id=1, synth_task_id="gen_1", status="done")
+    ]
+    svc.get_solver_review_details.return_value = [
+        SolverReviewDetail(
+            user_id=7,
+            email="a@b.com",
+            original_hypothesis="hip original",
+            revised_hypothesis="hip revisada",
+            variants=[
+                SolverReviewVariant(
+                    synth_task_id="gen_a1",
+                    status="done",
+                    correct=False,
+                    notes=["incorrecta"],
+                )
+            ],
+        )
     ]
     return svc
 
@@ -117,3 +138,47 @@ class TestUserReviewRouterProgress:
         mock_service.list_progress.assert_awaited_once_with(
             1, ["d35bdbdc", "46c35fc7"]
         )
+
+
+class TestUserReviewRouterSolverReviewDetails:
+    @pytest.fixture
+    async def admin_client(self, mock_service: AsyncMock) -> AsyncIterator[AsyncClient]:
+        async def mock_admin_user() -> CurrentUser:
+            return CurrentUser(user_id=1, role="admin")
+
+        application = FastAPI()
+        application.exception_handler(Exception)(global_exception_handler)
+        application.exception_handler(ObjectNotFoundError)(object_not_found_handler)
+        application.include_router(router)
+        application.dependency_overrides[get_service] = lambda: mock_service
+        application.dependency_overrides[get_current_user] = mock_admin_user
+        transport = ASGITransport(app=application)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
+
+    async def test_returns_solver_reviews_for_original_task(
+        self, admin_client: AsyncClient, mock_service: AsyncMock
+    ) -> None:
+        response = await admin_client.get(
+            "/api/v1/user-reviews/by-original/d35bdbdc"
+        )
+        assert response.status_code == status.HTTP_200_OK
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["email"] == "a@b.com"
+        assert body[0]["originalHypothesis"] == "hip original"
+        assert body[0]["revisedHypothesis"] == "hip revisada"
+        assert body[0]["variants"][0]["synthTaskId"] == "gen_a1"
+        assert body[0]["variants"][0]["correct"] is False
+        mock_service.get_solver_review_details.assert_awaited_once_with(
+            "d35bdbdc"
+        )
+
+    async def test_denies_non_admin(
+        self, client: AsyncClient, mock_service: AsyncMock
+    ) -> None:
+        response = await client.get(
+            "/api/v1/user-reviews/by-original/d35bdbdc"
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        mock_service.get_solver_review_details.assert_not_awaited()

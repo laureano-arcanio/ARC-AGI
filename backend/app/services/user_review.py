@@ -1,9 +1,15 @@
 from app.errors import ObjectNotFoundError
 from app.models.user_review import UserReview
 from app.repositories.batch import BatchRepository
+from app.repositories.event import EventRepository
+from app.repositories.user import UserRepository
 from app.repositories.user_review import UserReviewRepository
 from app.schemas.user_review import (
+    ReviewBatchTask,
+    ReviewBatchWithTasks,
     ReviewEntryProgress,
+    SolverReviewDetail,
+    SolverReviewVariant,
     UserReviewRead,
     UserReviewUpdate,
 )
@@ -21,9 +27,13 @@ class UserReviewService(
         self,
         repository: UserReviewRepository,
         batch_repository: BatchRepository,
+        user_repository: UserRepository | None = None,
+        event_repository: EventRepository | None = None,
     ):
         super().__init__(repository)
         self.batch_repository = batch_repository
+        self.user_repository = user_repository
+        self.event_repository = event_repository
 
     async def _ensure_access(self, user_id: int, synth_task_id: str) -> None:
         review_task_ids = await self.batch_repository.get_user_review_task_ids(
@@ -87,7 +97,44 @@ class UserReviewService(
             else:
                 result.append(
                     UserReviewRead(user_id=user_id, synth_task_id=tid)
-                )
+            )
+        return result
+
+    async def get_user_review_batches(
+        self, user_id: int
+    ) -> list[ReviewBatchWithTasks]:
+        batches = await self.batch_repository.get_batches_for_user(
+            user_id, batch_type="review"
+        )
+        if not batches:
+            return []
+        all_entry_ids: list[str] = []
+        for batch in batches:
+            for tid in batch.task_ids:
+                all_entry_ids.append(str(tid))
+        if not all_entry_ids:
+            return []
+        progress = await self.list_progress(user_id, all_entry_ids)
+        progress_by_entry = {p.entry_id: p for p in progress}
+        result: list[ReviewBatchWithTasks] = []
+        for batch in batches:
+            tasks: list[ReviewBatchTask] = []
+            for task_id in batch.task_ids:
+                tid = str(task_id)
+                p = progress_by_entry.get(tid)
+                tasks.append(ReviewBatchTask(
+                    entry_id=tid,
+                    total=p.total if p else 0,
+                    done=p.done if p else 0,
+                    needs_revision=p.needs_revision if p else 0,
+                    pending=p.pending if p else 0,
+                    status=p.status if p else "pending_review",
+                ))
+            result.append(ReviewBatchWithTasks(
+                batch_id=batch.id,
+                batch_name=batch.name,
+                tasks=tasks,
+            ))
         return result
 
     async def list_progress(
@@ -97,11 +144,7 @@ class UserReviewService(
         requested = [eid for eid in entry_ids if eid in allowed]
         if not requested:
             return []
-        entry_variants: dict[str, list[str]] = {}
-        for eid in requested:
-            entry_variants[eid] = [
-                task.id for task in SyntheticTaskService().resolve_entry(eid)
-            ]
+        entry_variants = SyntheticTaskService().resolve_entry_ids(requested)
         all_variant_ids = [
             vid for vids in entry_variants.values() for vid in vids
         ]
@@ -137,6 +180,64 @@ class UserReviewService(
                     needs_revision=needs_revision,
                     pending=pending,
                     status=status,
+                )
+            )
+        return result
+
+    async def get_solver_review_details(
+        self, original_task_id: str
+    ) -> list[SolverReviewDetail]:
+        """Admin view: per-user review status over the synthetic variants of
+        an original task, plus their first (original) and latest (revised)
+        hypothesis recorded for that original task."""
+        variants = SyntheticTaskService().resolve_entry(original_task_id)
+        variant_ids = [v.id for v in variants]
+        if not variant_ids:
+            return []
+        reviews = await self.repository.get_reviews_by_tasks(variant_ids)
+
+        reviews_by_user: dict[int, list[UserReview]] = {}
+        for review in reviews:
+            reviews_by_user.setdefault(review.user_id, []).append(review)
+
+        if not reviews_by_user:
+            return []
+
+        user_ids = list(reviews_by_user.keys())
+        emails: dict[int, str] = {}
+        if self.user_repository is not None:
+            users = await self.user_repository.get_by_ids(user_ids)
+            emails = {u.id: u.email for u in users}
+
+        hypothesis_texts: dict[int, list[str]] = {}
+        if self.event_repository is not None:
+            hypothesis_texts = (
+                await self.event_repository.get_hypothesis_texts_by_task(
+                    original_task_id
+                )
+            )
+
+        result: list[SolverReviewDetail] = []
+        for user_id in sorted(reviews_by_user.keys()):
+            user_reviews = reviews_by_user[user_id]
+            user_reviews.sort(key=lambda r: r.synth_task_id)
+            texts = hypothesis_texts.get(user_id, [])
+            result.append(
+                SolverReviewDetail(
+                    user_id=user_id,
+                    email=emails.get(user_id, ""),
+                    original_hypothesis=texts[0] if texts else None,
+                    revised_hypothesis=texts[-1] if texts else None,
+                    variants=[
+                        SolverReviewVariant(
+                            synth_task_id=r.synth_task_id,
+                            status=r.status or "pending_review",
+                            correct=r.correct,
+                            verified=bool(r.verified),
+                            notes=list(r.notes or []),
+                        )
+                        for r in user_reviews
+                    ],
                 )
             )
         return result
