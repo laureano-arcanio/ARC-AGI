@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, ClipboardCopy } from 'lucide-react'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useTaskById } from '../../arc-lab/queries'
 import type { ArcTaskRead } from '../../arc-lab/types'
 import { PairDisplay } from '../../synthetic-reviews/components/PairDisplay'
 import type { SyntheticTask } from '../../synthetic-reviews/types'
@@ -13,6 +12,7 @@ import {
   useMyHypothesis,
   useMyReviewBatches,
   useMyUserReview,
+  useOriginalTaskForReview,
   useResolvedSyntheticTasks,
   useUpdateMyHypothesis,
   useUpdateUserReview,
@@ -331,7 +331,7 @@ export function MyReviewPage() {
   )
 
   const originalTaskId = tasks && tasks.length > 0 ? tasks[0].originalTaskId : ''
-  const { data: originalTask } = useTaskById(originalTaskId)
+  const { data: originalTask } = useOriginalTaskForReview(originalTaskId)
   const { data: solvers = [] } = useMyAnonymousSolvers(originalTaskId)
   const { data: myHypothesis } = useMyHypothesis(originalTaskId)
   const updateMyHypothesis = useUpdateMyHypothesis(originalTaskId)

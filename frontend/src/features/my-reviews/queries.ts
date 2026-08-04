@@ -9,6 +9,7 @@ import {
   updateMyHypothesis,
   updateUserReview,
 } from './api'
+import { fetchTaskById } from '../arc-lab/api'
 import type { MyHypothesisUpdate, UserReviewUpdate } from './types'
 
 export const myReviewsQueryKeys = {
@@ -23,6 +24,8 @@ export const myReviewsQueryKeys = {
     [...myReviewsQueryKeys.all, 'solvers', id] as const,
   myHypothesis: (id: string) =>
     [...myReviewsQueryKeys.all, 'my-hypothesis', id] as const,
+  originalTask: (taskId: string) =>
+    [...myReviewsQueryKeys.all, 'original-task', taskId] as const,
 }
 
 export function useMyReviewBatches(userId: number) {
@@ -108,5 +111,14 @@ export function useBulkUpdateUserReviews() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: myReviewsQueryKeys.all })
     },
+  })
+}
+
+export function useOriginalTaskForReview(taskId: string) {
+  return useQuery({
+    queryKey: myReviewsQueryKeys.originalTask(taskId),
+    queryFn: () => fetchTaskById(taskId),
+    enabled: taskId.length > 0 && taskId !== 'random',
+    staleTime: 0,
   })
 }
