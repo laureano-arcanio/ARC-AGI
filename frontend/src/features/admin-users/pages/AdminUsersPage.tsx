@@ -310,38 +310,18 @@ type BatchPillsProps = {
   placeholder: string
 }
 
-function getBatchPillColor(
-  batchId: number,
-  batchType: string,
-  completed: Set<number>,
-  inProgress: Set<number>,
-  abandoned: Set<number>,
-  reviewCompleted: Set<number>,
-  reviewInProgress: Set<number>,
-  reviewNeedsRevision: Set<number>,
-) {
-  if (batchType === 'review') {
-    if (reviewCompleted.has(batchId)) {
-      return 'bg-green-600/20 text-green-400 border-green-600/30'
-    }
-    if (reviewNeedsRevision.has(batchId)) {
-      return 'bg-orange-600/20 text-orange-400 border-orange-600/30'
-    }
-    if (reviewInProgress.has(batchId)) {
-      return 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30'
-    }
-    return 'bg-gray-600/20 text-gray-400 border-gray-600/30'
-  }
-  if (completed.has(batchId)) {
-    return 'bg-green-600/20 text-green-400 border-green-600/30'
-  }
-  if (abandoned.has(batchId)) {
-    return 'bg-orange-600/20 text-orange-400 border-orange-600/30'
-  }
-  if (inProgress.has(batchId)) {
-    return 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30'
-  }
+function getSolverPillColor(batchId: number, completed: Set<number>, inProgress: Set<number>, abandoned: Set<number>) {
+  if (completed.has(batchId)) return 'bg-green-600/20 text-green-400 border-green-600/30'
+  if (abandoned.has(batchId)) return 'bg-orange-600/20 text-orange-400 border-orange-600/30'
+  if (inProgress.has(batchId)) return 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30'
   return 'bg-gray-600/20 text-gray-400 border-gray-600/30'
+}
+
+function getReviewPillColor(batchId: number, completed: Set<number>, inProgress: Set<number>, needsRevision: Set<number>) {
+  if (completed.has(batchId)) return 'bg-purple-600/20 text-purple-400 border-purple-600/30'
+  if (needsRevision.has(batchId)) return 'bg-red-600/20 text-red-400 border-red-600/30'
+  if (inProgress.has(batchId)) return 'bg-blue-600/20 text-blue-400 border-blue-600/30'
+  return 'bg-gray-700/20 text-gray-500 border-gray-700/30'
 }
 
 function BatchPills({
@@ -399,16 +379,16 @@ function BatchPills({
     setOpen(!open)
   }
 
+  const solverBatches = userBatches.filter(b => b.batchType !== 'review')
+  const reviewBatches = userBatches.filter(b => b.batchType === 'review')
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {batchesLoading && userBatches.length === 0 && (
         <span className="text-xs text-gray-500">...</span>
       )}
-      {userBatches.map((batch) => {
-        const isReview = batch.batchType === 'review'
-        const pct = isReview
-          ? reviewCompletionPct.get(batch.id)
-          : completionPct.get(batch.id)
+      {solverBatches.map((batch) => {
+        const pct = completionPct.get(batch.id)
         return (
         <button
           key={batch.id}
@@ -416,7 +396,27 @@ function BatchPills({
           disabled={disabled}
           onClick={() => onUnassign(batch.id)}
           title={batch.name}
-          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50 ${getBatchPillColor(batch.id, batch.batchType, completedBatchIds, inProgressBatchIds, abandonedBatchIds, reviewCompletedBatchIds, reviewInProgressBatchIds, reviewNeedsRevisionBatchIds)}`}
+          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50 ${getSolverPillColor(batch.id, completedBatchIds, inProgressBatchIds, abandonedBatchIds)}`}
+        >
+          {batch.name}
+          {pct !== undefined && (
+            <span className="ml-1 opacity-70">{pct}</span>
+          )}
+        </button>
+      )})}
+      {solverBatches.length > 0 && reviewBatches.length > 0 && (
+        <span className="mx-1 h-5 w-px bg-gray-600" />
+      )}
+      {reviewBatches.map((batch) => {
+        const pct = reviewCompletionPct.get(batch.id)
+        return (
+        <button
+          key={batch.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onUnassign(batch.id)}
+          title={batch.name}
+          className={`rounded-md border px-2 py-0.5 text-xs font-medium transition hover:opacity-80 disabled:opacity-50 ${getReviewPillColor(batch.id, reviewCompletedBatchIds, reviewInProgressBatchIds, reviewNeedsRevisionBatchIds)}`}
         >
           {batch.name}
           {pct !== undefined && (
