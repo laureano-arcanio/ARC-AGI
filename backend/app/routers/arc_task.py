@@ -42,19 +42,17 @@ async def get_task(
 ) -> ArcTaskRead:
     is_admin = current_user.role == "admin"
     allowed = is_admin
-    has_review_access = False
     if not allowed:
         allowed = await batch_repo.user_has_access(
             current_user.user_id, task_id
         )
-    if not allowed:
-        review_ids = await batch_repo.get_user_review_task_ids(
-            current_user.user_id
-        )
-        has_review_access = SyntheticTaskService.user_can_review_original(
-            task_id, review_ids
-        )
-        allowed = has_review_access
+    review_ids = await batch_repo.get_user_review_task_ids(
+        current_user.user_id
+    )
+    has_review_access = SyntheticTaskService.user_can_review_original(
+        task_id, review_ids
+    )
+    allowed = allowed or has_review_access
     if not allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
