@@ -189,6 +189,9 @@ const es = {
   'activity.export_dataset': 'Exportar dataset',
   'activity.total_unique_tasks': 'Total tareas únicas',
   'activity.total_solved': 'Total resueltos',
+  'activity.total_to_review': 'Total a revisar',
+  'activity.pending_user_reviews': 'Revisiones de usuarios pendientes',
+  'activity.total_done': 'Total hechos',
 
   'dashboard.back': 'Volver al panel',
 
@@ -780,6 +783,9 @@ const en: Record<string, string> = {
   'activity.export_dataset': 'Export dataset',
   'activity.total_unique_tasks': 'Total unique tasks',
   'activity.total_solved': 'Total solved',
+  'activity.total_to_review': 'Total to review',
+  'activity.pending_user_reviews': 'Pending user reviews',
+  'activity.total_done': 'Total done',
 
   'dashboard.back': 'Back to dashboard',
 

@@ -449,6 +449,53 @@ class TestActivityBatchBreakdown:
         assert "batches" in dumped
 
 
+class TestActivitySummary:
+    def test_valid_summary(self) -> None:
+        from app.schemas.activity import ActivitySummary, UserOverlapBucket
+
+        summary = ActivitySummary(
+            total_unique_tasks_resolved=12,
+            user_overlap=[
+                UserOverlapBucket(overlap_count=1, task_count=8),
+                UserOverlapBucket(overlap_count=2, task_count=4),
+            ],
+            total_to_review=30,
+            pending_user_reviews=10,
+            total_done=15,
+        )
+        assert summary.total_unique_tasks_resolved == 12
+        assert summary.total_to_review == 30
+        assert summary.pending_user_reviews == 10
+        assert summary.total_done == 15
+        assert len(summary.user_overlap) == 2
+
+    def test_defaults(self) -> None:
+        from app.schemas.activity import ActivitySummary
+
+        summary = ActivitySummary(user_overlap=[])
+        assert summary.total_unique_tasks_resolved == 0
+        assert summary.total_to_review == 0
+        assert summary.pending_user_reviews == 0
+        assert summary.total_done == 0
+        assert summary.user_overlap == []
+
+    def test_camelcase_alias(self) -> None:
+        from app.schemas.activity import ActivitySummary
+
+        summary = ActivitySummary(
+            user_overlap=[],
+            total_to_review=5,
+            pending_user_reviews=2,
+            total_done=3,
+        )
+        dumped = summary.model_dump(by_alias=True)
+        assert "totalUniqueTasksResolved" in dumped
+        assert "totalToReview" in dumped
+        assert "pendingUserReviews" in dumped
+        assert "totalDone" in dumped
+        assert "userOverlap" in dumped
+
+
 class TestAttemptRead:
     def test_full_read_schema(self) -> None:
         now = datetime.now(UTC)

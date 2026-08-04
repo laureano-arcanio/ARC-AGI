@@ -12,6 +12,7 @@ from app.models.batch import Batch, BatchAssignment
 from app.models.event import Event
 from app.models.task_tag import TaskTag, TaskTagRelation
 from app.models.user import User
+from app.models.user_review import UserReview
 from app.repositories.event import EventRepository
 from app.schemas.activity import (
     ActivityBatchBreakdown,
@@ -24,6 +25,7 @@ from app.schemas.activity import (
     UserOverlapBucket,
 )
 from app.services.arc_task import ArcTaskService
+from app.services.synthetic_task import SyntheticTaskService
 
 
 class ActivityService:
@@ -103,9 +105,45 @@ class ActivityService:
             for row in overlap_result.all()
         ]
 
+        batch_rows = await db.execute(
+            select(Batch.task_ids).where(Batch.batch_type == "review")
+        )
+        review_entries: set[str] = set()
+        for (task_ids,) in batch_rows.all():
+            for tid in task_ids or []:
+                review_entries.add(str(tid))
+
+        total_to_review = len(review_entries)
+
+        total_done = 0
+        if review_entries:
+            entry_variants = SyntheticTaskService().resolve_entry_ids(
+                sorted(review_entries)
+            )
+            all_variant_ids = [
+                vid for vids in entry_variants.values() for vid in vids
+            ]
+            done_variant_ids: set[str] = set()
+            if all_variant_ids:
+                review_rows = await db.execute(
+                    select(UserReview.synth_task_id).where(
+                        UserReview.status == "done",
+                        UserReview.synth_task_id.in_(all_variant_ids),
+                    )
+                )
+                done_variant_ids = {row[0] for row in review_rows.all()}
+            total_done = sum(
+                1
+                for vids in entry_variants.values()
+                if vids and all(vid in done_variant_ids for vid in vids)
+            )
+
         return ActivitySummary(
             total_unique_tasks_resolved=total,
             user_overlap=overlap,
+            total_to_review=total_to_review,
+            pending_user_reviews=total_to_review - total_done,
+            total_done=total_done,
         )
 
     async def get_batch_breakdown(self) -> ActivityBatchBreakdown:

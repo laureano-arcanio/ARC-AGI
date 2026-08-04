@@ -588,7 +588,12 @@ class TestAttemptRouterGetByUserAndTask:
 
 @pytest.fixture
 def activity_mock_service() -> AsyncMock:
-    from app.schemas.activity import ActivityStats, EventTypeSummary, TimelineBucket
+    from app.schemas.activity import (
+        ActivityStats,
+        ActivitySummary,
+        EventTypeSummary,
+        TimelineBucket,
+    )
     from app.services.activity import ActivityService
 
     svc = AsyncMock(spec=ActivityService)
@@ -598,6 +603,13 @@ def activity_mock_service() -> AsyncMock:
         active_users=3,
         event_type_summary=[EventTypeSummary(type="cell_paint", count=5)],
         total_events=5,
+    )
+    svc.get_summary.return_value = ActivitySummary(
+        total_unique_tasks_resolved=12,
+        user_overlap=[],
+        total_to_review=30,
+        pending_user_reviews=10,
+        total_done=15,
     )
     return svc
 
@@ -690,6 +702,29 @@ class TestActivityRouterGetStats:
         self, activity_unauth_client: AsyncClient
     ) -> None:
         response = await activity_unauth_client.get("/api/v1/activity")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+class TestActivityRouterGetSummary:
+    async def test_returns_summary(
+        self, activity_client: AsyncClient, activity_mock_service: AsyncMock
+    ) -> None:
+        response = await activity_client.get("/api/v1/activity/summary")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["totalUniqueTasksResolved"] == 12
+        assert data["totalToReview"] == 30
+        assert data["pendingUserReviews"] == 10
+        assert data["totalDone"] == 15
+        assert data["userOverlap"] == []
+        activity_mock_service.get_summary.assert_awaited_once()
+
+    async def test_returns_403_for_non_admin(
+        self, activity_unauth_client: AsyncClient
+    ) -> None:
+        response = await activity_unauth_client.get(
+            "/api/v1/activity/summary"
+        )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
 

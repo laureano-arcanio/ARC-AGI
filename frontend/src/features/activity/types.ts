@@ -47,6 +47,9 @@ export type UserOverlapBucket = {
 export type ActivitySummary = {
   totalUniqueTasksResolved: number
   userOverlap: UserOverlapBucket[]
+  totalToReview: number
+  pendingUserReviews: number
+  totalDone: number
 }
 
 export const TIME_WINDOW_OPTIONS = [4, 8, 12, 24, 48, 72] as const

@@ -44,6 +44,9 @@ class UserOverlapBucket(BaseAPISchema):
 class ActivitySummary(BaseAPISchema):
     total_unique_tasks_resolved: int = 0
     user_overlap: list[UserOverlapBucket]
+    total_to_review: int = 0
+    pending_user_reviews: int = 0
+    total_done: int = 0
 
 
 class ActivityBatchBreakdown(BaseAPISchema):

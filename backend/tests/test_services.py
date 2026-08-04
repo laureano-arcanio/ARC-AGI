@@ -467,6 +467,86 @@ class TestActivityServiceGetStats:
         )
 
 
+class TestActivityServiceGetSummary:
+    async def test_counts_user_reviews(
+        self, activity_mock_repo: AsyncMock
+    ) -> None:
+        from types import SimpleNamespace
+
+        from sqlalchemy.sql.elements import TextClause
+
+        from app.schemas.activity import ActivitySummary
+        from app.services.synthetic_task import SyntheticTaskService
+
+        calls = {"n": 0}
+
+        def execute_side_effect(query, _params=None):
+            if isinstance(query, TextClause):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    return SimpleNamespace(scalar_one_or_none=lambda: 12)
+                return SimpleNamespace(all=lambda: [(1, 8), (2, 4)])
+            table_name = query.get_final_froms()[0].name
+            if table_name == "batch":
+                return SimpleNamespace(
+                    all=lambda: [(["entry_a", "entry_b"],)]
+                )
+            if table_name == "user_review":
+                return SimpleNamespace(
+                    all=lambda: [("variant_a1",)]
+                )
+            raise AssertionError(f"unexpected query: {query}")
+
+        activity_mock_repo.db_session.execute.side_effect = execute_side_effect
+
+        with patch.object(
+            SyntheticTaskService,
+            "resolve_entry_ids",
+            return_value={
+                "entry_a": ["variant_a1"],
+                "entry_b": ["variant_b1"],
+            },
+        ):
+            service = ActivityService(event_repo=activity_mock_repo)
+            result = await service.get_summary()
+
+        assert isinstance(result, ActivitySummary)
+        assert result.total_unique_tasks_resolved == 12
+        assert len(result.user_overlap) == 2
+        assert result.user_overlap[0].overlap_count == 1
+        assert result.user_overlap[0].task_count == 8
+        assert result.total_to_review == 2
+        assert result.total_done == 1
+        assert result.pending_user_reviews == 1
+
+    async def test_zero_counts_without_review_batches(
+        self, activity_mock_repo: AsyncMock
+    ) -> None:
+        from types import SimpleNamespace
+
+        from sqlalchemy.sql.elements import TextClause
+
+        calls = {"n": 0}
+
+        def execute_side_effect(query, _params=None):
+            if isinstance(query, TextClause):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    return SimpleNamespace(scalar_one_or_none=lambda: 0)
+                return SimpleNamespace(all=lambda: [])
+            return SimpleNamespace(all=lambda: [])
+
+        activity_mock_repo.db_session.execute.side_effect = execute_side_effect
+
+        service = ActivityService(event_repo=activity_mock_repo)
+        result = await service.get_summary()
+
+        assert result.total_unique_tasks_resolved == 0
+        assert result.total_to_review == 0
+        assert result.total_done == 0
+        assert result.pending_user_reviews == 0
+
+
 class TestAttemptServiceCreate:
     async def test_creates_and_returns_schema(
         self, attempt_service: AttemptService, attempt_mock_repo: AsyncMock
