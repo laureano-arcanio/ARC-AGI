@@ -610,6 +610,7 @@ def activity_mock_service() -> AsyncMock:
         total_to_review=30,
         pending_user_reviews=10,
         total_done=15,
+        failed_reviews=2,
     )
     return svc
 
@@ -716,6 +717,7 @@ class TestActivityRouterGetSummary:
         assert data["totalToReview"] == 30
         assert data["pendingUserReviews"] == 10
         assert data["totalDone"] == 15
+        assert data["failedReviews"] == 2
         assert data["userOverlap"] == []
         activity_mock_service.get_summary.assert_awaited_once()
 

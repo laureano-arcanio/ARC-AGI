@@ -145,7 +145,7 @@ export function ActivityPage() {
       )}
 
       {summary && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
             <p className="text-xs text-gray-500">{t('activity.total_to_review')}</p>
             <p className="mt-1 text-2xl font-bold text-blue-400">
@@ -162,6 +162,12 @@ export function ActivityPage() {
             <p className="text-xs text-gray-500">{t('activity.total_done')}</p>
             <p className="mt-1 text-2xl font-bold text-emerald-400">
               {summary.totalDone}
+            </p>
+          </div>
+          <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+            <p className="text-xs text-gray-500">{t('activity.failed_reviews')}</p>
+            <p className="mt-1 text-2xl font-bold text-red-400">
+              {summary.failedReviews}
             </p>
           </div>
         </div>

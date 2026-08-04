@@ -462,11 +462,13 @@ class TestActivitySummary:
             total_to_review=30,
             pending_user_reviews=10,
             total_done=15,
+            failed_reviews=2,
         )
         assert summary.total_unique_tasks_resolved == 12
         assert summary.total_to_review == 30
         assert summary.pending_user_reviews == 10
         assert summary.total_done == 15
+        assert summary.failed_reviews == 2
         assert len(summary.user_overlap) == 2
 
     def test_defaults(self) -> None:
@@ -477,6 +479,7 @@ class TestActivitySummary:
         assert summary.total_to_review == 0
         assert summary.pending_user_reviews == 0
         assert summary.total_done == 0
+        assert summary.failed_reviews == 0
         assert summary.user_overlap == []
 
     def test_camelcase_alias(self) -> None:
@@ -487,12 +490,14 @@ class TestActivitySummary:
             total_to_review=5,
             pending_user_reviews=2,
             total_done=3,
+            failed_reviews=1,
         )
         dumped = summary.model_dump(by_alias=True)
         assert "totalUniqueTasksResolved" in dumped
         assert "totalToReview" in dumped
         assert "pendingUserReviews" in dumped
         assert "totalDone" in dumped
+        assert "failedReviews" in dumped
         assert "userOverlap" in dumped
 
 

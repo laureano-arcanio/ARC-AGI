@@ -47,6 +47,7 @@ class ActivitySummary(BaseAPISchema):
     total_to_review: int = 0
     pending_user_reviews: int = 0
     total_done: int = 0
+    failed_reviews: int = 0
 
 
 class ActivityBatchBreakdown(BaseAPISchema):

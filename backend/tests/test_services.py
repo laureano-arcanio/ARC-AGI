@@ -478,7 +478,7 @@ class TestActivityServiceGetSummary:
         from app.schemas.activity import ActivitySummary
         from app.services.synthetic_task import SyntheticTaskService
 
-        calls = {"n": 0}
+        calls = {"n": 0, "user_review": 0}
 
         def execute_side_effect(query, _params=None):
             if isinstance(query, TextClause):
@@ -492,9 +492,10 @@ class TestActivityServiceGetSummary:
                     all=lambda: [(["entry_a", "entry_b"],)]
                 )
             if table_name == "user_review":
-                return SimpleNamespace(
-                    all=lambda: [("variant_a1",)]
-                )
+                calls["user_review"] += 1
+                if calls["user_review"] == 1:
+                    return SimpleNamespace(all=lambda: [("variant_a1",)])
+                return SimpleNamespace(all=lambda: [("variant_b1",)])
             raise AssertionError(f"unexpected query: {query}")
 
         activity_mock_repo.db_session.execute.side_effect = execute_side_effect
@@ -518,6 +519,7 @@ class TestActivityServiceGetSummary:
         assert result.total_to_review == 2
         assert result.total_done == 1
         assert result.pending_user_reviews == 1
+        assert result.failed_reviews == 1
 
     async def test_zero_counts_without_review_batches(
         self, activity_mock_repo: AsyncMock
@@ -545,6 +547,7 @@ class TestActivityServiceGetSummary:
         assert result.total_to_review == 0
         assert result.total_done == 0
         assert result.pending_user_reviews == 0
+        assert result.failed_reviews == 0
 
 
 class TestAttemptServiceCreate:

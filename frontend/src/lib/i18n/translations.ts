@@ -154,7 +154,7 @@ const es = {
   'activity.loading': 'Cargando actividad...',
   'activity.error': 'Error al cargar actividad.',
   'activity.last_event': 'Último evento',
-  'activity.active_users': 'Usuarios activos (5 min)',
+  'activity.active_users': 'Usuarios activos (24h)',
   'activity.active_users_list': 'Usuarios activos',
   'activity.total_events': 'Eventos ({hours}h)',
   'activity.no_events': 'Sin eventos',
@@ -192,6 +192,7 @@ const es = {
   'activity.total_to_review': 'Total a revisar',
   'activity.pending_user_reviews': 'Revisiones de usuarios pendientes',
   'activity.total_done': 'Total hechos',
+  'activity.failed_reviews': 'Revisiones fallidas',
 
   'dashboard.back': 'Volver al panel',
 
@@ -753,7 +754,7 @@ const en: Record<string, string> = {
   'activity.loading': 'Loading activity...',
   'activity.error': 'Error loading activity.',
   'activity.last_event': 'Last Event',
-  'activity.active_users': 'Active Users (5 min)',
+  'activity.active_users': 'Active Users (24h)',
   'activity.active_users_list': 'Active users',
   'activity.total_events': 'Events ({hours}h)',
   'activity.no_events': 'No events',
@@ -786,6 +787,7 @@ const en: Record<string, string> = {
   'activity.total_to_review': 'Total to review',
   'activity.pending_user_reviews': 'Pending user reviews',
   'activity.total_done': 'Total done',
+  'activity.failed_reviews': 'Failed revisions',
 
   'dashboard.back': 'Back to dashboard',
 

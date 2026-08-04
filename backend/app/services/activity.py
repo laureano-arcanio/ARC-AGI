@@ -39,7 +39,7 @@ class ActivityService:
     ) -> ActivityStats:
         now_ms = int(time.time() * 1000)
         since_n = now_ms - hours * 3600 * 1000
-        since_5m = now_ms - 5 * 60 * 1000
+        since_24h = now_ms - 24 * 3600 * 1000
 
         rows = await self.repo.get_timeline(event_types, since_n)
         timeline = [
@@ -49,9 +49,9 @@ class ActivityService:
 
         last_ts = await self.repo.get_last_event_timestamp()
 
-        active = await self.repo.get_active_users_count(since_5m)
+        active = await self.repo.get_active_users_count(since_24h)
 
-        active_emails = await self.repo.get_active_user_emails(since_5m)
+        active_emails = await self.repo.get_active_user_emails(since_24h)
 
         summary_rows = await self.repo.get_event_type_summary(
             event_types, since_n
@@ -116,6 +116,7 @@ class ActivityService:
         total_to_review = len(review_entries)
 
         total_done = 0
+        failed_reviews = 0
         if review_entries:
             entry_variants = SyntheticTaskService().resolve_entry_ids(
                 sorted(review_entries)
@@ -132,6 +133,17 @@ class ActivityService:
                     )
                 )
                 done_variant_ids = {row[0] for row in review_rows.all()}
+
+                failed_rows = await db.execute(
+                    select(UserReview.synth_task_id).where(
+                        UserReview.correct.is_(False),
+                        UserReview.synth_task_id.in_(all_variant_ids),
+                    )
+                )
+                failed_reviews = len(
+                    {row[0] for row in failed_rows.all()}
+                )
+
             total_done = sum(
                 1
                 for vids in entry_variants.values()
@@ -144,6 +156,7 @@ class ActivityService:
             total_to_review=total_to_review,
             pending_user_reviews=total_to_review - total_done,
             total_done=total_done,
+            failed_reviews=failed_reviews,
         )
 
     async def get_batch_breakdown(self) -> ActivityBatchBreakdown:
