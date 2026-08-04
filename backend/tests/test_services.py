@@ -1,4 +1,5 @@
 import unittest
+from datetime import UTC
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -548,6 +549,58 @@ class TestActivityServiceGetSummary:
         assert result.total_done == 0
         assert result.pending_user_reviews == 0
         assert result.failed_reviews == 0
+
+
+class TestActivityServiceGetUserReviewStats:
+    async def test_aggregates_per_user(
+        self, activity_mock_repo: AsyncMock
+    ) -> None:
+        from datetime import datetime
+        from types import SimpleNamespace
+
+        start1 = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
+        finish1 = datetime(2026, 1, 1, 10, 1, 0, tzinfo=UTC)
+        start2 = datetime(2026, 1, 1, 11, 0, 0, tzinfo=UTC)
+        finish2 = datetime(2026, 1, 1, 11, 0, 30, tzinfo=UTC)
+        start3 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+        updated3 = datetime(2026, 1, 1, 12, 0, 45, tzinfo=UTC)
+
+        result = SimpleNamespace(
+            all=lambda: [
+                (1, "a@b.com", start1, finish1, finish1),
+                (1, "a@b.com", start2, finish2, finish2),
+                (2, "c@d.com", start3, None, updated3),
+            ]
+        )
+        activity_mock_repo.db_session.execute.return_value = result
+
+        service = ActivityService(event_repo=activity_mock_repo)
+        stats = await service.get_user_review_stats()
+
+        assert len(stats) == 2
+        first = stats[0]
+        assert first.user_id == 1
+        assert first.email == "a@b.com"
+        assert first.reviewed_count == 2
+        assert first.total_seconds == 90
+        assert first.avg_seconds == 45.0
+        assert first.min_seconds == 30
+        assert first.max_seconds == 60
+        second = stats[1]
+        assert second.user_id == 2
+        assert second.reviewed_count == 1
+        assert second.total_seconds == 45
+        assert second.min_seconds == 45
+        assert second.max_seconds == 45
+
+    async def test_empty(self, activity_mock_repo: AsyncMock) -> None:
+        from types import SimpleNamespace
+
+        activity_mock_repo.db_session.execute.return_value = SimpleNamespace(
+            all=lambda: []
+        )
+        service = ActivityService(event_repo=activity_mock_repo)
+        assert await service.get_user_review_stats() == []
 
 
 class TestAttemptServiceCreate:

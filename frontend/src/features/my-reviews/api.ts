@@ -34,6 +34,12 @@ export function fetchUserReview(taskId: string): Promise<UserReview> {
   return http.get<UserReview>(`/v1/user-reviews/${encodeURIComponent(taskId)}`)
 }
 
+export function startUserReview(taskId: string): Promise<UserReview> {
+  return http.post<UserReview>(
+    `/v1/user-reviews/${encodeURIComponent(taskId)}/start`,
+  )
+}
+
 export function updateUserReview(
   taskId: string,
   data: UserReviewUpdate,

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getActivityBatchBreakdown, getActivityStats, getActivitySummary } from './api'
+import { getActivityBatchBreakdown, getActivityStats, getActivitySummary, getActivityUserReviewStats } from './api'
 import type { TimeWindowHours } from './types'
 
 export const activityQueryKeys = {
@@ -8,6 +8,7 @@ export const activityQueryKeys = {
     ['activity', 'stats', String(hours ?? 24), ...(eventTypes?.length ? [eventTypes.sort().join(',')] : [])] as const,
   batchBreakdown: () => ['activity', 'batch-breakdown'] as const,
   summary: () => ['activity', 'summary'] as const,
+  reviewStats: () => ['activity', 'review-stats'] as const,
 }
 
 export function useActivityStats(eventTypes?: string[], hours?: TimeWindowHours) {
@@ -30,6 +31,14 @@ export function useActivityBatchBreakdown() {
   return useQuery({
     queryKey: activityQueryKeys.batchBreakdown(),
     queryFn: getActivityBatchBreakdown,
+    staleTime: 30_000,
+  })
+}
+
+export function useActivityUserReviewStats() {
+  return useQuery({
+    queryKey: activityQueryKeys.reviewStats(),
+    queryFn: getActivityUserReviewStats,
     staleTime: 30_000,
   })
 }

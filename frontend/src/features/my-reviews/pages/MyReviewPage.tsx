@@ -14,11 +14,22 @@ import {
   useMyUserReview,
   useOriginalTaskForReview,
   useResolvedSyntheticTasks,
+  useStartUserReview,
   useUpdateMyHypothesis,
   useUpdateUserReview,
 } from '../queries'
 
 const REVIEW_MAX_CELL = 64
+
+function formatDuration(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = totalSeconds % 60
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
 
 function useColumnWidth(): {
   colRef: React.RefObject<HTMLDivElement | null>
@@ -83,6 +94,14 @@ const ReviewVariantCard = React.memo(function ReviewVariantCard({
 
   const { data: review } = useMyUserReview(variant.id)
   const updateReview = useUpdateUserReview(variant.id)
+  const startReview = useStartUserReview(variant.id)
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+    startReview.mutate()
+  }, [startReview])
 
   const statusInfo =
     REVIEW_STATUS[review?.status ?? 'pending_review'] ?? REVIEW_STATUS.pending_review
@@ -112,6 +131,11 @@ const ReviewVariantCard = React.memo(function ReviewVariantCard({
           <span className={`rounded px-2.5 py-1 text-xs font-medium ${statusInfo.color}`}>
             {t(statusInfo.label)}
           </span>
+          {review?.durationSeconds != null && review.durationSeconds > 0 && (
+            <span className="rounded bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-400">
+              {formatDuration(review.durationSeconds)}
+            </span>
+          )}
           {review?.correct === true && (
             <span className="rounded bg-green-900/40 px-2.5 py-1 text-xs font-medium text-green-400">
               {t('my_reviews.detail.correct')}

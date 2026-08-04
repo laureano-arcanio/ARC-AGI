@@ -22,6 +22,17 @@ type ReviewVariant = {
   correct: boolean | null
   verified: boolean
   notes: string[]
+  durationSeconds: number | null
+}
+
+function formatDuration(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = totalSeconds % 60
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
 }
 
 type SolverReviewDetail = {
@@ -167,6 +178,11 @@ function SolverSection({
                       {v.notes.length > 0 && (
                         <span className="text-[10px] text-gray-500" title={v.notes.join('\n')}>
                           {v.notes.length} note(s)
+                        </span>
+                      )}
+                      {v.durationSeconds != null && v.durationSeconds > 0 && (
+                        <span className="text-[10px] text-gray-500">
+                          {formatDuration(v.durationSeconds)}
                         </span>
                       )}
                     </div>

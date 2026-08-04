@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.types.base import BaseAPISchema
 
 
@@ -8,6 +10,9 @@ class UserReviewRead(BaseAPISchema):
     correct: bool | None = None
     verified: bool = False
     notes: list[str] = []
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    duration_seconds: int | None = None
 
 
 class UserReviewUpdate(BaseAPISchema):
@@ -34,6 +39,9 @@ class SolverReviewVariant(BaseAPISchema):
     correct: bool | None = None
     verified: bool = False
     notes: list[str] = []
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    duration_seconds: int | None = None
 
 
 class SolverReviewDetail(BaseAPISchema):

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -34,6 +35,34 @@ def _make_full_service(
         user_repository=user_repo,
         event_repository=event_repo,
     )
+
+
+class TestUserReviewServiceStartReview:
+    async def test_starts_review(self) -> None:
+        review_repo = AsyncMock(spec=UserReviewRepository)
+        review_repo.start_review.return_value = UserReview(
+            id=1,
+            user_id=1,
+            synth_task_id="gen_1",
+            status="pending_review",
+            notes=[],
+            started_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        batch_repo = AsyncMock(spec=BatchRepository)
+        batch_repo.get_user_review_task_ids.return_value = ["gen_1"]
+        service = _make_service(review_repo, batch_repo)
+        result = await service.start_review(1, "gen_1")
+        assert result.started_at == datetime(2026, 1, 1, tzinfo=UTC)
+        review_repo.start_review.assert_awaited_once_with(1, "gen_1")
+
+    async def test_denies_when_no_review_access(self) -> None:
+        review_repo = AsyncMock(spec=UserReviewRepository)
+        batch_repo = AsyncMock(spec=BatchRepository)
+        batch_repo.get_user_review_task_ids.return_value = []
+        service = _make_service(review_repo, batch_repo)
+        with pytest.raises(ObjectNotFoundError):
+            await service.start_review(1, "gen_1")
+        review_repo.start_review.assert_not_awaited()
 
 
 class TestUserReviewServiceGetReview:
@@ -77,6 +106,57 @@ class TestUserReviewServiceGetReview:
         service = _make_service(review_repo, batch_repo)
         with pytest.raises(ObjectNotFoundError):
             await service.get_review(1, "gen_1")
+
+
+class TestUserReviewServiceGetReviewDuration:
+    async def test_computes_duration_from_finished_at(self) -> None:
+        start = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
+        finish = datetime(2026, 1, 1, 10, 2, 30, tzinfo=UTC)
+        review_repo = AsyncMock(spec=UserReviewRepository)
+        review_repo.get_by_user_and_task.return_value = UserReview(
+            id=1,
+            user_id=1,
+            synth_task_id="gen_1",
+            status="done",
+            notes=[],
+            started_at=start,
+            finished_at=finish,
+        )
+        batch_repo = AsyncMock(spec=BatchRepository)
+        batch_repo.get_user_review_task_ids.return_value = ["gen_1"]
+        service = _make_service(review_repo, batch_repo)
+        result = await service.get_review(1, "gen_1")
+        assert result.duration_seconds == 150
+
+    async def test_uses_updated_at_when_not_finished(self) -> None:
+        start = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
+        updated = datetime(2026, 1, 1, 10, 1, 45, tzinfo=UTC)
+        review_repo = AsyncMock(spec=UserReviewRepository)
+        review_repo.get_by_user_and_task.return_value = UserReview(
+            id=1,
+            user_id=1,
+            synth_task_id="gen_1",
+            status="pending_review",
+            notes=[],
+            started_at=start,
+            updated_at=updated,
+        )
+        batch_repo = AsyncMock(spec=BatchRepository)
+        batch_repo.get_user_review_task_ids.return_value = ["gen_1"]
+        service = _make_service(review_repo, batch_repo)
+        result = await service.get_review(1, "gen_1")
+        assert result.duration_seconds == 105
+
+    async def test_no_duration_without_start(self) -> None:
+        review_repo = AsyncMock(spec=UserReviewRepository)
+        review_repo.get_by_user_and_task.return_value = UserReview(
+            id=1, user_id=1, synth_task_id="gen_1", status="done", notes=[]
+        )
+        batch_repo = AsyncMock(spec=BatchRepository)
+        batch_repo.get_user_review_task_ids.return_value = ["gen_1"]
+        service = _make_service(review_repo, batch_repo)
+        result = await service.get_review(1, "gen_1")
+        assert result.duration_seconds is None
 
 
 class TestUserReviewServiceUpdateReview:

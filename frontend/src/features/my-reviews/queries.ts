@@ -6,6 +6,7 @@ import {
   fetchUserReview,
   getUserReviewBatches,
   resolveSyntheticTasks,
+  startUserReview,
   updateMyHypothesis,
   updateUserReview,
 } from './api'
@@ -61,6 +62,16 @@ export function useMyUserReview(id: string) {
     queryFn: () => fetchUserReview(id),
     enabled: !!id,
     staleTime: 30 * 1000,
+  })
+}
+
+export function useStartUserReview(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => startUserReview(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: myReviewsQueryKeys.review(id) })
+    },
   })
 }
 

@@ -8,6 +8,7 @@ from app.schemas.activity import (
     ActivityBatchBreakdown,
     ActivityStats,
     ActivitySummary,
+    UserReviewStats,
 )
 from app.services.activity import ActivityService
 from app.services.arc_task import ArcTaskService
@@ -39,6 +40,14 @@ async def get_activity_stats(
     if event_types:
         parsed = [t.strip() for t in event_types.split(",") if t.strip()]
     return await service.get_stats(event_types=parsed, hours=hours)
+
+
+@router.get("/review-stats", response_model=list[UserReviewStats])
+async def get_review_stats(
+    service: ActivityService = Depends(get_service),  # noqa: B008
+    _admin: AdminDep = None,  # type: ignore[assignment]
+) -> list[UserReviewStats]:
+    return await service.get_user_review_stats()
 
 
 @router.get("/summary", response_model=ActivitySummary)

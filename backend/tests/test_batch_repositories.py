@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import pytest
@@ -160,4 +161,61 @@ class TestUserReviewRepository:
         )
         instance = await repo.upsert(1, "gen_1", {"verified": True})
         assert instance.verified is True
+        assert len(db_session.added) == 0
+
+    async def test_upsert_sets_finished_at_on_terminal_status(
+        self, db_session: MockAsyncSession
+    ) -> None:
+        repo = UserReviewRepository(db_session=db_session)
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
+        instance = await repo.upsert(1, "gen_1", {"status": "done"})
+        assert instance.status == "done"
+        assert instance.finished_at is not None
+
+    async def test_upsert_keeps_existing_finished_at(
+        self, db_session: MockAsyncSession
+    ) -> None:
+        repo = UserReviewRepository(db_session=db_session)
+        existing = UserReview(
+            id=1,
+            user_id=1,
+            synth_task_id="gen_1",
+            status="done",
+            notes=[],
+            finished_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        db_session.set_execute_result(
+            MockResult(scalar_one_or_none_result=existing)
+        )
+        instance = await repo.upsert(1, "gen_1", {"notes": ["extra"]})
+        assert instance.finished_at == datetime(2026, 1, 1, tzinfo=UTC)
+
+    async def test_start_review_creates_row_with_started_at(
+        self, db_session: MockAsyncSession
+    ) -> None:
+        repo = UserReviewRepository(db_session=db_session)
+        db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
+        instance = await repo.start_review(1, "gen_1")
+        assert instance.user_id == 1
+        assert instance.synth_task_id == "gen_1"
+        assert instance.started_at is not None
+        assert len(db_session.added) == 1
+
+    async def test_start_review_preserves_existing_started_at(
+        self, db_session: MockAsyncSession
+    ) -> None:
+        repo = UserReviewRepository(db_session=db_session)
+        existing = UserReview(
+            id=1,
+            user_id=1,
+            synth_task_id="gen_1",
+            status="pending_review",
+            notes=[],
+            started_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        db_session.set_execute_result(
+            MockResult(scalar_one_or_none_result=existing)
+        )
+        instance = await repo.start_review(1, "gen_1")
+        assert instance.started_at == datetime(2026, 1, 1, tzinfo=UTC)
         assert len(db_session.added) == 0

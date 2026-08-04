@@ -193,6 +193,13 @@ const es = {
   'activity.pending_user_reviews': 'Revisiones de usuarios pendientes',
   'activity.total_done': 'Total hechos',
   'activity.failed_reviews': 'Revisiones fallidas',
+  'activity.review_stats_title': 'Tiempo de revisión por usuario',
+  'activity.review_user': 'Usuario',
+  'activity.review_count': 'Tareas revisadas',
+  'activity.review_total': 'Tiempo total',
+  'activity.review_avg': 'Promedio',
+  'activity.review_min': 'Mínimo',
+  'activity.review_max': 'Máximo',
 
   'dashboard.back': 'Volver al panel',
 
@@ -788,6 +795,13 @@ const en: Record<string, string> = {
   'activity.pending_user_reviews': 'Pending user reviews',
   'activity.total_done': 'Total done',
   'activity.failed_reviews': 'Failed revisions',
+  'activity.review_stats_title': 'Review time per user',
+  'activity.review_user': 'User',
+  'activity.review_count': 'Reviewed tasks',
+  'activity.review_total': 'Total time',
+  'activity.review_avg': 'Average',
+  'activity.review_min': 'Minimum',
+  'activity.review_max': 'Maximum',
 
   'dashboard.back': 'Back to dashboard',
 

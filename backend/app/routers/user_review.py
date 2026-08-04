@@ -70,6 +70,15 @@ async def get_user_review(
     return await service.get_review(current_user.user_id, synth_task_id)
 
 
+@router.post("/{synth_task_id}/start", response_model=UserReviewRead)
+async def start_user_review(
+    synth_task_id: str,
+    service: UserReviewService = Depends(get_service),  # noqa: B008
+    current_user: CurrentUserDep = None,  # type: ignore[assignment]
+) -> UserReviewRead:
+    return await service.start_review(current_user.user_id, synth_task_id)
+
+
 @router.put("/{synth_task_id}", response_model=UserReviewRead)
 async def update_user_review(
     synth_task_id: str,

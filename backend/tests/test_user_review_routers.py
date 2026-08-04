@@ -30,6 +30,9 @@ def mock_service() -> AsyncMock:
     svc.update_review.return_value = UserReviewRead(
         user_id=1, synth_task_id="gen_1", status="done", notes=["ok"]
     )
+    svc.start_review.return_value = UserReviewRead(
+        user_id=1, synth_task_id="gen_1", status="pending_review"
+    )
     svc.list_for_user_tasks.return_value = [
         UserReviewRead(user_id=1, synth_task_id="gen_1", status="done")
     ]
@@ -76,6 +79,16 @@ class TestUserReviewRouterGet:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["synthTaskId"] == "gen_1"
         mock_service.get_review.assert_awaited_once_with(1, "gen_1")
+
+
+class TestUserReviewRouterStart:
+    async def test_starts_review(
+        self, client: AsyncClient, mock_service: AsyncMock
+    ) -> None:
+        response = await client.post("/api/v1/user-reviews/gen_1/start")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["synthTaskId"] == "gen_1"
+        mock_service.start_review.assert_awaited_once_with(1, "gen_1")
 
 
 class TestUserReviewRouterUpdate:

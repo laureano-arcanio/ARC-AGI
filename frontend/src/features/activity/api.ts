@@ -1,6 +1,6 @@
 import { http } from '../../lib/http'
 import { env } from '../../lib/env'
-import type { ActivityBatchBreakdown, ActivityStats, ActivitySummary, TimeWindowHours } from './types'
+import type { ActivityBatchBreakdown, ActivityStats, ActivitySummary, TimeWindowHours, UserReviewStats } from './types'
 
 export function getActivityStats(eventTypes?: string[], hours?: TimeWindowHours): Promise<ActivityStats> {
   const params: Record<string, string> = {}
@@ -15,6 +15,10 @@ export function getActivityStats(eventTypes?: string[], hours?: TimeWindowHours)
 
 export function getActivitySummary(): Promise<ActivitySummary> {
   return http.get<ActivitySummary>('/v1/activity/summary')
+}
+
+export function getActivityUserReviewStats(): Promise<UserReviewStats[]> {
+  return http.get<UserReviewStats[]>('/v1/activity/review-stats')
 }
 
 export function getActivityBatchBreakdown(): Promise<ActivityBatchBreakdown> {

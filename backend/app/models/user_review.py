@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Boolean, ForeignKey, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import AbstractBase
@@ -27,5 +28,11 @@ class UserReview(AbstractBase):
     correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     user: Mapped["User"] = relationship(back_populates="user_reviews")

@@ -10,13 +10,23 @@ import {
 } from 'recharts'
 import { useTranslation } from '../../../lib/i18n'
 import { downloadDataset } from '../api'
-import { useActivityBatchBreakdown, useActivityStats, useActivitySummary } from '../queries'
-import type { ActivitySummary, TimeWindowHours } from '../types'
+import { useActivityBatchBreakdown, useActivityStats, useActivitySummary, useActivityUserReviewStats } from '../queries'
+import type { ActivitySummary, TimeWindowHours, UserReviewStats } from '../types'
 import { TIME_WINDOW_OPTIONS } from '../types'
 
 function formatHour(iso: string) {
   const d = new Date(iso)
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatDuration(totalSeconds: number) {
+  if (!totalSeconds) return '0s'
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = Math.round(totalSeconds % 60)
+  if (hours > 0) return `${hours}h ${minutes}m`
+  if (minutes > 0) return `${seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`}`
+  return `${seconds}s`
 }
 
 export function ActivityPage() {
@@ -28,6 +38,7 @@ export function ActivityPage() {
   const { data, isLoading, error } = useActivityStats(activeFilters, hours)
   const { data: breakdown } = useActivityBatchBreakdown()
   const { data: summary } = useActivitySummary()
+  const { data: reviewStats } = useActivityUserReviewStats()
 
   const toggleType = (type: string) => {
     setSelectedTypes((prev) => {
@@ -175,6 +186,8 @@ export function ActivityPage() {
 
       <SummarySection summary={summary ?? null} />
 
+      <ReviewStatsSection reviewStats={reviewStats ?? []} />
+
       {data.eventTypeSummary.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-medium text-gray-400">
@@ -318,6 +331,44 @@ function SummarySection({ summary }: { summary: ActivitySummary | null }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function ReviewStatsSection({ reviewStats }: { reviewStats: UserReviewStats[] }) {
+  const { t } = useTranslation()
+  if (reviewStats.length === 0) return null
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+      <h2 className="mb-3 text-lg font-semibold text-gray-100">
+        {t('activity.review_stats_title')}
+      </h2>
+      <div className="overflow-x-auto rounded-lg border border-gray-800">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
+            <tr>
+              <th className="px-4 py-3 font-medium">{t('activity.review_user')}</th>
+              <th className="px-4 py-3 font-medium">{t('activity.review_count')}</th>
+              <th className="px-4 py-3 font-medium">{t('activity.review_total')}</th>
+              <th className="px-4 py-3 font-medium">{t('activity.review_avg')}</th>
+              <th className="px-4 py-3 font-medium">{t('activity.review_min')}</th>
+              <th className="px-4 py-3 font-medium">{t('activity.review_max')}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800">
+            {reviewStats.map((stat) => (
+              <tr key={stat.userId} className="transition hover:bg-gray-900/50">
+                <td className="px-4 py-3 text-gray-200">{stat.email || `#${stat.userId}`}</td>
+                <td className="px-4 py-3 text-gray-200">{stat.reviewedCount}</td>
+                <td className="px-4 py-3 text-gray-200">{formatDuration(stat.totalSeconds)}</td>
+                <td className="px-4 py-3 text-gray-200">{formatDuration(Math.round(stat.avgSeconds))}</td>
+                <td className="px-4 py-3 text-gray-200">{formatDuration(stat.minSeconds)}</td>
+                <td className="px-4 py-3 text-gray-200">{formatDuration(stat.maxSeconds)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

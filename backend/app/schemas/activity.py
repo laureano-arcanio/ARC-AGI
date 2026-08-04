@@ -41,6 +41,16 @@ class UserOverlapBucket(BaseAPISchema):
     task_count: int
 
 
+class UserReviewStats(BaseAPISchema):
+    user_id: int
+    email: str = ""
+    reviewed_count: int = 0
+    total_seconds: int = 0
+    avg_seconds: float = 0.0
+    min_seconds: int = 0
+    max_seconds: int = 0
+
+
 class ActivitySummary(BaseAPISchema):
     total_unique_tasks_resolved: int = 0
     user_overlap: list[UserOverlapBucket]

@@ -53,5 +53,15 @@ export type ActivitySummary = {
   failedReviews: number
 }
 
+export type UserReviewStats = {
+  userId: number
+  email: string
+  reviewedCount: number
+  totalSeconds: number
+  avgSeconds: number
+  minSeconds: number
+  maxSeconds: number
+}
+
 export const TIME_WINDOW_OPTIONS = [4, 8, 12, 24, 48, 72] as const
 export type TimeWindowHours = (typeof TIME_WINDOW_OPTIONS)[number]

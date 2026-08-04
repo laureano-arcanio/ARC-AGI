@@ -19,6 +19,20 @@ from app.services.base_service import BaseService
 from app.services.synthetic_task import SyntheticTaskService, _get_cached_index
 
 
+def _review_duration_seconds(instance: UserReview) -> int | None:
+    """Seconds from started_at to the end of the review session.
+
+    End is finished_at when the review reached a terminal status, otherwise
+    the last update as a best-effort close."""
+    if instance.started_at is None:
+        return None
+    end = instance.finished_at or instance.updated_at
+    if end is None:
+        return None
+    duration = (end - instance.started_at).total_seconds()
+    return max(0, int(duration))
+
+
 def _resolve_original_ids(entry_ids: list[str]) -> dict[str, str]:
     idx = _get_cached_index()
     result: dict[str, str] = {}
@@ -87,6 +101,9 @@ class UserReviewService(
             correct=instance.correct,
             verified=bool(instance.verified),
             notes=list(instance.notes or []),
+            started_at=instance.started_at,
+            finished_at=instance.finished_at,
+            duration_seconds=_review_duration_seconds(instance),
         )
 
     async def get_review(
@@ -101,6 +118,13 @@ class UserReviewService(
             return UserReviewRead(
                 user_id=user_id, synth_task_id=synth_task_id
             )
+        return self._to_read(instance)
+
+    async def start_review(
+        self, user_id: int, synth_task_id: str
+    ) -> UserReviewRead:
+        await self._ensure_access(user_id, synth_task_id)
+        instance = await self.repository.start_review(user_id, synth_task_id)
         return self._to_read(instance)
 
     async def update_review(
@@ -285,6 +309,9 @@ class UserReviewService(
                             correct=r.correct,
                             verified=bool(r.verified),
                             notes=list(r.notes or []),
+                            started_at=r.started_at,
+                            finished_at=r.finished_at,
+                            duration_seconds=_review_duration_seconds(r),
                         )
                         for r in user_reviews
                     ],

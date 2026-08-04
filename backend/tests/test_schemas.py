@@ -501,6 +501,54 @@ class TestActivitySummary:
         assert "userOverlap" in dumped
 
 
+class TestUserReviewStats:
+    def test_valid_stats(self) -> None:
+        from app.schemas.activity import UserReviewStats
+
+        stats = UserReviewStats(
+            user_id=1,
+            email="a@b.com",
+            reviewed_count=3,
+            total_seconds=150,
+            avg_seconds=50.0,
+            min_seconds=30,
+            max_seconds=70,
+        )
+        assert stats.reviewed_count == 3
+        assert stats.total_seconds == 150
+        assert stats.min_seconds == 30
+        assert stats.max_seconds == 70
+
+    def test_defaults(self) -> None:
+        from app.schemas.activity import UserReviewStats
+
+        stats = UserReviewStats(user_id=1)
+        assert stats.email == ""
+        assert stats.reviewed_count == 0
+        assert stats.total_seconds == 0
+        assert stats.avg_seconds == 0.0
+        assert stats.min_seconds == 0
+        assert stats.max_seconds == 0
+
+    def test_camelcase_alias(self) -> None:
+        from app.schemas.activity import UserReviewStats
+
+        stats = UserReviewStats(
+            user_id=1,
+            reviewed_count=3,
+            total_seconds=150,
+            avg_seconds=50.0,
+            min_seconds=30,
+            max_seconds=70,
+        )
+        dumped = stats.model_dump(by_alias=True)
+        assert dumped["reviewedCount"] == 3
+        assert dumped["totalSeconds"] == 150
+        assert dumped["avgSeconds"] == 50.0
+        assert dumped["minSeconds"] == 30
+        assert dumped["maxSeconds"] == 70
+
+
 class TestAttemptRead:
     def test_full_read_schema(self) -> None:
         now = datetime.now(UTC)

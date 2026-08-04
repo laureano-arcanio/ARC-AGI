@@ -7,6 +7,16 @@ import { useTaskById } from '../../arc-lab/queries'
 import { useSyntheticTask, useSyntheticReview, useSolverReviewDetails, useTaskSolvers, useUpdateSyntheticReview } from '../queries'
 import { PairDisplay } from '../components/PairDisplay'
 
+function formatDuration(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = totalSeconds % 60
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
+
 export function SyntheticReviewDetailPage() {
   const { t } = useTranslation()
   const { isAdmin, isLoading: authLoading } = useAuth()
@@ -251,6 +261,11 @@ export function SyntheticReviewDetailPage() {
                             {v.correct === false ? '✗' : v.correct === true ? '✓' : '—'}
                           </span>
                           <span className="font-mono text-[10px] text-gray-400">{v.synthTaskId}</span>
+                          {v.durationSeconds != null && v.durationSeconds > 0 && (
+                            <span className="text-[10px] text-gray-500">
+                              {formatDuration(v.durationSeconds)}
+                            </span>
+                          )}
                           <span className="ml-auto text-[10px] text-gray-500">{v.status}</span>
                         </div>
                       ))}

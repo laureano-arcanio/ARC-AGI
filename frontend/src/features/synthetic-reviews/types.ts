@@ -47,6 +47,9 @@ export type SolverReviewVariant = {
   correct: boolean | null
   verified: boolean
   notes: string[]
+  startedAt: string | null
+  finishedAt: string | null
+  durationSeconds: number | null
 }
 
 export type SolverReviewDetail = {

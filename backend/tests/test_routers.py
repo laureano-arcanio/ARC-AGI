@@ -593,6 +593,7 @@ def activity_mock_service() -> AsyncMock:
         ActivitySummary,
         EventTypeSummary,
         TimelineBucket,
+        UserReviewStats,
     )
     from app.services.activity import ActivityService
 
@@ -612,6 +613,17 @@ def activity_mock_service() -> AsyncMock:
         total_done=15,
         failed_reviews=2,
     )
+    svc.get_user_review_stats.return_value = [
+        UserReviewStats(
+            user_id=1,
+            email="a@b.com",
+            reviewed_count=2,
+            total_seconds=90,
+            avg_seconds=45.0,
+            min_seconds=30,
+            max_seconds=60,
+        )
+    ]
     return svc
 
 
@@ -726,6 +738,32 @@ class TestActivityRouterGetSummary:
     ) -> None:
         response = await activity_unauth_client.get(
             "/api/v1/activity/summary"
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+class TestActivityRouterGetReviewStats:
+    async def test_returns_review_stats(
+        self, activity_client: AsyncClient, activity_mock_service: AsyncMock
+    ) -> None:
+        response = await activity_client.get("/api/v1/activity/review-stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["userId"] == 1
+        assert data[0]["email"] == "a@b.com"
+        assert data[0]["reviewedCount"] == 2
+        assert data[0]["totalSeconds"] == 90
+        assert data[0]["avgSeconds"] == 45.0
+        assert data[0]["minSeconds"] == 30
+        assert data[0]["maxSeconds"] == 60
+        activity_mock_service.get_user_review_stats.assert_awaited_once()
+
+    async def test_returns_403_for_non_admin(
+        self, activity_unauth_client: AsyncClient
+    ) -> None:
+        response = await activity_unauth_client.get(
+            "/api/v1/activity/review-stats"
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 

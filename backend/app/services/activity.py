@@ -2,6 +2,7 @@ import json
 import time
 from collections import defaultdict
 from collections.abc import AsyncGenerator
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select, text
@@ -23,14 +24,78 @@ from app.schemas.activity import (
     TaskSolveStats,
     TimelineBucket,
     UserOverlapBucket,
+    UserReviewStats,
 )
 from app.services.arc_task import ArcTaskService
 from app.services.synthetic_task import SyntheticTaskService
 
 
+def _review_duration_seconds(
+    started_at: datetime | None,
+    finished_at: datetime | None,
+    updated_at: datetime | None,
+) -> int | None:
+    """Seconds from started_at to the end of a review session.
+
+    End is finished_at when the review reached a terminal status, otherwise
+    the last update as a best-effort close."""
+    if started_at is None:
+        return None
+    end = finished_at or updated_at
+    if end is None:
+        return None
+    duration = (end - started_at).total_seconds()
+    return max(0, int(duration))
+
+
 class ActivityService:
     def __init__(self, event_repo: EventRepository) -> None:
         self.repo = event_repo
+
+    async def get_user_review_stats(self) -> list[UserReviewStats]:
+        """Per-solver aggregates of time spent reviewing synthetic tasks."""
+        db: AsyncSession = self.repo.db_session
+
+        rows = await db.execute(
+            select(
+                UserReview.user_id,
+                User.email,
+                UserReview.started_at,
+                UserReview.finished_at,
+                UserReview.updated_at,
+            )
+            .join(User, User.id == UserReview.user_id)
+            .where(UserReview.started_at.isnot(None))
+        )
+
+        durations_by_user: dict[int, list[int]] = {}
+        emails: dict[int, str] = {}
+        for user_id, email, started_at, finished_at, updated_at in rows.all():
+            duration = _review_duration_seconds(
+                started_at, finished_at, updated_at
+            )
+            if duration is None:
+                continue
+            emails[user_id] = email or ""
+            durations_by_user.setdefault(user_id, []).append(duration)
+
+        stats: list[UserReviewStats] = []
+        for user_id in sorted(durations_by_user):
+            durations = durations_by_user[user_id]
+            total = sum(durations)
+            count = len(durations)
+            stats.append(
+                UserReviewStats(
+                    user_id=user_id,
+                    email=emails.get(user_id, ""),
+                    reviewed_count=count,
+                    total_seconds=total,
+                    avg_seconds=round(total / count, 1) if count else 0.0,
+                    min_seconds=min(durations),
+                    max_seconds=max(durations),
+                )
+            )
+        return stats
 
     async def get_stats(
         self,

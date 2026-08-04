@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -5,6 +6,8 @@ from sqlalchemy import select
 from app.errors import ObjectNotFoundError
 from app.models.user_review import UserReview
 from app.repositories.base_repository import BaseRepository
+
+_TERMINAL_STATUSES = frozenset({"done", "needs_revision"})
 
 
 class UserReviewRepository(BaseRepository[UserReview]):
@@ -64,6 +67,27 @@ class UserReviewRepository(BaseRepository[UserReview]):
             self.db_session.add(instance)
         for key, value in data.items():
             setattr(instance, key, value)
+        if instance.status in _TERMINAL_STATUSES and instance.finished_at is None:
+            instance.finished_at = datetime.now(UTC)
+        await self.db_session.flush()
+        await self.db_session.refresh(instance)
+        return instance
+
+    async def start_review(
+        self, user_id: int, synth_task_id: str
+    ) -> UserReview:
+        instance = None
+        try:
+            instance = await self.get_by_user_and_task(user_id, synth_task_id)
+        except ObjectNotFoundError:
+            instance = None
+        if instance is None:
+            instance = UserReview(
+                user_id=user_id, synth_task_id=synth_task_id, notes=[]
+            )
+            self.db_session.add(instance)
+        if instance.started_at is None:
+            instance.started_at = datetime.now(UTC)
         await self.db_session.flush()
         await self.db_session.refresh(instance)
         return instance
