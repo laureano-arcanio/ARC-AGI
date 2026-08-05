@@ -1,3 +1,4 @@
+import json
 import unittest
 from datetime import UTC
 from unittest.mock import AsyncMock, patch
@@ -13,6 +14,7 @@ from app.models.attempt import Attempt
 from app.models.event import Event
 from app.models.example_table import ExampleTable
 from app.models.user import User, UserRole
+from app.models.user_review import UserReview
 from app.schemas.attempt import AttemptCreate, AttemptRead
 from app.schemas.event import EventCreate, EventRead
 from app.schemas.example_table import (
@@ -31,6 +33,7 @@ from app.services.attempt import AttemptService
 from app.services.event import EventService
 from app.services.example_table import ExampleTableService
 from app.services.user import UserService, _hash_password
+from tests.conftest import MockAsyncSession, MockResult
 
 
 @pytest.fixture
@@ -601,6 +604,90 @@ class TestActivityServiceGetUserReviewStats:
         )
         service = ActivityService(event_repo=activity_mock_repo)
         assert await service.get_user_review_stats() == []
+
+
+class TestActivityServiceGetExportDataset:
+    async def test_exports_reviews_for_reviewed_tasks(self) -> None:
+        from types import SimpleNamespace
+
+        from app.services.arc_task import ArcTaskService
+
+        variant_id = "gen_0962bcdd_fable5direct_20260731_092051"
+        review = UserReview(
+            id=1,
+            user_id=7,
+            synth_task_id=variant_id,
+            status="done",
+            correct=True,
+            verified=True,
+            notes=["nota"],
+            selected_pairs=[{"test_pair_index": 0}],
+        )
+        session = MockAsyncSession()
+        session.set_execute_results(
+            [
+                MockResult(scalars_all_result=[]),
+                MockResult(scalars_all_result=[(review, "solver7@x.com")]),
+                MockResult(scalars_all_result=[("0962bcdd",)]),
+                MockResult(scalars_all_result=[]),
+                MockResult(scalars_all_result=[]),
+                MockResult(scalars_all_result=[]),
+            ]
+        )
+        arc_task = AsyncMock(spec=ArcTaskService)
+        arc_task.get_by_id.return_value = SimpleNamespace(train=[], test=[])
+        repo = AsyncMock()
+        repo.db_session = session
+        service = ActivityService(event_repo=repo)
+
+        lines = [line async for line in service.get_export_dataset(arc_task)]
+        assert len(lines) == 1
+        data = json.loads(lines[0])
+        assert data["task_id"] == "0962bcdd"
+        assert data["users"] == []
+        assert len(data["reviews"]) == 1
+        rev = data["reviews"][0]
+        assert rev["user_id"] == 7
+        assert rev["email"] == "solver7@x.com"
+        assert rev["synth_task_id"] == variant_id
+        assert rev["original_task_id"] == "0962bcdd"
+        assert rev["model_name"] == "fable-5-direct"
+        assert rev["status"] == "done"
+        assert rev["correct"] is True
+        assert rev["verified"] is True
+        assert rev["notes"] == ["nota"]
+        assert rev["selected_pairs"] == [{"test_pair_index": 0}]
+        assert rev["duration_seconds"] is None
+
+    async def test_exports_empty_reviews_when_none(self) -> None:
+        from types import SimpleNamespace
+
+        from app.services.arc_task import ArcTaskService
+
+        session = MockAsyncSession()
+        session.set_execute_results(
+            [
+                MockResult(scalars_all_result=[]),
+                MockResult(scalars_all_result=[]),
+                MockResult(scalars_all_result=[("00576224",)]),
+                MockResult(scalars_all_result=[(1, "test@example.com")]),
+                MockResult(scalars_all_result=[]),
+                MockResult(scalars_all_result=[]),
+                MockResult(scalars_all_result=[]),
+            ]
+        )
+        arc_task = AsyncMock(spec=ArcTaskService)
+        arc_task.get_by_id.return_value = SimpleNamespace(train=[], test=[])
+        repo = AsyncMock()
+        repo.db_session = session
+        service = ActivityService(event_repo=repo)
+
+        lines = [line async for line in service.get_export_dataset(arc_task)]
+        assert len(lines) == 1
+        data = json.loads(lines[0])
+        assert data["task_id"] == "00576224"
+        assert len(data["users"]) == 1
+        assert data["reviews"] == []
 
 
 class TestAttemptServiceCreate:

@@ -3,7 +3,7 @@ import time
 from collections import defaultdict
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -355,10 +355,25 @@ class ActivityService:
         )
         excluded_ids = {row[0] for row in excluded.all()}
 
+        review_rows = await db.execute(
+            select(UserReview, User.email)
+            .join(User, User.id == UserReview.user_id)
+            .where(UserReview.user_id.notin_(excluded_ids))
+        )
+        reviews_by_variant: dict[str, list[tuple[UserReview, str]]] = defaultdict(list)
+        for review, email in review_rows.all():
+            reviews_by_variant[review.synth_task_id].append((review, email))
+
+        variant_service = SyntheticTaskService()
+        reviewed_task_ids: set[str] = set()
+        for variant_id in reviews_by_variant:
+            for variant in variant_service.resolve_entry(variant_id):
+                reviewed_task_ids.add(variant.original_task_id or variant_id)
+
         task_rows = await db.execute(
             select(Event.task_id).distinct().order_by(Event.task_id)
         )
-        task_ids = [row[0] for row in task_rows.all()]
+        task_ids = sorted({row[0] for row in task_rows.all()} | reviewed_task_ids)
 
         for task_id in task_ids:
             task = await arc_task_service.get_by_id(task_id)
@@ -377,6 +392,54 @@ class ActivityService:
                 ],
             }
 
+            reviews_data: list[dict[str, Any]] = []
+            for variant in variant_service.resolve_entry(task_id):
+                for review, email in reviews_by_variant.get(variant.id, []):
+                    reviews_data.append(
+                        {
+                            "user_id": review.user_id,
+                            "email": email,
+                            "synth_task_id": review.synth_task_id,
+                            "original_task_id": variant.original_task_id or task_id,
+                            "model_name": variant.model_name,
+                            "seed": variant.seed,
+                            "num_train": variant.num_train,
+                            "num_test": variant.num_test,
+                            "witness_passed": variant.witness_passed,
+                            "status": review.status,
+                            "correct": review.correct,
+                            "verified": review.verified,
+                            "notes": list(review.notes or []),
+                            "selected_pairs": list(review.selected_pairs or []),
+                            "started_at": (
+                                review.started_at.isoformat()
+                                if review.started_at
+                                else None
+                            ),
+                            "finished_at": (
+                                review.finished_at.isoformat()
+                                if review.finished_at
+                                else None
+                            ),
+                            "duration_seconds": _review_duration_seconds(
+                                review.started_at,
+                                review.finished_at,
+                                cast(datetime | None, review.updated_at),
+                            ),
+                            "created_at": (
+                                review.created_at.isoformat()
+                                if review.created_at
+                                else None
+                            ),
+                            "updated_at": (
+                                review.updated_at.isoformat()
+                                if review.updated_at
+                                else None
+                            ),
+                        }
+                    )
+            task_data["reviews"] = reviews_data
+
             user_rows = await db.execute(
                 select(Event.user_id, User.email)
                 .join(User, User.id == Event.user_id)
@@ -388,7 +451,7 @@ class ActivityService:
             )
             task_users = {row[0]: row[1] for row in user_rows.all()}
 
-            if not task_users:
+            if not task_users and not reviews_data:
                 continue
 
             users_data: list[dict[str, Any]] = []
