@@ -43,16 +43,19 @@ export function Multiselect({ options, selectedValues, onToggle, placeholder, di
     o.label.toLowerCase().includes(search.toLowerCase())
   )
 
-  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null)
 
   const handleToggle = () => {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
-      setPosition({
-        top: rect.bottom + 4,
-        left: rect.left,
-        width: Math.max(rect.width, 256),
-      })
+      const width = Math.max(rect.width, 256)
+      const maxHeight = Math.min(240, window.innerHeight - 16)
+      let top = rect.bottom + 4
+      if (window.innerHeight - top < maxHeight && rect.top > maxHeight + 4) {
+        top = rect.top - maxHeight - 4
+      }
+      const left = Math.min(rect.left, Math.max(8, window.innerWidth - width - 8))
+      setPosition({ top, left, width, maxHeight })
     }
     setOpen(!open)
   }
@@ -74,8 +77,8 @@ export function Multiselect({ options, selectedValues, onToggle, placeholder, di
       {open && position && createPortal(
         <div
           ref={dropdownRef}
-          style={{ position: 'fixed', top: position.top, left: position.left, width: position.width }}
-          className="z-50 max-h-60 overflow-auto rounded border border-gray-700 bg-gray-900 shadow-lg"
+          style={{ position: 'fixed', top: position.top, left: position.left, width: position.width, maxHeight: position.maxHeight }}
+          className="z-50 overflow-auto rounded border border-gray-700 bg-gray-900 shadow-lg"
         >
           {options.length > 8 && (
             <div className="sticky top-0 border-b border-gray-700 bg-gray-900 p-1">

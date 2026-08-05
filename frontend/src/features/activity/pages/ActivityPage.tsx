@@ -72,7 +72,7 @@ export function ActivityPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('activity.title')}</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">{t('activity.title')}</h1>
         <div className="flex items-center gap-3">
           <button
             type="button"

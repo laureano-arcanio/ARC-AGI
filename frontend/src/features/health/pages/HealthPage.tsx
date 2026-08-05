@@ -5,7 +5,7 @@ export function HealthPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold">Health Check</h1>
+      <h1 className="text-2xl font-bold sm:text-3xl">Health Check</h1>
       <p className="text-gray-400">
         This page checks the backend <code className="rounded bg-gray-800 px-2 py-0.5 text-sm">/health</code>{' '}
         endpoint to verify connectivity.

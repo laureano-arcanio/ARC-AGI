@@ -127,7 +127,7 @@ export function AdminUsersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t('admin.title')}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('admin.title')}</h1>
         <button
           onClick={() => {
             setShowCreateForm(!showCreateForm)

@@ -353,7 +353,7 @@ export function SyntheticReviewsListPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold">Revisiones de Tareas Sintéticas</h1>
+      <h1 className="text-2xl font-bold sm:text-3xl">Revisiones de Tareas Sintéticas</h1>
 
       <div className="flex flex-wrap items-center gap-2">
         {presets.map((p) => (
@@ -759,7 +759,7 @@ export function SyntheticReviewsListPage() {
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-gray-800">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[880px] text-left text-sm">
           <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
             <tr>
               <th className="px-4 py-3 font-medium">{t('task_search.table.task_id')}</th>

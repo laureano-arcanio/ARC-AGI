@@ -102,7 +102,7 @@ export function TasksPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold">{t('tasks.title')}</h1>
+      <h1 className="text-2xl font-bold sm:text-3xl">{t('tasks.title')}</h1>
 
       <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">

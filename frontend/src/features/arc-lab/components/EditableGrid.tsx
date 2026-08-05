@@ -32,13 +32,7 @@ export function EditableGrid({
 }: EditableGridProps) {
   const height = gridHeight(grid)
   const width = gridWidth(grid)
-  const cellSize = computeCellSize(
-    height,
-    width,
-    containerSize,
-    containerSize,
-    maxCellSize,
-  )
+  const cap = Math.max(1, computeCellSize(height, width, containerSize, containerSize, maxCellSize))
 
   const isSelectingRef = useRef(false)
   const isMouseDownRef = useRef(false)
@@ -151,34 +145,41 @@ export function EditableGrid({
   return (
     <div
       data-testid="editable-grid"
-      className="inline-block rounded border border-gray-800"
+      className="w-full"
       onMouseLeave={() => {
         isSelectingRef.current = false
       }}
     >
-      {grid.map((row, i) => (
-        <div key={i} className="flex">
-          {row.map((symbol, j) => {
-            const key = cellKey(i, j)
-            const source = ghostSource.get(key)
-            return (
-              <GridCell
-                key={j}
-                x={i}
-                y={j}
-                symbol={source ? grid[source.x]?.[source.y] ?? symbol : symbol}
-                size={cellSize}
-                showNumber={showNumbers}
-                selected={selectedCells.has(key)}
-                isGhost={ghostKeys.has(key)}
-                isMovingAway={Boolean(dragOffset) && selectedCells.has(key)}
-                onMouseDown={handleMouseDown}
-                onMouseEnter={handleMouseEnter}
-              />
-            )
-          })}
-        </div>
-      ))}
+      <div className="mx-auto rounded border border-gray-800" style={{ width: 'fit-content' }}>
+        {grid.map((row, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${width}, minmax(0, ${cap}px))`,
+            }}
+          >
+            {row.map((symbol, j) => {
+              const key = cellKey(i, j)
+              const source = ghostSource.get(key)
+              return (
+                <GridCell
+                  key={j}
+                  x={i}
+                  y={j}
+                  symbol={source ? grid[source.x]?.[source.y] ?? symbol : symbol}
+                  showNumber={showNumbers}
+                  selected={selectedCells.has(key)}
+                  isGhost={ghostKeys.has(key)}
+                  isMovingAway={Boolean(dragOffset) && selectedCells.has(key)}
+                  onMouseDown={handleMouseDown}
+                  onMouseEnter={handleMouseEnter}
+                />
+              )
+            })}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

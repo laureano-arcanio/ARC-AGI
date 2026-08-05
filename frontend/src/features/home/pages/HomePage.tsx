@@ -5,7 +5,7 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col items-center justify-center gap-8 pt-24 text-center">
-      <h1 className="text-5xl font-bold">{t('home.title')}</h1>
+      <h1 className="text-3xl font-bold sm:text-5xl">{t('home.title')}</h1>
       <p className="max-w-md text-gray-400">{t('home.subtitle')}</p>
       <a
         href="/dashboard"

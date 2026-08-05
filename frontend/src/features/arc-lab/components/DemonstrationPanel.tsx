@@ -37,22 +37,22 @@ export function DemonstrationPanel({ pairs, showNumbers = false, visibleCount }:
               data-testid={`pair-${i}`}
               className={`flex items-center gap-4 border-b border-gray-800/50 p-4 last:border-b-0 ${isNew ? 'border-l-2 border-l-green-500 bg-green-950/20' : ''}`}
             >
-              <div className="flex flex-1 flex-col items-end gap-1">
+              <div className="flex min-w-0 flex-1 flex-col items-end gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
                   {t('panel.input')} <span className="text-gray-400">{inputH}×{inputW}</span>
                 </span>
-                <div data-testid={`pair-${i}-input`}>
+                <div data-testid={`pair-${i}-input`} className="w-full">
                   <GridDisplay grid={pair.input} showNumbers={showNumbers} containerSize={320} maxCellSize={140} />
                 </div>
               </div>
               <div className="shrink-0 text-gray-600">
                 <ChevronRight size={16} />
               </div>
-              <div className="flex flex-1 flex-col items-start gap-1">
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
                   {t('panel.output')} <span className="text-gray-400">{outputH}×{outputW}</span>
                 </span>
-                <div data-testid={`pair-${i}-output`}>
+                <div data-testid={`pair-${i}-output`} className="w-full">
                   <GridDisplay grid={pair.output} showNumbers={showNumbers} containerSize={320} maxCellSize={140} />
                 </div>
               </div>

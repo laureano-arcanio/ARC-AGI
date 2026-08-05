@@ -7,6 +7,8 @@ const es = {
   'nav.home': 'Inicio',
   'nav.health': 'Salud',
   'nav.solve': 'Resolver',
+  'nav.open_menu': 'Abrir menú',
+  'nav.close_menu': 'Cerrar menú',
 
 
   'language.es': 'Español',
@@ -614,6 +616,8 @@ const en: Record<string, string> = {
   'nav.home': 'Home',
   'nav.health': 'Health',
   'nav.solve': 'Solve',
+  'nav.open_menu': 'Open menu',
+  'nav.close_menu': 'Close menu',
 
 
   'language.es': 'Español',

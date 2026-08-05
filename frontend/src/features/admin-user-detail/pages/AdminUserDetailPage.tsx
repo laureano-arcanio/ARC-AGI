@@ -402,11 +402,11 @@ export function AdminUserDetailPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-2xl font-bold sm:text-3xl">
             {t('admin_detail.title')}
           </h1>
           {user && (
-            <div className="mt-1 flex items-center gap-2 text-sm text-gray-400">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-400">
               <span>{user.email}</span>
               <span className="text-gray-600">(ID: {user.id})</span>
               <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium uppercase text-gray-500">

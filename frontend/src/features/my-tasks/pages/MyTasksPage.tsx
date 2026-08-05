@@ -146,8 +146,8 @@ export function MyTasksPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t('my_tasks.title')}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('my_tasks.title')}</h1>
       </div>
 
       {/* Stats Summary Bar */}
@@ -206,7 +206,7 @@ export function MyTasksPage() {
             >
               <button
                 onClick={() => toggleBatch(batch.id)}
-                className="flex w-full items-center gap-2 p-4 text-left transition hover:bg-gray-800/30"
+                className="flex w-full flex-wrap items-center gap-2 p-4 text-left transition hover:bg-gray-800/30"
                 aria-expanded={isExpanded}
                 aria-label={isExpanded ? t('my_tasks.collapse') : t('my_tasks.expand')}
               >
@@ -243,13 +243,13 @@ export function MyTasksPage() {
                             key={taskId}
                             onClick={() => { if (!btn.disabled) handleTaskClick(taskId) }}
                             disabled={btn.disabled}
-                            className={`flex w-full items-center justify-between p-4 text-left transition ${
+                            className={`flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left transition ${
                               btn.disabled
                                 ? 'cursor-default opacity-60'
                                 : 'hover:bg-gray-800/50'
                             }`}
                           >
-                            <div className="flex items-center gap-4">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono text-sm text-blue-400">
                                 {taskId}
                               </span>
@@ -265,7 +265,7 @@ export function MyTasksPage() {
                               </span>
                             </div>
                             {btn.label && (
-                              <span className={`w-28 text-center rounded-lg px-3 py-1.5 text-sm font-semibold transition ${btn.className}`}>
+                              <span className={`ml-auto w-28 shrink-0 text-center rounded-lg px-3 py-1.5 text-sm font-semibold transition ${btn.className}`}>
                                 {t(btn.label)}
                               </span>
                             )}

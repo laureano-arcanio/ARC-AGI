@@ -196,7 +196,7 @@ export function AdminBatchesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold">{t('batches.title')}</h1>
+      <h1 className="text-2xl font-bold sm:text-3xl">{t('batches.title')}</h1>
 
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
         <h2 className="mb-4 text-lg font-semibold">{t('batches.create_title')}</h2>

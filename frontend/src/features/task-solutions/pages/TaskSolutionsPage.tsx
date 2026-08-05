@@ -117,7 +117,7 @@ function SolverSection({
           size={16}
           className={`text-gray-500 transition ${expanded ? 'rotate-0' : '-rotate-90'}`}
         />
-        <div className="flex flex-1 items-center gap-3">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
           <Link
             to={`/admin/users/${userId}/task/${taskId}`}
             className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
@@ -220,7 +220,7 @@ function SolverSection({
           ) : attempts && attempts.length > 0 ? (
             <div className="flex flex-col gap-3">
               <div className="overflow-x-auto rounded border border-gray-700">
-                <table className="w-full text-left text-xs">
+                <table className="w-full min-w-[560px] text-left text-xs">
                   <thead className="border-b border-gray-700 bg-gray-800/50 text-gray-500">
                     <tr>
                       <th className="px-3 py-1.5 font-medium">{t('admin_detail.attempt')}</th>
@@ -292,7 +292,7 @@ function SolverSection({
 
                   return (
                     <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-semibold text-gray-400">{t('admin_detail.graph_select_attempt')}:</span>
                         {testIndices.length === 0 ? (
                           <span className="text-[10px] text-gray-600 italic">{t('admin_detail.graph_no_events')}</span>
@@ -316,7 +316,7 @@ function SolverSection({
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div className="rounded border border-gray-700 bg-gray-900/50 px-4 py-3">
                           <p className="text-[10px] uppercase tracking-wider text-gray-500">
                             {t('admin_detail.stats_time_to_first_action')}
@@ -350,9 +350,9 @@ function SolverSection({
                         getLabel={getNodeLabel}
                       />
 
-                      <div className="flex items-start gap-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
                         {activeNode && (
-                          <div className="w-80 shrink-0">
+                          <div className="w-full lg:w-80 lg:shrink-0">
                             <EventDetailsPanel
                               node={activeNode}
                               onClose={() => setActiveNodeId(null)}
@@ -382,7 +382,8 @@ function SolverSection({
                           </button>
                         </div>
                         {eventsAccordionOpen && (
-                          <table className="mt-3 w-full text-left text-xs">
+                          <div className="mt-3 overflow-x-auto">
+                          <table className="w-full min-w-[640px] text-left text-xs">
                             <thead className="border-b border-gray-700 text-gray-500">
                               <tr>
                                 <th className="px-3 py-2 font-medium">{t('admin_detail.table.nodeId')}</th>
@@ -413,6 +414,7 @@ function SolverSection({
                               ))}
                             </tbody>
                           </table>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -487,7 +489,7 @@ export function TaskSolutionsPage() {
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold">{t('task_search.solutions_title')}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('task_search.solutions_title')}</h1>
         <p className="mt-1 font-mono text-sm text-gray-400">
           {t('admin_detail.table.taskId')}: {taskId}
         </p>
@@ -552,7 +554,8 @@ export function TaskSolutionsPage() {
           </button>
         </div>
         {tagsAccordionOpen && tags && (
-          <table className="mt-3 w-full text-left text-xs">
+          <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="border-b border-gray-700 text-gray-500">
               <tr>
                 <th className="px-3 py-2 font-medium">ID</th>
@@ -580,6 +583,7 @@ export function TaskSolutionsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -605,7 +609,8 @@ export function TaskSolutionsPage() {
           </button>
         </div>
         {relationsAccordionOpen && relations && (
-          <table className="mt-3 w-full text-left text-xs">
+          <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-xs">
             <thead className="border-b border-gray-700 text-gray-500">
               <tr>
                 <th className="px-3 py-2 font-medium">ID</th>
@@ -625,6 +630,7 @@ export function TaskSolutionsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

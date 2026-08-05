@@ -124,8 +124,8 @@ export function MyReviewsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t('my_reviews.title')}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('my_reviews.title')}</h1>
       </div>
 
       {(batches?.length ?? 0) > 0 && (
@@ -194,7 +194,7 @@ export function MyReviewsPage() {
             >
               <button
                 onClick={() => toggleBatch(batch.id)}
-                className="flex w-full items-center gap-2 p-4 text-left transition hover:bg-gray-800/30"
+                className="flex w-full flex-wrap items-center gap-2 p-4 text-left transition hover:bg-gray-800/30"
                 aria-expanded={isExpanded}
                 aria-label={
                   isExpanded
@@ -240,9 +240,9 @@ export function MyReviewsPage() {
                           <button
                             key={taskId}
                             onClick={() => navigate(`/my-reviews/${taskId}`)}
-                            className="flex w-full items-center justify-between p-4 text-left transition hover:bg-gray-800/50"
+                            className="flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left transition hover:bg-gray-800/50"
                           >
-                            <div className="flex items-center gap-4">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono text-sm text-purple-400">
                                 {taskId}
                               </span>
@@ -263,7 +263,7 @@ export function MyReviewsPage() {
                                 {t(status.label)}
                               </span>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
                               <span
                                 className={
                                   entry?.solved

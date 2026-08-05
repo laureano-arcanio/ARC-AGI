@@ -22,7 +22,7 @@ export function SymbolPicker({ selectedSymbol, onSelect }: SymbolPickerProps) {
           aria-label={t('symbol.aria', { n: symbol })}
           title={t('symbol.aria', { n: symbol })}
           aria-pressed={selectedSymbol === symbol}
-          className={`h-7 w-7 rounded-md transition ${
+          className={`h-8 w-8 rounded-md transition ${
             selectedSymbol === symbol
               ? 'ring-2 ring-orange-500 ring-offset-1 ring-offset-gray-900'
               : 'ring-1 ring-gray-700 hover:ring-gray-500'

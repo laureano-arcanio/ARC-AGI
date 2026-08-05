@@ -272,7 +272,7 @@ export function SyntheticReviewDetailPage() {
 
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Revisión sintética</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">Revisión sintética</h1>
           <p className="mt-1 font-mono text-sm text-blue-400">{taskId}</p>
         </div>
       </div>

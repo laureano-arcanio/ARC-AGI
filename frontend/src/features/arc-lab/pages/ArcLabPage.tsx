@@ -1695,7 +1695,7 @@ export function ArcLabPage() {
           }}
         />
 
-        <div className="flex items-center justify-between mb-2 mt-4">
+        <div className="mb-2 mt-4 flex flex-wrap items-center justify-between gap-2">
           <span className="text-sm font-semibold text-gray-200">
             {t('panel.test_input')}{' '}
             <span className="text-gray-400">{gridHeight(state.inputGrid)}×{gridWidth(state.inputGrid)}</span>{' '}
@@ -1704,7 +1704,7 @@ export function ArcLabPage() {
               <span className="text-gray-400"> · {t('arc_lab.attempt_count', { count: attemptCount })}</span>
             )}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setAbandonOpen(true)}

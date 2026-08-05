@@ -44,7 +44,7 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col items-center justify-center gap-8 pt-24 text-center">
-      <h1 className="text-5xl font-bold">{t('dashboard.title')}</h1>
+      <h1 className="text-3xl font-bold sm:text-5xl">{t('dashboard.title')}</h1>
       <p className="max-w-md text-gray-400">{t('dashboard.subtitle')}</p>
 
       <div className="flex w-full max-w-sm flex-col gap-4">

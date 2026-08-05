@@ -5,7 +5,7 @@ type GridCellProps = {
   x: number
   y: number
   symbol: number
-  size: number
+  size?: number
   showNumber?: boolean
   selected?: boolean
   isGhost?: boolean
@@ -51,6 +51,8 @@ export function GridCell({
     opacity = 0.3
   }
 
+  const isCssSized = size === undefined
+
   return (
     <div
       data-testid={cellKey(x, y)}
@@ -62,12 +64,16 @@ export function GridCell({
       onMouseEnter={handleMouseEnter}
       className="box-border text-center text-xs text-gray-300"
       style={{
-        width: size,
-        height: size,
+        width: isCssSized ? '100%' : size,
+        height: isCssSized ? undefined : size,
+        aspectRatio: isCssSized ? '1 / 1' : undefined,
+        display: isCssSized ? 'flex' : 'block',
+        alignItems: isCssSized ? 'center' : undefined,
+        justifyContent: isCssSized ? 'center' : undefined,
         backgroundColor: background,
         borderLeft: '1px solid #374151',
         borderTop: '1px solid #374151',
-        lineHeight: `${size}px`,
+        lineHeight: isCssSized ? 1 : `${size}px`,
         userSelect: 'none',
         cursor: onClick || onMouseDown ? 'pointer' : 'default',
         outline: outlineStyle,

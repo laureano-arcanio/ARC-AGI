@@ -15,31 +15,35 @@ export function GridDisplay({
   maxCellSize = 100,
 }: GridDisplayProps) {
   const height = gridHeight(grid)
-  const width = gridWidth(grid)
-  const cellSize = computeCellSize(
-    height,
-    width,
-    containerSize,
-    containerSize,
-    maxCellSize,
-  )
+  const cols = gridWidth(grid)
+  const cap = Math.max(1, computeCellSize(height, cols, containerSize, containerSize, maxCellSize))
 
   return (
-    <div data-testid="grid-display" className="inline-block rounded border border-gray-800">
-      {grid.map((row, i) => (
-        <div key={i} className="flex">
-          {row.map((symbol, j) => (
-            <GridCell
-              key={j}
-              x={i}
-              y={j}
-              symbol={symbol}
-              size={cellSize}
-              showNumber={showNumbers}
-            />
-          ))}
-        </div>
-      ))}
+    <div data-testid="grid-display" className="w-full">
+      <div
+        className="mx-auto rounded border border-gray-800"
+        style={{ width: 'fit-content' }}
+      >
+        {grid.map((row, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${cols}, minmax(0, ${cap}px))`,
+            }}
+          >
+            {row.map((symbol, j) => (
+              <GridCell
+                key={j}
+                x={i}
+                y={j}
+                symbol={symbol}
+                showNumber={showNumbers}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

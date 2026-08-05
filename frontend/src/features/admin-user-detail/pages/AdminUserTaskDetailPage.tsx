@@ -47,7 +47,7 @@ function RenderTaskPair({ pair, index, type }: { pair: TaskPair; index: number; 
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs font-semibold text-gray-300">{type} {index + 1}</p>
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <RenderGrid grid={pair.input} label="Input" />
         {pair.output.length > 0 && (
           <>
@@ -189,7 +189,7 @@ export function AdminUserTaskDetailPage() {
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold">
+        <h1 className="text-2xl font-bold sm:text-3xl">
           {t('admin_detail.graph_title')}
         </h1>
         {user && (
@@ -209,7 +209,7 @@ export function AdminUserTaskDetailPage() {
         </div>
       ) : attempts && attempts.length > 0 ? (
         <>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-gray-400">{t('admin_detail.graph_select_attempt')}</span>
             <button
               onClick={() => {
@@ -385,7 +385,7 @@ export function AdminUserTaskDetailPage() {
 
             return (
               <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-semibold text-gray-400">Test:</span>
                   {testIndices.length === 0 ? (
                     <span className="text-[10px] text-gray-600 italic">no test pair data</span>
@@ -408,7 +408,7 @@ export function AdminUserTaskDetailPage() {
                     {nodes.length} nodes
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <div className="rounded border border-gray-700 bg-gray-900/50 px-4 py-3">
                     <p className="text-[10px] uppercase tracking-wider text-gray-500">
                       {t('admin_detail.stats_time_to_first_action')}
@@ -440,9 +440,9 @@ export function AdminUserTaskDetailPage() {
                   onNodeClick={(nodeId) => setActiveNodeId(activeNodeId === nodeId ? null : nodeId)}
                   getLabel={getNodeLabel}
                 />
-                <div className="flex items-start gap-4">
+                <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-start">
                   {activeNode && (
-                    <div className="w-80 shrink-0">
+                    <div className="w-full lg:w-80 lg:shrink-0">
                       <EventDetailsPanel
                         node={activeNode}
                         onClose={() => setActiveNodeId(null)}
@@ -508,7 +508,8 @@ export function AdminUserTaskDetailPage() {
                     </button>
                   </div>
                   {eventsAccordionOpen && (
-                    <table className="mt-3 w-full text-left text-xs">
+                    <div className="mt-3 overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left text-xs">
                       <thead className="border-b border-gray-700 text-gray-500">
                         <tr>
                           <th className="px-3 py-2 font-medium">
@@ -545,7 +546,7 @@ export function AdminUserTaskDetailPage() {
                             <td className="px-3 py-2 text-gray-400">
                               {new Date(ev.timestamp).toLocaleString()}
                             </td>
-                            <td className="px-3 py-2 text-gray-400 font-mono">
+                            <td className="px-3 py-2 font-mono text-gray-400">
                               {idx === 0
                                 ? '0ms'
                                 : formatDelta(ev.timestamp - filteredEvents[idx - 1].timestamp)}
@@ -557,6 +558,7 @@ export function AdminUserTaskDetailPage() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   )}
                 </div>
               </div>

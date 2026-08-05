@@ -51,7 +51,7 @@ function LeaderboardTable({
       )}
       {entries && entries.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-gray-800">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-gray-800 bg-gray-900 text-gray-400">
               <tr>
                 <th className="px-4 py-3 font-medium">#</th>
@@ -135,7 +135,7 @@ export function BatchLeaderboardPage() {
   if (batches.length === 0) {
     return (
       <div className="flex flex-col gap-6">
-        <h1 className="text-3xl font-bold">Leaderboard</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">Leaderboard</h1>
         <p className="text-gray-500">No batches found.</p>
       </div>
     )
@@ -143,7 +143,7 @@ export function BatchLeaderboardPage() {
 
   return (
     <div className="flex flex-col gap-10">
-      <h1 className="text-3xl font-bold">Leaderboard</h1>
+      <h1 className="text-2xl font-bold sm:text-3xl">Leaderboard</h1>
       {batches.map((batch, index) => (
         <LeaderboardTable
           key={batch.id}

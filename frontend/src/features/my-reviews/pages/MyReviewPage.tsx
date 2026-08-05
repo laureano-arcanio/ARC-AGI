@@ -509,7 +509,7 @@ export function MyReviewPage() {
 
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{t('my_reviews.detail.title')}</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">{t('my_reviews.detail.title')}</h1>
           <p className="mt-1 font-mono text-sm text-purple-400">{taskId}</p>
         </div>
       </div>

@@ -38,7 +38,7 @@ export function CognitiveTimeline({
   return (
     <div data-testid="cognitive-timeline">
       {testCount > 1 && (
-        <div className="mb-2 mt-4 flex items-center gap-2">
+        <div className="mb-2 mt-4 flex flex-wrap items-center gap-2">
           <span className="text-xs text-gray-400">{t('timeline.test')}</span>
           <div className="flex items-center gap-1">
             {Array.from({ length: testCount }, (_, i) => (

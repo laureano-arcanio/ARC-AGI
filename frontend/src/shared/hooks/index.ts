@@ -1,1 +1,1 @@
-export {}
+export { useElementWidth } from './useElementWidth'

@@ -157,7 +157,7 @@ export function OutputEditor({
           </button>
         </Tip>
 
-        <div data-testid="output-grid" className="relative">
+        <div data-testid="output-grid" className="relative min-w-0 flex-1 max-w-full">
           <EditableGrid
               grid={grid}
               toolMode={toolMode}

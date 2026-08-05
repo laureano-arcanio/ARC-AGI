@@ -32,7 +32,7 @@ export function Toast({ message, durationMs = 2000, onDismiss }: ToastProps) {
       data-testid="toast"
       data-kind={message.kind}
       role={isError ? 'alert' : 'status'}
-      className={`fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-lg border px-4 py-3 text-sm shadow-lg transition-opacity duration-300 ${
+      className={`fixed left-1/2 top-1/2 z-50 max-w-[90vw] -translate-x-1/2 -translate-y-1/2 break-words rounded-lg border px-4 py-3 text-sm shadow-lg transition-opacity duration-300 ${
         closing ? 'opacity-0' : 'opacity-100'
       } ${
         isError
