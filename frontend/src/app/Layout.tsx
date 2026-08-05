@@ -20,7 +20,7 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <nav className="border-b border-gray-800 px-6 py-4">
-        <div className="mx-auto flex max-w-[1440px] items-center gap-6">
+        <div className="mx-auto flex items-center gap-6">
           <Link to="/" className="text-lg font-semibold tracking-tight">
             {t('nav.brand')}
           </Link>
@@ -72,7 +72,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </nav>
-      <main className="mx-auto max-w-[1440px] px-6 py-12">{children}</main>
+      <main className="px-6 py-12">{children}</main>
     </div>
   )
 }
