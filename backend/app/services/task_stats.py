@@ -5,9 +5,15 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.user_review import UserReview
 from app.repositories.event import EventRepository
+from app.repositories.user_review import UserReviewRepository
 from app.schemas.task_stats import (
     SolverUserRead,
+    TaskReviewGroupAdmin,
+    TaskReviewGroupListRead,
+    TaskReviewGroupRead,
+    TaskReviewGroupUser,
     TaskSearchPaginated,
     TaskSearchRead,
     TaskSolverAnonRead,
@@ -16,6 +22,7 @@ from app.schemas.task_stats import (
     TaskStatsRead,
 )
 from app.services.arc_task import SOURCES, ArcTaskService
+from app.services.synthetic_task import _get_cached_index
 
 
 class TaskStatsService:
@@ -355,6 +362,503 @@ class TaskStatsService:
             total_pages=total_pages,
         )
 
+    async def search_review_groups(
+        self,
+        page: int = 1,
+        per_page: int = 100,
+        admin_user_id: int | None = None,
+        min_width: int | None = None,
+        max_width: int | None = None,
+        min_height: int | None = None,
+        max_height: int | None = None,
+        min_solutions: int | None = None,
+        max_solutions: int | None = None,
+        same_size: bool | None = None,
+        min_width_delta: int | None = None,
+        max_width_delta: int | None = None,
+        min_height_delta: int | None = None,
+        max_height_delta: int | None = None,
+        all_inputs_same: bool | None = None,
+        all_outputs_same: bool | None = None,
+        solver_email: str | None = None,
+        hypothesis_text: str | None = None,
+        task_id_filter: str | None = None,
+        dataset: str | None = None,
+        has_tags: str | None = None,
+        model_name: str | None = None,
+        concept: str | None = None,
+        witness_passed: bool | None = None,
+        original_task_id: str | None = None,
+        only_multiple_variants: bool = False,
+        user_review_status: str | None = None,
+        reviewer_user_id: int | None = None,
+        reviewer_email: str | None = None,
+        min_incorrect_marks: int | None = None,
+        admin_review_status: str | None = None,
+        admin_correct: bool | None = None,
+        admin_verified: bool | None = None,
+    ) -> TaskReviewGroupListRead:
+        """Search synthetic-review groups (one row per original ARC task).
+
+        Aggregates the synthetic variants of each original task together with
+        per-user review markings (excluding the calling admin) and the admin's
+        own review, joining the task-search dimensions/tags/solvers filters.
+        """
+        idx = _get_cached_index()
+        variant_groups: dict[str, list[dict[str, Any]]] = {
+            oid: tasks
+            for oid, tasks in idx._by_original.items()
+            if tasks
+        }
+
+        original_task_ids_filter: list[str] | None = None
+        if original_task_id:
+            original_task_ids_filter = [
+                oid.strip() for oid in original_task_id.split(",") if oid.strip()
+            ]
+
+        if model_name is not None or concept or witness_passed is not None \
+                or only_multiple_variants or original_task_ids_filter:
+            filtered_groups: dict[str, list[dict[str, Any]]] = {}
+            for oid, tasks in variant_groups.items():
+                if original_task_ids_filter and not any(
+                    f in oid for f in original_task_ids_filter
+                ):
+                    continue
+                if only_multiple_variants and len(tasks) <= 1:
+                    continue
+                if model_name is not None and not any(
+                    t.get("model_name") == model_name for t in tasks
+                ):
+                    continue
+                if concept and not any(
+                    concept.lower() in (t.get("concept") or "").lower()
+                    for t in tasks
+                ):
+                    continue
+                if witness_passed is True and not all(
+                    t.get("witness_passed") is True for t in tasks
+                ):
+                    continue
+                if witness_passed is False and not any(
+                    t.get("witness_passed") is not True for t in tasks
+                ):
+                    continue
+                filtered_groups[oid] = tasks
+            variant_groups = filtered_groups
+
+        if not variant_groups:
+            return TaskReviewGroupListRead(
+                items=[], total=0, page=page, per_page=per_page, total_pages=1
+            )
+
+        originals = list(variant_groups.keys())
+        all_variant_ids = [
+            t.get("id", "")
+            for tasks in variant_groups.values()
+            for t in tasks
+            if t.get("id")
+        ]
+
+        all_task_dims = self._load_all_task_dimensions()
+        all_transform = self._load_all_transform_info()
+
+        sql = text("""
+            SELECT
+                e.task_id,
+                COUNT(DISTINCT e.user_id) AS solver_count,
+                ARRAY_AGG(DISTINCT u.email) AS solver_emails,
+                ARRAY_AGG(DISTINCT u.id) AS solver_ids
+            FROM event e
+            JOIN "user" u ON u.id = e.user_id
+            WHERE
+                e.trigger->>'action' = 'submit'
+                AND CAST(e.trigger->'details'->>'correct' AS BOOLEAN) = true
+                AND e.task_id = ANY(:ids)
+            GROUP BY e.task_id
+        """)
+        result = await self.db_session.execute(sql, {"ids": originals})
+        db_data: dict[str, tuple[int, list[str], list[int]]] = {}
+        for row in result.all():
+            task_id = row[0]
+            solver_count = row[1]
+            emails_raw = list(row[2]) if row[2] else []
+            user_ids_raw = list(row[3]) if row[3] else []
+            combined = sorted(
+                zip(emails_raw, user_ids_raw, strict=False), key=lambda x: x[0]
+            )
+            emails = [e for e, _ in combined]
+            user_ids = [uid for _, uid in combined]
+            db_data[task_id] = (solver_count, emails, user_ids)
+
+        h_all_sql = text("""
+            SELECT DISTINCT ON (task_id, user_id)
+                task_id,
+                user_id,
+                trigger->>'text' AS text
+            FROM event
+            WHERE trigger->>'kind' = 'cognitive'
+              AND trigger->>'text' IS NOT NULL
+              AND task_id = ANY(:ids)
+            ORDER BY task_id, user_id, id DESC
+        """)
+        h_all_result = await self.db_session.execute(
+            h_all_sql, {"ids": originals}
+        )
+        task_solver_hypotheses: dict[str, dict[int, str]] = {}
+        for row in h_all_result.all():
+            tid = row[0]
+            uid = row[1]
+            txt = row[2]
+            if tid not in task_solver_hypotheses:
+                task_solver_hypotheses[tid] = {}
+            task_solver_hypotheses[tid][uid] = txt
+
+        hypothesis_task_ids: set[str] | None = None
+        if hypothesis_text:
+            h_sql = text("""
+                SELECT DISTINCT task_id
+                FROM event
+                WHERE trigger->>'kind' = 'cognitive'
+                  AND trigger->>'text' ILIKE :pattern
+                  AND task_id = ANY(:ids)
+            """)
+            h_result = await self.db_session.execute(
+                h_sql, {"pattern": f"%{hypothesis_text}%", "ids": originals}
+            )
+            hypothesis_task_ids = {row[0] for row in h_result.all()}
+
+        task_ids_with_tags: set[str] | None = None
+        if has_tags is not None:
+            tag_sql = text(
+                "SELECT DISTINCT task_id FROM task_tag WHERE task_id = ANY(:ids)"
+            )
+            tag_result = await self.db_session.execute(
+                tag_sql, {"ids": originals}
+            )
+            task_ids_with_tags = {row[0] for row in tag_result.all()}
+
+        review_repo = UserReviewRepository(db_session=self.db_session)
+        review_rows = await review_repo.get_reviews_by_tasks(all_variant_ids)
+        rows_by_variant: dict[str, list[UserReview]] = {}
+        reviewer_ids: set[int] = set()
+        for r in review_rows:
+            rows_by_variant.setdefault(r.synth_task_id, []).append(r)
+            if r.user_id != admin_user_id:
+                reviewer_ids.add(r.user_id)
+
+        reviewer_emails: dict[int, str] = {}
+        if reviewer_ids:
+            email_sql = text(
+                'SELECT id, email FROM "user" WHERE id = ANY(:ids)'
+            )
+            email_result = await self.db_session.execute(
+                email_sql, {"ids": list(reviewer_ids)}
+            )
+            reviewer_emails = {row[0]: row[1] for row in email_result.all()}
+
+        items: list[TaskReviewGroupRead] = []
+        for oid, tasks in variant_groups.items():
+            tasks_sorted = sorted(
+                tasks, key=lambda t: (t.get("timestamp", ""), t.get("id", ""))
+            )
+            dims = all_task_dims.get(oid, {})
+            width = dims.get("width", 0)
+            height = dims.get("height", 0)
+            task_datasets = set(dims.get("datasets", set()))
+            has_1 = any(d.startswith("1_") for d in task_datasets)
+            has_2 = any(d.startswith("2_") for d in task_datasets)
+            if dataset and dataset != "all":
+                if dataset in ("1", "2"):
+                    if dataset == "1" and not has_1:
+                        continue
+                    if dataset == "2" and not has_2:
+                        continue
+                elif dataset == "both":
+                    if not (has_1 and has_2):
+                        continue
+                elif dataset == "1_only":
+                    if not (has_1 and not has_2):
+                        continue
+                elif dataset == "2_only":
+                    if not (has_2 and not has_1):
+                        continue
+                elif dataset not in task_datasets:
+                    continue
+            if task_ids_with_tags is not None:
+                has_tag = oid in task_ids_with_tags
+                if has_tags == "true" and not has_tag:
+                    continue
+                if has_tags == "false" and has_tag:
+                    continue
+            if hypothesis_task_ids is not None and oid not in hypothesis_task_ids:
+                continue
+
+            solver_count, solver_emails, solver_ids = db_data.get(
+                oid, (0, [], [])
+            )
+            if solver_email is not None and solver_email not in solver_emails:
+                continue
+            if min_solutions is not None and solver_count < min_solutions:
+                continue
+            if max_solutions is not None and solver_count > max_solutions:
+                continue
+            if task_id_filter and task_id_filter.lower() not in oid.lower():
+                continue
+
+            ti = all_transform.get(oid, {
+                "same_size": True,
+                "width_delta": 0,
+                "height_delta": 0,
+                "label": "same_size",
+                "all_inputs_same": True,
+                "all_outputs_same": True,
+            })
+            if same_size is not None and ti["same_size"] != same_size:
+                continue
+            if all_inputs_same is not None and (
+                ti.get("all_inputs_same") != all_inputs_same
+            ):
+                continue
+            if all_outputs_same is not None and (
+                ti.get("all_outputs_same") != all_outputs_same
+            ):
+                continue
+            wd = ti["width_delta"]
+            hd = ti["height_delta"]
+            if min_width is not None and width < min_width:
+                continue
+            if max_width is not None and width > max_width:
+                continue
+            if min_height is not None and height < min_height:
+                continue
+            if max_height is not None and height > max_height:
+                continue
+            if wd is not None:
+                if min_width_delta is not None and wd < min_width_delta:
+                    continue
+                if max_width_delta is not None and wd > max_width_delta:
+                    continue
+            if hd is not None:
+                if min_height_delta is not None and hd < min_height_delta:
+                    continue
+                if max_height_delta is not None and hd > max_height_delta:
+                    continue
+
+            user_agg = self._aggregate_user_reviews(
+                tasks, rows_by_variant, admin_user_id
+            )
+            group_reviewer_emails = sorted(
+                reviewer_emails[rid] for rid in user_agg["reviewer_ids"]
+            )
+            if user_review_status == "unreviewed" and user_agg["reviewed_variants"] > 0:
+                continue
+            if user_review_status == "reviewed" and user_agg["reviewed_variants"] == 0:
+                continue
+            if user_review_status == "any_incorrect" and (
+                user_agg["variants_with_incorrect_mark"] == 0
+            ):
+                continue
+            if user_review_status == "any_correct" and (
+                user_agg["variants_with_correct_mark"] == 0
+            ):
+                continue
+            if reviewer_user_id is not None and reviewer_user_id not in (
+                user_agg["reviewer_ids"]
+            ):
+                continue
+            if reviewer_email and reviewer_email.lower() not in {
+                e.lower() for e in group_reviewer_emails
+            }:
+                continue
+            if min_incorrect_marks is not None and (
+                user_agg["incorrect_marks"] < min_incorrect_marks
+            ):
+                continue
+
+            admin_agg = self._aggregate_admin_reviews(
+                tasks, rows_by_variant, admin_user_id
+            )
+            if admin_review_status and admin_agg["status"] != admin_review_status:
+                continue
+            if admin_correct is True and admin_agg["correct_variants"] == 0:
+                continue
+            if admin_correct is False and admin_agg["incorrect_variants"] == 0:
+                continue
+            if admin_verified is True and admin_agg["verified_variants"] == 0:
+                continue
+            if admin_verified is False and admin_agg["verified_variants"] > 0:
+                continue
+
+            solver_hypotheses = task_solver_hypotheses.get(oid, {})
+            solvers = [
+                SolverUserRead(
+                    user_id=uid,
+                    email=em,
+                    hypothesis=solver_hypotheses.get(uid, None),
+                )
+                for uid, em in zip(solver_ids, solver_emails, strict=False)
+            ]
+
+            items.append(
+                TaskReviewGroupRead(
+                    original_task_id=oid,
+                    datasets=sorted(task_datasets),
+                    solvers=solvers,
+                    solution_count=solver_count,
+                    has_solution=solver_count > 0,
+                    width=width,
+                    height=height,
+                    same_size=ti["same_size"],
+                    width_delta=wd,
+                    height_delta=hd,
+                    transform_label=ti["label"],
+                    total_variants=len(tasks_sorted),
+                    witness_passed_count=sum(
+                        1 for t in tasks_sorted if t.get("witness_passed") is True
+                    ),
+                    witness_failed_count=sum(
+                        1 for t in tasks_sorted if t.get("witness_passed") is not True
+                    ),
+                    models=sorted(
+                        {
+                            t.get("model_name", "")
+                            for t in tasks_sorted
+                            if t.get("model_name")
+                        }
+                    ),
+                    concepts=sorted(
+                        {t.get("concept", "") for t in tasks_sorted if t.get("concept")}
+                    ),
+                    first_variant_id=tasks_sorted[0].get("id", ""),
+                    user_review=TaskReviewGroupUser(
+                        distinct_reviewers=len(user_agg["reviewer_ids"]),
+                        reviewed_variants=user_agg["reviewed_variants"],
+                        unreviewed_variants=user_agg["unreviewed_variants"],
+                        variants_with_incorrect_mark=user_agg["variants_with_incorrect_mark"],
+                        variants_with_correct_mark=user_agg["variants_with_correct_mark"],
+                        incorrect_marks=user_agg["incorrect_marks"],
+                        correct_marks=user_agg["correct_marks"],
+                        reviewer_emails=group_reviewer_emails,
+                    ),
+                    admin_review=TaskReviewGroupAdmin(
+                        status=admin_agg["status"],
+                        reviewed_variants=admin_agg["reviewed_variants"],
+                        done_variants=admin_agg["done_variants"],
+                        needs_revision_variants=admin_agg["needs_revision_variants"],
+                        pending_variants=admin_agg["pending_variants"],
+                        verified_variants=admin_agg["verified_variants"],
+                        correct_variants=admin_agg["correct_variants"],
+                        incorrect_variants=admin_agg["incorrect_variants"],
+                    ),
+                )
+            )
+
+        items.sort(key=lambda x: x.original_task_id)
+
+        total = len(items)
+        total_pages = max(1, math.ceil(total / per_page))
+        page = max(1, min(page, total_pages))
+
+        start = (page - 1) * per_page
+        end = start + per_page
+        paged_items = items[start:end]
+
+        return TaskReviewGroupListRead(
+            items=paged_items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages,
+        )
+
+    @staticmethod
+    def _aggregate_user_reviews(
+        tasks: list[dict[str, Any]],
+        rows_by_variant: dict[str, list[UserReview]],
+        admin_user_id: int | None,
+    ) -> dict[str, Any]:
+        reviewer_ids: set[int] = set()
+        reviewed_variants = 0
+        variants_with_incorrect_mark = 0
+        variants_with_correct_mark = 0
+        incorrect_marks = 0
+        correct_marks = 0
+        for t in tasks:
+            rows = rows_by_variant.get(t.get("id", ""), [])
+            non_admin = [r for r in rows if r.user_id != admin_user_id]
+            if not non_admin:
+                continue
+            reviewed_variants += 1
+            for r in non_admin:
+                reviewer_ids.add(r.user_id)
+                if r.status == "needs_revision" or r.correct is False:
+                    incorrect_marks += 1
+                    variants_with_incorrect_mark += 1
+                if r.status == "done" or r.correct is True:
+                    correct_marks += 1
+                    variants_with_correct_mark += 1
+        return {
+            "reviewer_ids": reviewer_ids,
+            "reviewed_variants": reviewed_variants,
+            "unreviewed_variants": len(tasks) - reviewed_variants,
+            "variants_with_incorrect_mark": variants_with_incorrect_mark,
+            "variants_with_correct_mark": variants_with_correct_mark,
+            "incorrect_marks": incorrect_marks,
+            "correct_marks": correct_marks,
+        }
+
+    @staticmethod
+    def _aggregate_admin_reviews(
+        tasks: list[dict[str, Any]],
+        rows_by_variant: dict[str, list[UserReview]],
+        admin_user_id: int | None,
+    ) -> dict[str, Any]:
+        reviewed_variants = 0
+        done_variants = 0
+        needs_revision_variants = 0
+        pending_variants = 0
+        verified_variants = 0
+        correct_variants = 0
+        incorrect_variants = 0
+        for t in tasks:
+            rows = rows_by_variant.get(t.get("id", ""), [])
+            admin_rows = [r for r in rows if r.user_id == admin_user_id]
+            if not admin_rows:
+                continue
+            reviewed_variants += 1
+            status = admin_rows[0].status or "pending_review"
+            if status == "done":
+                done_variants += 1
+            elif status == "needs_revision":
+                needs_revision_variants += 1
+            else:
+                pending_variants += 1
+            if admin_rows[0].verified:
+                verified_variants += 1
+            if admin_rows[0].correct is True:
+                correct_variants += 1
+            elif admin_rows[0].correct is False:
+                incorrect_variants += 1
+        if reviewed_variants == 0:
+            status = "unreviewed"
+        elif needs_revision_variants > 0:
+            status = "needs_revision"
+        elif done_variants == reviewed_variants:
+            status = "done"
+        else:
+            status = "pending_review"
+        return {
+            "status": status,
+            "reviewed_variants": reviewed_variants,
+            "done_variants": done_variants,
+            "needs_revision_variants": needs_revision_variants,
+            "pending_variants": pending_variants,
+            "verified_variants": verified_variants,
+            "correct_variants": correct_variants,
+            "incorrect_variants": incorrect_variants,
+        }
+
     async def get_task_solvers(self, task_id: str) -> list[TaskSolverRead]:
         sql = text("""
             SELECT DISTINCT
@@ -406,7 +910,10 @@ class TaskStatsService:
                 e.task_id = :task_id
                 AND e.trigger->>'action' = 'submit'
                 AND CAST(e.trigger->'details'->>'correct' AS BOOLEAN) = true
-                AND (CAST(:exclude_user_id AS INTEGER) IS NULL OR u.id <> :exclude_user_id)
+                AND (
+                    CAST(:exclude_user_id AS INTEGER) IS NULL
+                    OR u.id <> :exclude_user_id
+                )
             ORDER BY u.id
         """)
         result = await self.db_session.execute(

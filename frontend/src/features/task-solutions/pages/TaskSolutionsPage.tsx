@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ChevronDown, ClipboardCopy } from 'lucide-react'
 import { useTranslation } from '../../../lib/i18n'
 import { useAuth } from '../../../lib/auth'
-import { useTaskSolvers } from '../../admin-task-search/queries'
+import { useTaskSolvers } from '../../synthetic-reviews/queries'
 import { useTaskById } from '../../arc-lab/queries'
 import { getAttempts, getEvents } from '../../admin-user-detail/api'
 import { eventsToGraphNodes, synthesizeGraphNodes, getNodeLabel, formatDelta } from '../../admin-user-detail/utils'
@@ -479,7 +479,7 @@ export function TaskSolutionsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-4">
         <Link
-          to="/admin/task-search"
+          to="/admin/synthetic-reviews"
           className="text-sm text-gray-400 transition hover:text-white"
         >
           &larr; {t('task_search.back_to_search')}

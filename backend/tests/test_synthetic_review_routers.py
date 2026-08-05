@@ -6,9 +6,16 @@ from httpx import ASGITransport, AsyncClient
 from app.dependencies.auth import CurrentUser, get_current_user
 from app.errors import global_exception_handler
 from app.repositories.batch import BatchRepository
-from app.routers.synthetic_review import get_batch_repo, get_service, router
+from app.routers.synthetic_review import (
+    get_batch_repo,
+    get_review_service,
+    get_service,
+    router,
+)
 from app.schemas.synthetic_review import SyntheticTaskRead
+from app.schemas.user_review import UserReviewRead
 from app.services.synthetic_task import SyntheticTaskService
+from app.services.user_review import UserReviewService
 
 
 def _task() -> SyntheticTaskRead:
@@ -135,3 +142,86 @@ class TestSyntheticTaskResolveEndpoint:
 
         response = await _resolve(application)
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+def _build_admin_app(review_service: AsyncMock) -> FastAPI:
+    async def mock_admin_user() -> CurrentUser:
+        return CurrentUser(user_id=99, role="admin")
+
+    application = FastAPI()
+    application.exception_handler(Exception)(global_exception_handler)
+    application.include_router(router)
+    application.dependency_overrides[get_review_service] = lambda: review_service
+    application.dependency_overrides[get_current_user] = mock_admin_user
+    return application
+
+
+async def _get_review(application: FastAPI, task_id: str = "gen_1"):
+    transport = ASGITransport(app=application)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        return await ac.get(f"/api/v1/synthetic-tasks/{task_id}/review")
+
+
+async def _put_review(
+    application: FastAPI, task_id: str = "gen_1", body: dict | None = None
+):
+    transport = ASGITransport(app=application)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        return await ac.put(
+            f"/api/v1/synthetic-tasks/{task_id}/review",
+            json=body or {"status": "needs_revision", "verified": True},
+        )
+
+
+class TestAdminReviewEndpoints:
+    async def test_get_returns_admin_review(self) -> None:
+        review_service = AsyncMock(spec=UserReviewService)
+        review_service.get_admin_review.return_value = UserReviewRead(
+            user_id=99, synth_task_id="gen_1", status="done", verified=True
+        )
+        response = await _get_review(_build_admin_app(review_service))
+        assert response.status_code == status.HTTP_200_OK
+        body = response.json()
+        assert body == {
+            "synthTaskId": "gen_1",
+            "status": "done",
+            "correct": None,
+            "verified": True,
+            "notes": [],
+        }
+        review_service.get_admin_review.assert_awaited_once_with(99, "gen_1")
+
+    async def test_put_updates_admin_review(self) -> None:
+        review_service = AsyncMock(spec=UserReviewService)
+        review_service.update_admin_review.return_value = UserReviewRead(
+            user_id=99,
+            synth_task_id="gen_1",
+            status="needs_revision",
+            correct=False,
+            verified=True,
+            notes=["incorrecta"],
+        )
+        response = await _put_review(_build_admin_app(review_service))
+        assert response.status_code == status.HTTP_200_OK
+        body = response.json()
+        assert body["status"] == "needs_revision"
+        assert body["correct"] is False
+        assert body["verified"] is True
+        assert body["notes"] == ["incorrecta"]
+        review_service.update_admin_review.assert_awaited_once()
+
+    async def test_denies_non_admin(self) -> None:
+        review_service = AsyncMock(spec=UserReviewService)
+
+        async def mock_solver_user() -> CurrentUser:
+            return CurrentUser(user_id=1, role="solver")
+
+        application = FastAPI()
+        application.exception_handler(Exception)(global_exception_handler)
+        application.include_router(router)
+        application.dependency_overrides[get_review_service] = lambda: review_service
+        application.dependency_overrides[get_current_user] = mock_solver_user
+
+        response = await _get_review(application)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        review_service.get_admin_review.assert_not_awaited()

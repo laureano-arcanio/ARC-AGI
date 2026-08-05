@@ -698,7 +698,9 @@ class TestActivityRouterGetStats:
         assert data["lastEventTimestamp"] == 1704067200000
         assert data["activeUsers"] == 3
         assert data["totalEvents"] == 5
-        activity_mock_service.get_stats.assert_awaited_once_with(event_types=None)
+        activity_mock_service.get_stats.assert_awaited_once_with(
+            event_types=None, hours=24
+        )
 
     async def test_filters_by_event_types(
         self, activity_client: AsyncClient, activity_mock_service: AsyncMock
@@ -708,7 +710,7 @@ class TestActivityRouterGetStats:
         )
         assert response.status_code == 200
         activity_mock_service.get_stats.assert_awaited_with(
-            event_types=["cell_paint", "submit"]
+            event_types=["cell_paint", "submit"], hours=24
         )
 
     async def test_returns_403_for_non_admin(

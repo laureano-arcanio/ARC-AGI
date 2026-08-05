@@ -42,9 +42,6 @@ export function Layout({ children }: LayoutProps) {
                 <Link to="/admin/tasks" className="text-amber-400 transition hover:text-amber-300">
                   {t('nav.admin_tasks')}
                 </Link>
-                <Link to="/admin/task-search" className="text-amber-400 transition hover:text-amber-300">
-                  {t('nav.task_search')}
-                </Link>
                 <Link to="/admin/synthetic-reviews" className="text-amber-400 transition hover:text-amber-300">
                   {t('nav.synthetic_reviews')}
                 </Link>

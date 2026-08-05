@@ -1,40 +1,55 @@
 import { http } from '../../lib/http'
-import type { SolverReviewDetail, SyntheticReview, SyntheticReviewUpdate, SyntheticTask, SyntheticTaskList } from './types'
-
-export type ListFilters = {
-  page?: number
-  perPage?: number
-  modelName?: string
-  witnessPassed?: boolean
-  reviewStatus?: string
-  correct?: boolean
-  verified?: boolean
-  originalTaskId?: string
-  concept?: string
-  onlyMultipleVariants?: boolean
-}
+import type { ReviewGroupList, ReviewGroupsFilters, SolverReviewDetail, SyntheticReview, SyntheticReviewUpdate, SyntheticTask, UserRead } from './types'
 
 export function fetchSyntheticModels(): Promise<string[]> {
   return http.get<string[]>('/v1/synthetic-tasks/models')
 }
 
-export function fetchSyntheticTasks(filters: ListFilters = {}): Promise<SyntheticTaskList> {
-  const params: Record<string, string | undefined> = {}
-  if (filters.page) params.page = String(filters.page)
-  if (filters.perPage) params.perPage = String(filters.perPage)
-  if (filters.modelName) params.modelName = filters.modelName
-  if (filters.witnessPassed !== undefined) params.witnessPassed = String(filters.witnessPassed)
-  if (filters.reviewStatus) params.reviewStatus = filters.reviewStatus
-  if (filters.correct !== undefined) params.correct = String(filters.correct)
-  if (filters.verified !== undefined) params.verified = String(filters.verified)
-  if (filters.originalTaskId) params.originalTaskId = filters.originalTaskId
-  if (filters.concept) params.concept = filters.concept
-  if (filters.onlyMultipleVariants) params.onlyMultipleVariants = String(filters.onlyMultipleVariants)
-  return http.get<SyntheticTaskList>('/v1/synthetic-tasks', { params })
+export function fetchResolveEntry(entryId: string): Promise<SyntheticTask[]> {
+  return http.get<SyntheticTask[]>(`/v1/synthetic-tasks/resolve/${encodeURIComponent(entryId)}`)
 }
 
-export function fetchSyntheticTask(synthTaskId: string): Promise<SyntheticTask> {
-  return http.get<SyntheticTask>(`/v1/synthetic-tasks/${synthTaskId}`)
+export function fetchReviewGroups(filters: ReviewGroupsFilters = {}): Promise<ReviewGroupList> {
+  const params: Record<string, string | undefined> = {
+    page: filters.page ? String(filters.page) : undefined,
+    perPage: filters.perPage ? String(filters.perPage) : undefined,
+    minWidth: filters.minWidth || undefined,
+    maxWidth: filters.maxWidth || undefined,
+    minHeight: filters.minHeight || undefined,
+    maxHeight: filters.maxHeight || undefined,
+    minSolutions: filters.minSolutions || undefined,
+    maxSolutions: filters.maxSolutions || undefined,
+    sameSize: filters.sameSize || undefined,
+    minWidthDelta: filters.minWidthDelta || undefined,
+    maxWidthDelta: filters.maxWidthDelta || undefined,
+    minHeightDelta: filters.minHeightDelta || undefined,
+    maxHeightDelta: filters.maxHeightDelta || undefined,
+    allInputsSame: filters.allInputsSame || undefined,
+    allOutputsSame: filters.allOutputsSame || undefined,
+    solverEmail: filters.solverEmail || undefined,
+    hypothesisText: filters.hypothesisText || undefined,
+    taskId: filters.taskId || undefined,
+    dataset: filters.dataset || undefined,
+    hasTags: filters.hasTags || undefined,
+    modelName: filters.modelName || undefined,
+    concept: filters.concept || undefined,
+    witnessPassed: filters.witnessPassed || undefined,
+    originalTaskId: filters.originalTaskId || undefined,
+    onlyMultipleVariants: filters.onlyMultipleVariants || undefined,
+    userReviewStatus: filters.userReviewStatus || undefined,
+    reviewerUserId: filters.reviewerUserId || undefined,
+    reviewerEmail: filters.reviewerEmail || undefined,
+    minIncorrectMarks: filters.minIncorrectMarks || undefined,
+    adminReviewStatus: filters.adminReviewStatus || undefined,
+    adminCorrect: filters.adminCorrect || undefined,
+    adminVerified: filters.adminVerified || undefined,
+  }
+
+  return http.get<ReviewGroupList>('/v1/tasks/review-groups', { params })
+}
+
+export function fetchUsers(): Promise<UserRead[]> {
+  return http.get<UserRead[]>('/v1/users/')
 }
 
 export function fetchSyntheticReview(synthTaskId: string): Promise<SyntheticReview> {

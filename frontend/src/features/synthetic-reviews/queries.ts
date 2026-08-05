@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { fetchSolverReviewDetails, fetchSyntheticModels, fetchSyntheticReview, fetchSyntheticTask, fetchSyntheticTasks, fetchTaskSolvers, updateSyntheticReview } from './api'
-import type { ListFilters } from './api'
-import type { SyntheticReviewUpdate } from './types'
+import { fetchResolveEntry, fetchReviewGroups, fetchSolverReviewDetails, fetchSyntheticModels, fetchSyntheticReview, fetchTaskSolvers, fetchUsers, updateSyntheticReview } from './api'
+import type { ReviewGroupsFilters, SyntheticReviewUpdate } from './types'
 
 export const syntheticQueryKeys = {
   all: ['synthetic-reviews'] as const,
-  list: (filters: ListFilters) => [...syntheticQueryKeys.all, 'list', filters] as const,
-  task: (id: string) => [...syntheticQueryKeys.all, 'task', id] as const,
+  groups: (filters: ReviewGroupsFilters) => [...syntheticQueryKeys.all, 'groups', filters] as const,
+  resolveEntry: (entryId: string) => [...syntheticQueryKeys.all, 'resolve', entryId] as const,
   review: (id: string) => [...syntheticQueryKeys.all, 'review', id] as const,
   models: () => [...syntheticQueryKeys.all, 'models'] as const,
+  users: () => [...syntheticQueryKeys.all, 'users'] as const,
   solvers: (taskId: string) => [...syntheticQueryKeys.all, 'solvers', taskId] as const,
   solverReviewDetails: (originalTaskId: string) =>
     [...syntheticQueryKeys.all, 'solver-review-details', originalTaskId] as const,
@@ -41,20 +41,28 @@ export function useSyntheticModels() {
   })
 }
 
-export function useSyntheticTasks(filters: ListFilters) {
+export function useUsers() {
   return useQuery({
-    queryKey: syntheticQueryKeys.list(filters),
-    queryFn: () => fetchSyntheticTasks(filters),
+    queryKey: syntheticQueryKeys.users(),
+    queryFn: fetchUsers,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useReviewGroups(filters: ReviewGroupsFilters) {
+  return useQuery({
+    queryKey: syntheticQueryKeys.groups(filters),
+    queryFn: () => fetchReviewGroups(filters),
     placeholderData: (prev) => prev,
     staleTime: 30 * 1000,
   })
 }
 
-export function useSyntheticTask(id: string) {
+export function useResolveEntry(entryId: string) {
   return useQuery({
-    queryKey: syntheticQueryKeys.task(id),
-    queryFn: () => fetchSyntheticTask(id),
-    enabled: !!id,
+    queryKey: syntheticQueryKeys.resolveEntry(entryId),
+    queryFn: () => fetchResolveEntry(entryId),
+    enabled: !!entryId,
     staleTime: 60 * 1000,
   })
 }
@@ -74,7 +82,7 @@ export function useUpdateSyntheticReview(id: string) {
     mutationFn: (data: SyntheticReviewUpdate) => updateSyntheticReview(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: syntheticQueryKeys.review(id) })
-      qc.invalidateQueries({ queryKey: syntheticQueryKeys.list({}) })
+      qc.invalidateQueries({ queryKey: syntheticQueryKeys.all })
     },
   })
 }

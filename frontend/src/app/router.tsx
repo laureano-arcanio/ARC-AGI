@@ -14,7 +14,6 @@ import { MyReviewPage } from '../features/my-reviews/pages/MyReviewPage'
 import { BatchLeaderboardPage } from '../features/batch-leaderboard/pages/BatchLeaderboardPage'
 import { ActivityPage } from '../features/activity/pages/ActivityPage'
 import { TasksPage } from '../features/tasks/pages/TasksPage'
-import { AdminTaskSearchPage } from '../features/admin-task-search/pages/AdminTaskSearchPage'
 import { TaskSolutionsPage } from '../features/task-solutions/pages/TaskSolutionsPage'
 import { SyntheticReviewsListPage } from '../features/synthetic-reviews/pages/SyntheticReviewsListPage'
 import { SyntheticReviewDetailPage } from '../features/synthetic-reviews/pages/SyntheticReviewDetailPage'
@@ -35,10 +34,10 @@ export function AppRouter() {
         <Route path="/admin/leaderboard" element={<BatchLeaderboardPage />} />
         <Route path="/admin/activity" element={<ActivityPage />} />
         <Route path="/admin/tasks" element={<TasksPage />} />
-        <Route path="/admin/task-search" element={<AdminTaskSearchPage />} />
         <Route path="/admin/tasks/:taskId/solutions" element={<TaskSolutionsPage />} />
         <Route path="/admin/synthetic-reviews" element={<SyntheticReviewsListPage />} />
-        <Route path="/admin/synthetic-reviews/:id" element={<SyntheticReviewDetailPage />} />
+        <Route path="/admin/synthetic-reviews/:taskId" element={<SyntheticReviewDetailPage />} />
+        <Route path="/admin/task-search" element={<Navigate to="/admin/synthetic-reviews" replace />} />
         <Route path="/hypothesize/:userId/:taskId" element={<HypothesizePage />} />
         <Route path="/hypothesize/:taskId" element={<HypothesizePage />} />
         <Route path="/solve/:userId/:taskId" element={<ArcLabPage />} />

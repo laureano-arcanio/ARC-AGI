@@ -8,7 +8,13 @@ from app.dependencies.auth import CurrentUser, get_current_user
 from app.errors import global_exception_handler
 from app.repositories.batch import BatchRepository
 from app.routers.task_stats import get_batch_repo, get_service, router
-from app.schemas.task_stats import TaskSolverAnonRead
+from app.schemas.task_stats import (
+    TaskReviewGroupAdmin,
+    TaskReviewGroupListRead,
+    TaskReviewGroupRead,
+    TaskReviewGroupUser,
+    TaskSolverAnonRead,
+)
 from app.services.task_stats import TaskStatsService
 
 
@@ -169,3 +175,88 @@ class TestMyHypothesis:
         ):
             response = await _put_my_hypothesis(app)
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+def _build_admin_app(mock_service: AsyncMock) -> FastAPI:
+    async def mock_admin_user() -> CurrentUser:
+        return CurrentUser(user_id=99, role="admin")
+
+    application = FastAPI()
+    application.exception_handler(Exception)(global_exception_handler)
+    application.include_router(router)
+    application.dependency_overrides[get_service] = lambda: mock_service
+    application.dependency_overrides[get_current_user] = mock_admin_user
+    return application
+
+
+async def _get_review_groups(app: FastAPI):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        return await ac.get("/api/v1/tasks/review-groups")
+
+
+class TestSearchReviewGroupsRouter:
+    def _sample_list(self) -> TaskReviewGroupListRead:
+        return TaskReviewGroupListRead(
+            items=[
+                TaskReviewGroupRead(
+                    original_task_id="00576224",
+                    datasets=["1_train"],
+                    solvers=[],
+                    solution_count=0,
+                    width=5,
+                    height=5,
+                    same_size=True,
+                    width_delta=0,
+                    height_delta=0,
+                    transform_label="same_size",
+                    total_variants=1,
+                    witness_passed_count=1,
+                    witness_failed_count=0,
+                    first_variant_id="gen_a",
+                    user_review=TaskReviewGroupUser(
+                        reviewed_variants=1,
+                        variants_with_incorrect_mark=1,
+                        incorrect_marks=1,
+                        reviewer_emails=["a@x.com"],
+                    ),
+                    admin_review=TaskReviewGroupAdmin(
+                        status="done", reviewed_variants=1
+                    ),
+                )
+            ],
+            total=1,
+            page=1,
+            per_page=100,
+            total_pages=1,
+        )
+
+    async def test_admin_can_search_review_groups(self) -> None:
+        svc = AsyncMock(spec=TaskStatsService)
+        svc.search_review_groups.return_value = self._sample_list()
+        response = await _get_review_groups(_build_admin_app(svc))
+        assert response.status_code == status.HTTP_200_OK
+        body = response.json()
+        assert body["total"] == 1
+        item = body["items"][0]
+        assert item["originalTaskId"] == "00576224"
+        assert item["userReview"]["variantsWithIncorrectMark"] == 1
+        assert item["userReview"]["reviewerEmails"] == ["a@x.com"]
+        assert item["adminReview"]["status"] == "done"
+        svc.search_review_groups.assert_awaited_once()
+        call_kwargs = svc.search_review_groups.call_args.kwargs
+        assert call_kwargs["admin_user_id"] == 99
+
+    async def test_denies_non_admin(self) -> None:
+        svc = AsyncMock(spec=TaskStatsService)
+        async def mock_solver_user() -> CurrentUser:
+            return CurrentUser(user_id=1, role="solver")
+
+        application = FastAPI()
+        application.exception_handler(Exception)(global_exception_handler)
+        application.include_router(router)
+        application.dependency_overrides[get_service] = lambda: svc
+        application.dependency_overrides[get_current_user] = mock_solver_user
+        response = await _get_review_groups(application)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        svc.search_review_groups.assert_not_awaited()

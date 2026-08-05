@@ -38,10 +38,7 @@ def _resolve_original_ids(entry_ids: list[str]) -> dict[str, str]:
     result: dict[str, str] = {}
     for eid in entry_ids:
         t = idx._by_id.get(eid)
-        if t:
-            oid = t.get("original_task_id", eid)
-        else:
-            oid = eid
+        oid = t.get("original_task_id", eid) if t else eid
         result[eid] = oid
     return result
 
@@ -118,6 +115,32 @@ class UserReviewService(
             return UserReviewRead(
                 user_id=user_id, synth_task_id=synth_task_id
             )
+        return self._to_read(instance)
+
+    async def get_admin_review(
+        self, admin_user_id: int, synth_task_id: str
+    ) -> UserReviewRead:
+        """Admin's own review for a synthetic task (no batch access needed)."""
+        try:
+            instance = await self.repository.get_by_user_and_task(
+                admin_user_id, synth_task_id
+            )
+        except ObjectNotFoundError:
+            return UserReviewRead(
+                user_id=admin_user_id, synth_task_id=synth_task_id
+            )
+        return self._to_read(instance)
+
+    async def update_admin_review(
+        self,
+        admin_user_id: int,
+        synth_task_id: str,
+        data: UserReviewUpdate,
+    ) -> UserReviewRead:
+        """Admin acts as a reviewer on any synthetic task (no batch access)."""
+        instance = await self.repository.upsert(
+            admin_user_id, synth_task_id, data.model_dump(exclude_unset=True)
+        )
         return self._to_read(instance)
 
     async def start_review(

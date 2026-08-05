@@ -42,11 +42,17 @@ class MockAsyncSession:
         self.flushed = False
         self.refreshed: list = []
         self._execute_result: MockResult | None = None
+        self._execute_results: list[MockResult] = []
 
     def set_execute_result(self, result: MockResult) -> None:
         self._execute_result = result
 
+    def set_execute_results(self, results: list[MockResult]) -> None:
+        self._execute_results = list(results)
+
     async def execute(self, _query, _params=None):  # type: ignore[no-untyped-def]
+        if self._execute_results:
+            return self._execute_results.pop(0)
         return self._execute_result
 
     def add(self, instance: object) -> None:
