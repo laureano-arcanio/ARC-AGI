@@ -28,7 +28,11 @@ def mock_service() -> AsyncMock:
         user_id=1, synth_task_id="gen_1", status="done"
     )
     svc.update_review.return_value = UserReviewRead(
-        user_id=1, synth_task_id="gen_1", status="done", notes=["ok"]
+        user_id=1,
+        synth_task_id="gen_1",
+        status="done",
+        notes=["ok"],
+        selected_pairs=[{"section": "train", "index": 1}],
     )
     svc.start_review.return_value = UserReviewRead(
         user_id=1, synth_task_id="gen_1", status="pending_review"
@@ -48,6 +52,7 @@ def mock_service() -> AsyncMock:
                     status="done",
                     correct=False,
                     notes=["incorrecta"],
+                    selected_pairs=[{"section": "test", "index": 0}],
                 )
             ],
         )
@@ -97,11 +102,18 @@ class TestUserReviewRouterUpdate:
     ) -> None:
         response = await client.put(
             "/api/v1/user-reviews/gen_1",
-            json={"status": "done", "notes": ["ok"]},
+            json={
+                "status": "done",
+                "notes": ["ok"],
+                "selectedPairs": [{"section": "train", "index": 1}],
+            },
         )
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["notes"] == ["ok"]
+        assert response.json()["selectedPairs"] == [{"section": "train", "index": 1}]
         mock_service.update_review.assert_awaited_once()
+        update_data = mock_service.update_review.await_args.args[2]
+        assert update_data.selected_pairs == [{"section": "train", "index": 1}]
 
 
 class TestUserReviewRouterList:
@@ -183,6 +195,10 @@ class TestUserReviewRouterSolverReviewDetails:
         assert body[0]["revisedHypothesis"] == "hip revisada"
         assert body[0]["variants"][0]["synthTaskId"] == "gen_a1"
         assert body[0]["variants"][0]["correct"] is False
+        assert body[0]["variants"][0]["notes"] == ["incorrecta"]
+        assert body[0]["variants"][0]["selectedPairs"] == [
+            {"section": "test", "index": 0}
+        ]
         mock_service.get_solver_review_details.assert_awaited_once_with(
             "d35bdbdc"
         )

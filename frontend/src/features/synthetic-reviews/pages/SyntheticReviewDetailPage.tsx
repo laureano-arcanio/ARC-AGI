@@ -353,25 +353,48 @@ export function SyntheticReviewDetailPage() {
                       <p className="text-xs font-semibold text-gray-600">Variantes revisadas</p>
                       <div className="mt-1 flex flex-col gap-1">
                         {s.variants.map((v) => (
-                          <div key={v.synthTaskId} className="flex items-center gap-2 rounded bg-gray-900/60 px-2 py-1">
-                            <span
-                              className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                                v.correct === false
-                                  ? 'bg-red-900/40 text-red-400'
-                                  : v.correct === true
-                                    ? 'bg-green-900/40 text-green-400'
-                                    : 'bg-gray-800 text-gray-400'
-                              }`}
-                            >
-                              {v.correct === false ? '✗' : v.correct === true ? '✓' : '—'}
-                            </span>
-                            <span className="font-mono text-[10px] text-gray-400">{v.synthTaskId}</span>
-                            {v.durationSeconds != null && v.durationSeconds > 0 && (
-                              <span className="text-[10px] text-gray-500">
-                                {formatDuration(v.durationSeconds)}
+                          <div key={v.synthTaskId} className="rounded bg-gray-900/60 px-2 py-1">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                                  v.correct === false
+                                    ? 'bg-red-900/40 text-red-400'
+                                    : v.correct === true
+                                      ? 'bg-green-900/40 text-green-400'
+                                      : 'bg-gray-800 text-gray-400'
+                                }`}
+                              >
+                                {v.correct === false ? '✗' : v.correct === true ? '✓' : '—'}
                               </span>
+                              <span className="font-mono text-[10px] text-gray-400">{v.synthTaskId}</span>
+                              {v.durationSeconds != null && v.durationSeconds > 0 && (
+                                <span className="text-[10px] text-gray-500">
+                                  {formatDuration(v.durationSeconds)}
+                                </span>
+                              )}
+                              <span className="ml-auto text-[10px] text-gray-500">{v.status}</span>
+                            </div>
+                            {(v.notes.length > 0 || v.selectedPairs.length > 0) && (
+                              <div className="mt-1 border-t border-gray-800 pt-1">
+                                {v.selectedPairs.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {v.selectedPairs.map((p, pi) => (
+                                      <span
+                                        key={pi}
+                                        className="rounded bg-red-900/40 px-1.5 py-0.5 text-[10px] font-medium text-red-400"
+                                      >
+                                        {p.section === 'train' ? 'Train' : 'Test'} {p.index + 1}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {v.notes.map((note, ni) => (
+                                  <p key={ni} className="mt-1 whitespace-pre-wrap text-[11px] text-gray-300">
+                                    {note}
+                                  </p>
+                                ))}
+                              </div>
                             )}
-                            <span className="ml-auto text-[10px] text-gray-500">{v.status}</span>
                           </div>
                         ))}
                       </div>

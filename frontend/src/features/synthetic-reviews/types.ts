@@ -30,12 +30,18 @@ export type SyntheticReviewUpdate = {
   notes?: string[]
 }
 
+export type SelectedPair = {
+  section: 'train' | 'test'
+  index: number
+}
+
 export type SolverReviewVariant = {
   synthTaskId: string
   status: string
   correct: boolean | null
   verified: boolean
   notes: string[]
+  selectedPairs: SelectedPair[]
   startedAt: string | null
   finishedAt: string | null
   durationSeconds: number | null

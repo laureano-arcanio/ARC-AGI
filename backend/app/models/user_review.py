@@ -28,6 +28,9 @@ class UserReview(AbstractBase):
     correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    selected_pairs: Mapped[list[Any]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

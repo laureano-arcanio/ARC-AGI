@@ -89,6 +89,7 @@ class TestUserReviewServiceGetReview:
             correct=True,
             verified=True,
             notes=["ok"],
+            selected_pairs=[{"section": "train", "index": 2}],
         )
         batch_repo = AsyncMock(spec=BatchRepository)
         batch_repo.get_user_review_task_ids.return_value = ["gen_1"]
@@ -98,6 +99,7 @@ class TestUserReviewServiceGetReview:
         assert result.correct is True
         assert result.verified is True
         assert result.notes == ["ok"]
+        assert result.selected_pairs == [{"section": "train", "index": 2}]
 
     async def test_denies_when_no_review_access(self) -> None:
         review_repo = AsyncMock(spec=UserReviewRepository)
@@ -168,15 +170,25 @@ class TestUserReviewServiceUpdateReview:
             synth_task_id="gen_1",
             status="done",
             notes=["n"],
+            selected_pairs=[{"section": "test", "index": 0}],
         )
         batch_repo = AsyncMock(spec=BatchRepository)
         batch_repo.get_user_review_task_ids.return_value = ["gen_1"]
         service = _make_service(review_repo, batch_repo)
         result = await service.update_review(
-            1, "gen_1", UserReviewUpdate(status="done", notes=["n"])
+            1,
+            "gen_1",
+            UserReviewUpdate(
+                status="done",
+                notes=["n"],
+                selected_pairs=[{"section": "test", "index": 0}],
+            ),
         )
         assert result.status == "done"
+        assert result.selected_pairs == [{"section": "test", "index": 0}]
         review_repo.upsert.assert_awaited_once()
+        upsert_data = review_repo.upsert.await_args.args[2]
+        assert upsert_data["selected_pairs"] == [{"section": "test", "index": 0}]
 
     async def test_denies_when_no_review_access(self) -> None:
         review_repo = AsyncMock(spec=UserReviewRepository)
@@ -323,6 +335,7 @@ class TestUserReviewServiceGetSolverReviewDetails:
                 status="done",
                 correct=False,
                 notes=["incorrecta"],
+                selected_pairs=[{"section": "train", "index": 1}],
             ),
             UserReview(
                 id=2,
@@ -353,6 +366,9 @@ class TestUserReviewServiceGetSolverReviewDetails:
         ]
         assert result[0].variants[0].correct is False
         assert result[0].variants[0].notes == ["incorrecta"]
+        assert result[0].variants[0].selected_pairs == [
+            {"section": "train", "index": 1}
+        ]
         review_repo.get_reviews_by_tasks.assert_awaited_once_with(
             ["gen_a1", "gen_a2"]
         )

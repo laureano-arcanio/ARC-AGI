@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from app.types.base import BaseAPISchema
 
@@ -10,6 +11,7 @@ class UserReviewRead(BaseAPISchema):
     correct: bool | None = None
     verified: bool = False
     notes: list[str] = []
+    selected_pairs: list[Any] = []
     started_at: datetime | None = None
     finished_at: datetime | None = None
     duration_seconds: int | None = None
@@ -20,6 +22,7 @@ class UserReviewUpdate(BaseAPISchema):
     correct: bool | None = None
     verified: bool | None = None
     notes: list[str] | None = None
+    selected_pairs: list[Any] | None = None
 
 
 class ReviewEntryProgress(BaseAPISchema):
@@ -39,6 +42,7 @@ class SolverReviewVariant(BaseAPISchema):
     correct: bool | None = None
     verified: bool = False
     notes: list[str] = []
+    selected_pairs: list[Any] = []
     started_at: datetime | None = None
     finished_at: datetime | None = None
     duration_seconds: int | None = None

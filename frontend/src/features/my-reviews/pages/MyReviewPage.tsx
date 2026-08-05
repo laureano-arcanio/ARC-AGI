@@ -431,10 +431,27 @@ export function MyReviewPage() {
     if (ids.length === 0) return
     const notes = feedback.trim() ? [feedback.trim()] : []
     bulkUpdate.mutate(
-      ids.map((id) => ({
-        id,
-        data: { status: 'needs_revision', verified: true, correct: false, notes },
-      })),
+      ids.map((id) => {
+        const pairs = [...selectedPairKeys]
+          .filter((k) => k.startsWith(`${id}:`))
+          .map((k) => {
+            const [, section, index] = k.split(':')
+            return { section, index: Number(index) } as {
+              section: 'train' | 'test'
+              index: number
+            }
+          })
+        return {
+          id,
+          data: {
+            status: 'needs_revision',
+            verified: true,
+            correct: false,
+            notes,
+            selectedPairs: pairs,
+          },
+        }
+      }),
       {
         onSuccess: () => {
           setSelectedPairKeys(new Set())

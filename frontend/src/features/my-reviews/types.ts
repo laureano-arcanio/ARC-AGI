@@ -7,6 +7,11 @@ export type ReviewBatch = {
   updatedAt: string | null
 }
 
+export type SelectedPair = {
+  section: 'train' | 'test'
+  index: number
+}
+
 export type UserReview = {
   userId: number
   synthTaskId: string
@@ -14,6 +19,7 @@ export type UserReview = {
   correct: boolean | null
   verified: boolean
   notes: string[]
+  selectedPairs: SelectedPair[]
   startedAt: string | null
   finishedAt: string | null
   durationSeconds: number | null
@@ -24,6 +30,7 @@ export type UserReviewUpdate = {
   correct?: boolean | null
   verified?: boolean
   notes?: string[]
+  selectedPairs?: SelectedPair[]
 }
 
 export type AnonymousSolver = {

@@ -143,10 +143,18 @@ class TestUserReviewRepository:
     ) -> None:
         repo = UserReviewRepository(db_session=db_session)
         db_session.set_execute_result(MockResult(scalar_one_or_none_result=None))
-        instance = await repo.upsert(1, "gen_1", {"status": "done"})
+        instance = await repo.upsert(
+            1,
+            "gen_1",
+            {
+                "status": "done",
+                "selected_pairs": [{"section": "train", "index": 2}],
+            },
+        )
         assert instance.user_id == 1
         assert instance.synth_task_id == "gen_1"
         assert instance.status == "done"
+        assert instance.selected_pairs == [{"section": "train", "index": 2}]
         assert len(db_session.added) == 1
 
     async def test_upsert_updates_existing(
